@@ -599,3 +599,27 @@ html body section.workspace > .left > .card:not(.essa-collapsed) > .essaModuleBo
     width: 60px !important; height: 60px !important; min-width: 60px !important;
   }
 }
+
+/* ---------- Fix: input del modal firmante encajado en su contenedor ---------- */
+#firmanteModalOverlay .firmanteEditCard .nameInputShell{
+  overflow:hidden!important;
+  padding:0!important;
+}
+#firmanteModalOverlay .firmanteEditCard .nameInputShell input{
+  display:block!important;
+  border:0!important;
+  box-shadow:none!important;
+  outline:0!important;
+  background:transparent!important;
+  border-radius:0!important;
+  margin:0!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:56px!important;
+  max-height:56px!important;
+  padding:0 16px 0 0!important;
+  transform:none!important;
+  position:static!important;
+  box-sizing:border-box!important;
+}
