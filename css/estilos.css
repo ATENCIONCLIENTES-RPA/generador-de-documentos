@@ -623,3 +623,52 @@ html body section.workspace > .left > .card:not(.essa-collapsed) > .essaModuleBo
   position:static!important;
   box-sizing:border-box!important;
 }
+
+/* ============================================================
+   Selects nativos (Proceso / Categoria) - diseno elegante y uniforme
+   ============================================================ */
+html body #plantillas #tipoProceso,
+html body #plantillas #categoriaFiltro{
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  height:50px!important;
+  min-height:50px!important;
+  padding:0 44px 0 18px!important;
+  border:1px solid #d5e2ef!important;
+  border-radius:14px!important;
+  background-color:#fff!important;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9' fill='none'%3E%3Cpath d='M1.5 1.5L7 7l5.5-5.5' stroke='%234a7fa5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
+  background-repeat:no-repeat!important;
+  background-position:right 16px center!important;
+  background-size:14px 9px!important;
+  color:#17233d!important;
+  font-size:14px!important;
+  font-weight:750!important;
+  letter-spacing:.01em!important;
+  line-height:50px!important;
+  box-shadow:0 4px 12px rgba(20,61,116,.05)!important;
+  cursor:pointer!important;
+  transition:border-color .18s,box-shadow .18s,background-color .18s!important;
+}
+html body #plantillas #tipoProceso:hover,
+html body #plantillas #categoriaFiltro:hover{
+  border-color:#9dbede!important;
+  background-color:#fbfdff!important;
+  box-shadow:0 8px 20px rgba(20,61,116,.09)!important;
+}
+html body #plantillas #tipoProceso:focus,
+html body #plantillas #categoriaFiltro:focus{
+  border-color:#4a7fa5!important;
+  box-shadow:0 0 0 4px rgba(74,127,165,.13)!important;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9' fill='none'%3E%3Cpath d='M1.5 7.5L7 2l5.5 5.5' stroke='%233b6a8c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
+}
+/* Buscador con la misma altura y radio para alineacion uniforme */
+html body #plantillas #buscarPlantilla{
+  height:50px!important;
+  min-height:50px!important;
+  border-radius:14px!important;
+}
+/* Etiquetas de los filtros alineadas con el mismo espaciado */
+html body #plantillas .filterLabelCopilot{
+  margin-bottom:8px!important;
+}
