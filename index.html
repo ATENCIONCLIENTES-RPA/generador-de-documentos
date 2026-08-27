@@ -4628,26 +4628,49 @@ const GenerateView = ({ template, records, profile, history, onAddHistory }) => 
   const successCount = docResults.filter((d) => d.status === 'success').length;
   const errorCount = docResults.filter((d) => d.status === 'error').length;
 
+  const findElements = (el, localName) => {
+    const results = [];
+    const walk = (node) => {
+      if (node.nodeType === 1 && node.localName === localName) results.push(node);
+      if (node.childNodes) { for (let i = 0; i < node.childNodes.length; i++) walk(node.childNodes[i]); }
+    };
+    walk(el);
+    return results;
+  };
+
   const replaceVarsInDocxXml = (docXml, record) => {
-    let result = docXml;
-    result = result.replace(/<w:p[\s>][\s\S]*?<\/w:p>/g, (paragraph) => {
-      const texts = [];
-      const regex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
-      let m;
-      while ((m = regex.exec(paragraph)) !== null) texts.push(m[1]);
-      const combined = texts.join('');
-      const varNames = [...new Set((combined.match(/\[[\w_]+\]/g) || []))];
-      if (varNames.length === 0) return paragraph;
-      let replaced = combined;
+    const doc = new DOMParser().parseFromString(docXml, 'application/xml');
+    const findEls = (el, ln) => {
+      const r = []; const w = (n) => { if (n.nodeType===1 && n.localName===ln) r.push(n); if(n.childNodes) for(let i=0;i<n.childNodes.length;i++) w(n.childNodes[i]); }; w(el); return r;
+    };
+    const ps = findEls(doc, 'p');
+    let modified = docXml;
+    for (let p = 0; p < ps.length; p++) {
+      const runs = findEls(ps[p], 'r');
+      let pText = '';
+      for (let r = 0; r < runs.length; r++) {
+        const ts = findEls(runs[r], 't');
+        for (let t = 0; t < ts.length; t++) pText += ts[t].textContent || '';
+      }
+      const varNames = [...new Set((pText.match(/\[[\w_]+\]/g) || []))];
+      if (varNames.length === 0) continue;
+      let replaced = pText;
       varNames.forEach((v) => { replaced = replaced.split(v).join(replaceTemplateVariables(v, record, profile)); });
-      if (replaced === combined) return paragraph;
-      let firstReplaced = false;
-      return paragraph.replace(/<w:t([^>]*)>([\s\S]*?)<\/w:t>/g, (match, attrs, content) => {
-        if (!firstReplaced) { firstReplaced = true; return '<w:t' + attrs + '>' + replaced + '</w:t>'; }
-        return '<w:t' + attrs + '></w:t>';
-      });
-    });
-    return result;
+      if (replaced === pText) continue;
+      const tsFirst = findEls(runs[0], 't');
+      if (tsFirst.length > 0) {
+        const origFirstText = tsFirst[0].textContent || '';
+        modified = modified.replace(origFirstText, replaced);
+      }
+      for (let r = 1; r < runs.length; r++) {
+        const ts = findEls(runs[r], 't');
+        for (let t = 0; t < ts.length; t++) {
+          const orig = ts[t].textContent || '';
+          if (orig) modified = modified.replace(orig, '');
+        }
+      }
+    }
+    return modified;
   };
 
   const generateDocxForRecord = async (record) => {
@@ -4670,7 +4693,7 @@ const GenerateView = ({ template, records, profile, history, onAddHistory }) => 
           const b64 = sigMatch[2];
           const binary = atob(b64);
           const bytes = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
           zip.file('word/media/signature.' + ext, bytes);
           const relsFile = zip.file('word/_rels/document.xml.rels');
           let relsXml = relsFile ? await relsFile.async('text') : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
@@ -4682,8 +4705,8 @@ const GenerateView = ({ template, records, profile, history, onAddHistory }) => 
           const newRel = '<Relationship Id="rId' + newId + '" Type="' + relType + '" Target="media/signature.' + ext + '"/>';
           relsXml = relsXml.replace('</Relationships>', newRel + '</Relationships>');
           zip.file('word/_rels/document.xml.rels', relsXml);
-          const drawingXml = '<w:drawing xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="2500000" cy="750000"/><wp:docPr id="1" name="Firma"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="signature"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId' + newId + '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="2500000" cy="750000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
-          docXml = docXml.replace(/<w:t[^>]*>\[Firma Digital ESSA\]<\/w:t>/, '<w:t></w:t>' + drawingXml);
+          const drawingXml = '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="2500000" cy="750000"/><wp:docPr id="1" name="Firma"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="signature"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId' + newId + '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="2500000" cy="750000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
+          docXml = docXml.replace('[Firma Digital ESSA]', '</w:t>' + drawingXml + '<w:r><w:t></w:t></w:r>');
         }
       }
       zip.file('word/document.xml', docXml);
