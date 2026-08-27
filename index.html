@@ -4629,42 +4629,25 @@ const GenerateView = ({ template, records, profile, history, onAddHistory }) => 
   const errorCount = docResults.filter((d) => d.status === 'error').length;
 
   const replaceVarsInDocxXml = (docXml, record) => {
-    const doc = new DOMParser().parseFromString(docXml, 'application/xml');
-    const paragraphs = doc.getElementsByTagName('w:p');
-
-    for (let p = 0; p < paragraphs.length; p++) {
-      const runs = paragraphs[p].getElementsByTagName('w:r');
-      let pText = '';
-      const runTexts = [];
-      for (let r = 0; r < runs.length; r++) {
-        const tNodes = runs[r].getElementsByTagName('w:t');
-        let runText = '';
-        for (let t = 0; t < tNodes.length; t++) {
-          runText += tNodes[t].textContent || '';
-        }
-        runTexts.push({ run: runs[r], text: runText, tNodes });
-        pText += runText;
-      }
-      const varNames = [...new Set((pText.match(/\[[\w_]+\]/g) || []))];
-      if (varNames.length === 0) continue;
-      let replaced = pText;
-      varNames.forEach((v) => {
-        const val = replaceTemplateVariables(v, record, profile);
-        replaced = replaced.split(v).join(val);
+    let result = docXml;
+    result = result.replace(/<w:p[\s>][\s\S]*?<\/w:p>/g, (paragraph) => {
+      const texts = [];
+      const regex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+      let m;
+      while ((m = regex.exec(paragraph)) !== null) texts.push(m[1]);
+      const combined = texts.join('');
+      const varNames = [...new Set((combined.match(/\[[\w_]+\]/g) || []))];
+      if (varNames.length === 0) return paragraph;
+      let replaced = combined;
+      varNames.forEach((v) => { replaced = replaced.split(v).join(replaceTemplateVariables(v, record, profile)); });
+      if (replaced === combined) return paragraph;
+      let firstReplaced = false;
+      return paragraph.replace(/<w:t([^>]*)>([\s\S]*?)<\/w:t>/g, (match, attrs, content) => {
+        if (!firstReplaced) { firstReplaced = true; return '<w:t' + attrs + '>' + replaced + '</w:t>'; }
+        return '<w:t' + attrs + '></w:t>';
       });
-      if (replaced !== pText) {
-        const firstT = runTexts.length > 0 ? runTexts[0].tNodes[0] : null;
-        if (firstT) {
-          for (let i = 1; i < runTexts.length; i++) {
-            for (let t = 0; t < runTexts[i].tNodes.length; t++) {
-              runTexts[i].tNodes[t].textContent = '';
-            }
-          }
-          firstT.textContent = replaced;
-        }
-      }
-    }
-    return new XMLSerializer().serializeToString(doc);
+    });
+    return result;
   };
 
   const generateDocxForRecord = async (record) => {
@@ -4680,6 +4663,29 @@ const GenerateView = ({ template, records, profile, history, onAddHistory }) => 
       }
       let docXml = await docXmlFile.async('text');
       docXml = replaceVarsInDocxXml(docXml, record);
+      if (docXml.includes('[Firma Digital ESSA]') && profile?.signatureUrl && profile.signatureUrl.startsWith('data:image')) {
+        const sigMatch = profile.signatureUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+        if (sigMatch) {
+          const ext = sigMatch[1] === 'jpeg' ? 'jpg' : sigMatch[1];
+          const b64 = sigMatch[2];
+          const binary = atob(b64);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          zip.file('word/media/signature.' + ext, bytes);
+          const relsFile = zip.file('word/_rels/document.xml.rels');
+          let relsXml = relsFile ? await relsFile.async('text') : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+          const idMatches = relsXml.match(/Id="rId(\d+)"/g) || [];
+          let maxId = 0;
+          idMatches.forEach((m) => { const n = parseInt(m.match(/\d+/)[0]); if (n > maxId) maxId = n; });
+          const newId = maxId + 1;
+          const relType = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image';
+          const newRel = '<Relationship Id="rId' + newId + '" Type="' + relType + '" Target="media/signature.' + ext + '"/>';
+          relsXml = relsXml.replace('</Relationships>', newRel + '</Relationships>');
+          zip.file('word/_rels/document.xml.rels', relsXml);
+          const drawingXml = '<w:drawing xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="2500000" cy="750000"/><wp:docPr id="1" name="Firma"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="signature"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId' + newId + '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="2500000" cy="750000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
+          docXml = docXml.replace(/<w:t[^>]*>\[Firma Digital ESSA\]<\/w:t>/, '<w:t></w:t>' + drawingXml);
+        }
+      }
       zip.file('word/document.xml', docXml);
       const outBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
       const fileName = `${(template.title || 'documento').replace(/[^a-zA-Z0-9]/g, '_')}_${record.numeroCuenta || record.id}.docx`;
