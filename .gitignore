@@ -1,7 +1,8 @@
-# Datos sensibles
-DATOS/SAC_TRAMITE_GENERAL.xlsx
-Firma_Lenín_Moreno_Garcés.png
-
-# Sistema
-Thumbs.db
-Desktop.ini
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
