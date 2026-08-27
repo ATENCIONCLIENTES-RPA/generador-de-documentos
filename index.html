@@ -876,6 +876,194 @@ input[type="checkbox"] {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Module 5 - Document Viewer */
+.doc-viewer-container {
+  background: #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 220px);
+  min-height: 500px;
+}
+.doc-viewer-toolbar {
+  background: #1e293b;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.doc-viewer-toolbar .toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.doc-viewer-toolbar button {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  font-size: 12px;
+}
+.doc-viewer-toolbar button:hover:not(:disabled) {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+.doc-viewer-toolbar button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.doc-viewer-toolbar button.active {
+  background: #3b82f6;
+  color: #fff;
+}
+.doc-viewer-toolbar .toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: rgba(255,255,255,0.15);
+  margin: 0 4px;
+}
+.doc-viewer-toolbar .page-info {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 80px;
+  text-align: center;
+}
+.doc-viewer-toolbar .zoom-display {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 45px;
+  text-align: center;
+}
+.doc-viewer-canvas {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+.doc-viewer-canvas .document-page {
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  border-radius: 2px;
+  transform-origin: top center;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.doc-viewer-canvas .docx-render-zone {
+  padding: 48px 64px;
+  min-height: 600px;
+}
+.doc-viewer-sidebar {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+.doc-viewer-sidebar .sidebar-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+.doc-viewer-sidebar .sidebar-body {
+  padding: 16px 20px;
+}
+
+/* Module 6 - Generation */
+.gen-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.gen-stat-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  text-align: center;
+  transition: box-shadow 0.2s ease;
+}
+.gen-stat-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.gen-stat-card .stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+}
+.gen-stat-card .stat-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.gen-stat-card .stat-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+}
+.gen-doc-list {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+.gen-doc-list .list-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.gen-doc-list .list-row {
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s ease;
+}
+.gen-doc-list .list-row:last-child {
+  border-bottom: none;
+}
+.gen-doc-list .list-row:hover {
+  background: #f8fafc;
+}
+.gen-progress-track {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.gen-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+  background: linear-gradient(90deg, #3b82f6, #004b93);
+}
+.gen-progress-fill.complete {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+@keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fade-in 0.3s ease; }
+
 /* Template card hover animations */
 .template-card-enter { animation: templateCardEnter 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 @keyframes templateCardEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -967,6 +1155,7 @@ nav button:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; bord
     <script src="libs/xlsx.full.min.js"></script>
     <script src="libs/jszip.min.js"></script>
     <script src="libs/FileSaver.min.js"></script>
+    <script src="libs/alasql.min.js"></script>
     <script src="libs/docx-preview.min.js"></script>
     <script type="text/babel">
 // ============================================
@@ -1497,6 +1686,30 @@ const replaceTemplateVariables = (content, record, profile) => {
     .replace(/\[CORREO_SOLICITANTE\]/g, record?.correoSolicitante || '—')
     .replace(/\[DIRECCION_SOLICITANTE\]/g, record?.direccionSolicitante || '—')
     .replace(/\[CEDULA_SOLICITANTE\]/g, record?.cedulaSolicitante || '—')
+    .replace(/\[TELEFONO_SOLICITANTE\]/g, record?.telefonoSolicitante || '—')
+    .replace(/\[CELULAR_SOLICITANTE\]/g, record?.celularSolicitante || '—')
+    .replace(/\[MUNICIPIO_SOLICITANTE\]/g, record?.municipioSolicitante || '—')
+    .replace(/\[DEPTO_SOLICITANTE\]/g, record?.departamentoSolicitante || '—')
+    .replace(/\[BARRIO_SOLICITANTE\]/g, record?.barrioSolicitante || '—')
+    .replace(/\[MEDIO_SOLICITUD\]/g, record?.medioSolicitud || '—')
+    .replace(/\[NOMBRE_SUSCRIPTOR\]/g, record?.nombreSuscriptor || '—')
+    .replace(/\[CEDULA_SUSCRIPTOR\]/g, record?.cedulaSuscriptor || '—')
+    .replace(/\[TELEFONO_SUSCRIPTOR\]/g, record?.telefonoSuscriptor || '—')
+    .replace(/\[DIRECCION_SUSCRIPTOR\]/g, record?.direccionSuscriptor || '—')
+    .replace(/\[MUNICIPIO_SUSCRIPTOR\]/g, record?.municipioSuscriptor || '—')
+    .replace(/\[OBSERVACION_PROCESO\]/g, record?.observacionProceso || '—')
+    .replace(/\[OBSERVACION_DECISION\]/g, record?.observacionDecision || '—')
+    .replace(/\[CIRCUITO\]/g, record?.circuito || '—')
+    .replace(/\[NOMBRE_CIRCUITO\]/g, record?.nombreCircuito || '—')
+    .replace(/\[ID_TRAFO\]/g, record?.idTrafo || '—')
+    .replace(/\[NUMERO_MEDIDOR\]/g, record?.numeroMedidor || '—')
+    .replace(/\[MARCA_MEDIDOR\]/g, record?.marcaMedidor || '—')
+    .replace(/\[TIPO_MEDIDOR\]/g, record?.tipoMedidor || '—')
+    .replace(/\[DIAS_REGISTRO\]/g, record?.diasRegistro || '—')
+    .replace(/\[NUMERO_REVISION\]/g, record?.numeroRevision || '—')
+    .replace(/\[ESTADO_REVISION\]/g, record?.estadoRevision || '—')
+    .replace(/\[TIPO_REVISION\]/g, record?.tipoRevision || '—')
+    .replace(/\[DESCRIPCION_MOTIVO\]/g, record?.descripcionMotivo || '—')
     .replace(/\[NOMBRE_FIRMANTE\]/g, profile?.name || 'Funcionario ESSA')
     .replace(/\[CARGO_FIRMANTE\]/g, profile?.position || 'Gestor ESSA')
     .replace(/\[CORREO_FIRMANTE\]/g, profile?.email || 'notificaciones@essa.com.co')
@@ -1564,7 +1777,14 @@ const extractTemplateVariables = (content) => {
     RADICADO_ENTRADA: 'Excel', NUMERO_PROCESO: 'Excel',
     FECHA_SOLICITUD: 'Excel', NUMERO_CUENTA: 'Excel',
     CORREO_SOLICITANTE: 'Excel', DIRECCION_SOLICITANTE: 'Excel',
-    CEDULA_SOLICITANTE: 'Excel', NOMBRE_FIRMANTE: 'Perfil',
+    CEDULA_SOLICITANTE: 'Excel', TELEFONO_SOLICITANTE: 'Excel',
+    CELULAR_SOLICITANTE: 'Excel', MUNICIPIO_SOLICITANTE: 'Excel',
+    DEPTO_SOLICITANTE: 'Excel', BARRIO_SOLICITANTE: 'Excel',
+    MEDIO_SOLICITUD: 'Excel', NOMBRE_SUSCRIPTOR: 'Excel',
+    CEDULA_SUSCRIPTOR: 'Excel', OBSERVACION_PROCESO: 'Excel',
+    CIRCUITO: 'Excel', NOMBRE_CIRCUITO: 'Excel', ID_TRAFO: 'Excel',
+    NUMERO_MEDIDOR: 'Excel', DIAS_REGISTRO: 'Excel',
+    NOMBRE_FIRMANTE: 'Perfil',
     CARGO_FIRMANTE: 'Perfil', CORREO_FIRMANTE: 'Perfil',
     FIRMA_DOCUMENTO: 'Firma',
   };
@@ -1662,49 +1882,130 @@ const parseExcelFile = (dataBinary) => {
   const ws = wb.Sheets[wsname];
   const rawRows = XLSX.utils.sheet_to_json(ws);
 
-  if (!rawRows || rawRows.length === 0) return { records: [], rawCount: 0 };
+  if (!rawRows || rawRows.length === 0) return { records: [], rawCount: 0, db: null };
 
   const validRows = rawRows.filter((item) => {
     if (!item || typeof item !== 'object') return false;
+    const cuenta = item['NUMERO_CUENTA'];
+    if (cuenta == null || String(cuenta).trim() === '' || Number(cuenta) === 0) return false;
     const values = Object.values(item).filter((v) => v !== undefined && v !== null && String(v).trim() !== '');
     return values.length > 0;
   });
 
   const parsedRecords = validRows.map((item, index) => {
-    const rawId = getExcelCellValue(item, ['ID', 'id', 'Id', 'NRO', 'NUMERO', 'CONSECUTIVO', 'ITEM']);
+    const rawId = item['NUMERO_CUENTA'];
     const recordId = !isNaN(Number(rawId)) && Number(rawId) > 0 ? Number(rawId) : index + 1;
-    const fechaSolRaw = getExcelCellValue(item, ['FECHA_SOLICITUD', 'FECHA SOLICITUD', 'FECHA_RADICACION', 'FECHA RADICACION', 'FECHA', 'FECHA_DE_SOLICITUD', 'FECHA_INGRESO', 'FECHA SOLICITUD PQR']);
-    const fechaVencRaw = getExcelCellValue(item, ['FECHA_VENCIMIENTO', 'FECHA VENCIMIENTO', 'VENCIMIENTO', 'FECHA_LIMITE', 'FECHA LIMITE', 'FECHA_MAXIMA', 'FECHA VENCIMIENTO PQR']);
-    const numeroProcRaw = getExcelCellValue(item, ['NUMERO_PROCESO', 'NUMERO PROCESO', 'NO_PROCESO', 'NO. PROCESO', 'PROCESO', 'EXPEDIENTE', 'NUMERO_EXPEDIENTE', 'CODIGO_PROCESO', 'TRAMITE']);
-    const radicadoRaw = getExcelCellValue(item, ['RADICADO_ENTRADA', 'RADICADO ENTRADA', 'RADICADO', 'NO_RADICADO', 'NO. RADICADO', 'NUMERO_RADICADO', 'NUMERO RADICADO', 'RADICADO_PQR', 'RADICACION']);
-    const nombreSolRaw = getExcelCellValue(item, ['NOMBRE_SOLICITANTE', 'NOMBRE SOLICITANTE', 'SOLICITANTE', 'NOMBRE', 'CLIENTE', 'NOMBRE_CLIENTE', 'NOMBRE CLIENTE', 'TITULAR', 'USUARIO', 'NOMBRE_USUARIO']);
-    const cedulaSolRaw = getExcelCellValue(item, ['CEDULA_SOLICITANTE', 'CEDULA SOLICITANTE', 'CEDULA', 'IDENTIFICACION', 'DOCUMENTO', 'NIT', 'CC', 'NUMERO_DOCUMENTO', 'DOC_SOLICITANTE']);
-    const direccionSolRaw = getExcelCellValue(item, ['DIRECCION_SOLICITANTE', 'DIRECCION SOLICITANTE', 'DIRECCION', 'DIRECCION_PREDIO', 'DIRECCION PREDIO', 'PREDIO', 'UBICACION', 'DIR_SOLICITANTE']);
-    const deptoSolRaw = getExcelCellValue(item, ['DEPTO_SOLICITANTE', 'DEPTO SOLICITANTE', 'DEPARTAMENTO_SOLICITANTE', 'DEPARTAMENTO', 'DEPTO', 'DEPARTAMENTO SOLICITANTE']);
-    const municipioSolRaw = getExcelCellValue(item, ['MUNICIPIO_SOLICITANTE', 'MUNICIPIO SOLICITANTE', 'MUNICIPIO', 'CIUDAD', 'CIUDAD_SOLICITANTE', 'MUNICIPIO SOLICITANTE']);
-    const correoSolRaw = getExcelCellValue(item, ['CORREO_SOLICITANTE', 'CORREO SOLICITANTE', 'CORREO', 'EMAIL', 'CORREO_ELECTRONICO', 'E-MAIL', 'EMAIL_SOLICITANTE']);
-    const cuentaRaw = getExcelCellValue(item, ['NUMERO_CUENTA', 'NUMERO CUENTA', 'CUENTA', 'CUENTA_CONTRATO', 'CUENTA CONTRATO', 'CONTRATO', 'NIU', 'CUENTA_ESSA', 'NUMERO DE CUENTA']);
 
     return {
       ...item,
       id: recordId,
       status: 'Pendiente',
       selected: false,
-      fechaSolicitud: formatExcelDate(fechaSolRaw),
-      fechaVencimiento: formatExcelDate(fechaVencRaw),
-      numeroProceso: String(numeroProcRaw || ''),
-      radicadoEntrada: String(radicadoRaw || ''),
-      nombreSolicitante: String(nombreSolRaw || ''),
-      cedulaSolicitante: String(cedulaSolRaw || ''),
-      direccionSolicitante: String(direccionSolRaw || ''),
-      departamentoSolicitante: String(deptoSolRaw || ''),
-      municipioSolicitante: String(municipioSolRaw || ''),
-      correoSolicitante: String(correoSolRaw || ''),
-      numeroCuenta: String(cuentaRaw || ''),
+      fechaSolicitud: formatExcelDate(item['FECHA_SOLICITUD']),
+      fechaVencimiento: formatExcelDate(item['FECHA_VENCIMIENTO']),
+      numeroProceso: String(item['NUMERO_PROCESO'] || ''),
+      radicadoEntrada: String(item['RADICADO_ENTRADA'] || ''),
+      nombreSolicitante: String(item['NOMBRE_SOLICITANTE'] || ''),
+      cedulaSolicitante: String(item['CEDULA_SOLICITANTE'] || ''),
+      telefonoSolicitante: String(item['TELEFONO_SOLICITANTE'] || ''),
+      celularSolicitante: String(item['CELULAR_SOLICITANTE'] || ''),
+      direccionSolicitante: String(item['DIRECCION_SOLICITANTE'] || ''),
+      departamentoSolicitante: String(item['DEPTO_SOLICITANTE'] || ''),
+      municipioSolicitante: String(item['MUNICIPIO_SOLICITANTE'] || ''),
+      barrioSolicitante: String(item['BARRIO_SOLICITANTE'] || ''),
+      correoSolicitante: String(item['CORREO_SOLICITANTE'] || ''),
+      numeroCuenta: item['NUMERO_CUENTA'] != null ? String(item['NUMERO_CUENTA']) : '',
+      medioSolicitud: String(item['MEDIO_SOLICITUD'] || ''),
+      tipoProceso: String(item['TIPO_PROCESO'] || ''),
+      descripcionTipoProceso: String(item['DESCRIPCION_TIPO_PROCESO'] || ''),
+      tipoTramite: String(item['TIPO_TRAMITE'] || ''),
+      estadoProceso: String(item['ESTADO_PROCESO'] || ''),
+      subestado: String(item['SUBESTADO'] || ''),
+      usuarioInicial: String(item['USUARIO_INICIAL_PROCESO'] || ''),
+      nombreUsuarioInicial: String(item['NOMBRE_USUARIO_INICIAL_PROCESO'] || ''),
+      usuarioFinal: String(item['USUARIO_FINAL_PROCESO'] || ''),
+      nombreUsuarioFinal: String(item['NOMBRE_USUARIO_FINAL_PROCESO'] || ''),
+      observacionProceso: String(item['OBSERVACION_PROCESO'] || ''),
+      nombreSuscriptor: String(item['NOMBRE_SUSCRIPTOR'] || ''),
+      cedulaSuscriptor: String(item['CEDULA_SUSCRIPTOR'] || ''),
+      telefonoSuscriptor: String(item['TELEFONO_SUSCRIPTOR'] || ''),
+      celularSuscriptor: String(item['CELULAR_SUSCRIPTOR'] || ''),
+      direccionSuscriptor: String(item['DIRECCION_SUSCRIPTOR'] || ''),
+      deptoSuscriptor: String(item['DEPTO_SUSCRIPTOR'] || ''),
+      municipioSuscriptor: String(item['MUNICIPIO_SUSCRIPTOR'] || ''),
+      barrioSuscriptor: String(item['BARRIO_SUSCRIPTOR'] || ''),
+      observacionDecision: String(item['OBSERVACION_DECISION'] || ''),
+      usuarioDecision: String(item['USUARIO_DECISION'] || ''),
+      nombreUsuarioDecision: String(item['NOMBRE_USUARIO_DECISION'] || ''),
+      circuito: String(item['CIRCUITO'] || ''),
+      nombreCircuito: String(item['NOMBRE_CIRCUITO'] || ''),
+      idTrafo: String(item['ID_TRAFO'] || ''),
+      numeroRevision: String(item['NUMERO_REVISION'] || ''),
+      usuarioResponsableRevision: String(item['USUARIO_RESPONSABLE_REVISION'] || ''),
+      fechaProgramacionRevision: formatExcelDate(item['FECHA_PROGRAMACION_REVISION']),
+      fechaRevision: formatExcelDate(item['FECHA_REVISION']),
+      estadoRevision: String(item['ESTADO_REVISION'] || ''),
+      tipoRevision: String(item['TIPO_REVISION'] || ''),
+      descripcionTipoRevision: String(item['DESCRIPCION_TIPO_REVISION'] || ''),
+      descripcionMotivo: String(item['DESCRIPCION_MOTIVO'] || ''),
+      observacionRevision: String(item['OBSERVACION_REVISION'] || ''),
+      numeroMedidor: String(item['NUMERO_MEDIDOR'] || ''),
+      marcaMedidor: String(item['MARCA_MEDIDOR'] || ''),
+      tipoMedidor: String(item['TIPO_MEDIDOR'] || ''),
+      diasRegistro: item['DIAS_REGISTRO'] != null ? String(item['DIAS_REGISTRO']) : '',
+      nombreUsuarioInicialProceso: String(item['NOMBRE_USUARIO_INICIAL_PROCESO'] || ''),
+      nombreUsuarioFinalProceso: String(item['NOMBRE_USUARIO_FINAL_PROCESO'] || ''),
     };
   });
 
-  return { records: parsedRecords, rawCount: validRows.length };
+  let db = null;
+  try {
+    db = new alasql.Database('essa_records');
+    db.exec('CREATE TABLE registros');
+    db.tables.registros.data = parsedRecords;
+    db.exec('CREATE INDEX idx_id ON registros(id)');
+    db.exec('CREATE INDEX idx_cuenta ON registros(numeroCuenta)');
+    db.exec('CREATE INDEX idx_nombre ON registros(nombreSolicitante)');
+    db.exec('CREATE INDEX idx_radicado ON registros(radicadoEntrada)');
+    db.exec('CREATE INDEX idx_proceso ON registros(numeroProceso)');
+  } catch (e) {
+    console.warn('Alasql init error:', e);
+    db = null;
+  }
+
+  return { records: parsedRecords, rawCount: validRows.length, db };
+};
+
+
+const queryRecords = (db, sql) => {
+  if (!db) return [];
+  try {
+    return db.exec(sql);
+  } catch (e) {
+    console.warn('SQL query error:', e);
+    return [];
+  }
+};
+
+const searchRecords = (records, searchTerm) => {
+  if (!searchTerm || !records) return records;
+  const term = searchTerm.toLowerCase();
+  return records.filter((r) => {
+    return (
+      String(r.nombreSolicitante || '').toLowerCase().includes(term) ||
+      String(r.numeroCuenta || '').includes(term) ||
+      String(r.radicadoEntrada || '').includes(term) ||
+      String(r.numeroProceso || '').includes(term) ||
+      String(r.cedulaSolicitante || '').toLowerCase().includes(term) ||
+      String(r.correoSolicitante || '').toLowerCase().includes(term) ||
+      String(r.municipioSolicitante || '').toLowerCase().includes(term) ||
+      String(r.nombreSuscriptor || '').toLowerCase().includes(term) ||
+      String(r.cedulaSuscriptor || '').includes(term) ||
+      String(r.direccionSolicitante || '').toLowerCase().includes(term) ||
+      String(r.numeroMedidor || '').includes(term) ||
+      String(r.observacionProceso || '').toLowerCase().includes(term)
+    );
+  });
 };
 
 
@@ -3085,7 +3386,7 @@ const ConfigView = ({ config, onSaveConfig, onNavigate, onExcelDataLoaded, onTem
             fileName: file.name,
             recordCount: result.records.length,
           });
-          onExcelDataLoaded(result.records);
+          onExcelDataLoaded(result.records, result.db);
         };
         reader.readAsArrayBuffer(file);
       } catch (err) {
@@ -3343,9 +3644,10 @@ const ConfigView = ({ config, onSaveConfig, onNavigate, onExcelDataLoaded, onTem
 };
 
 
-const DataView = ({ records, onUpdateRecords, onNavigate }) => {
+const DataView = ({ records, onUpdateRecords, onNavigate, recordsDb }) => {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [jumpPage, setJumpPage] = React.useState('');
+  const [searchTerm, setSearchTerm] = React.useState('');
   const [filters, setFilters] = React.useState({
     numeroCuenta: '',
     proceso: '',
@@ -3357,6 +3659,7 @@ const DataView = ({ records, onUpdateRecords, onNavigate }) => {
 
   const filteredRecords = React.useMemo(() => {
     if (!records) return [];
+    if (searchTerm) return searchRecords(records, searchTerm);
     return records.filter((r) => {
       if (filters.numeroCuenta && !(r.numeroCuenta || '').toLowerCase().includes(filters.numeroCuenta.toLowerCase())) return false;
       if (filters.proceso && !(r.numeroProceso || '').toLowerCase().includes(filters.proceso.toLowerCase())) return false;
@@ -3365,7 +3668,7 @@ const DataView = ({ records, onUpdateRecords, onNavigate }) => {
       if (filters.fechaVencimiento && !(r.fechaVencimiento || '').toLowerCase().includes(filters.fechaVencimiento.toLowerCase())) return false;
       return true;
     });
-  }, [records, filters]);
+  }, [records, filters, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
@@ -3542,47 +3845,62 @@ const DataView = ({ records, onUpdateRecords, onNavigate }) => {
               padding: '0.75rem 1rem',
               borderBottom: '1px solid #e2e8f0',
               background: '#f8fafc',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(5, 1fr)',
-              gap: '0.5rem',
             }}
           >
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Nro. Cuenta"
-              value={filters.numeroCuenta}
-              onChange={(e) => handleFilterChange('numeroCuenta', e.target.value)}
-              onKeyDown={handleFilterKeyDown}
-              style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
-            />
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Proceso"
-              value={filters.proceso}
-              onChange={(e) => handleFilterChange('proceso', e.target.value)}
-              onKeyDown={handleFilterKeyDown}
-              style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
-            />
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Radicado"
-              value={filters.radicado}
-              onChange={(e) => handleFilterChange('radicado', e.target.value)}
-              onKeyDown={handleFilterKeyDown}
-              style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
-            />
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Fecha Solicitud"
-              value={filters.fechaSolicitud}
-              onChange={(e) => handleFilterChange('fechaSolicitud', e.target.value)}
-              onKeyDown={handleFilterKeyDown}
-              style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
-            />
+            <div style={{ marginBottom: '0.5rem', position: 'relative' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }}>
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Buscar por nombre, cuenta, radicado, proceso, cedula, correo..."
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                style={{ padding: '0.5rem 0.75rem 0.5rem 2.25rem', fontSize: '0.8rem', width: '100%', borderRadius: '8px' }}
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: '#e2e8f0', border: 'none', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', fontSize: '12px' }}>×</button>
+              )}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Nro. Cuenta"
+                value={filters.numeroCuenta}
+                onChange={(e) => handleFilterChange('numeroCuenta', e.target.value)}
+                onKeyDown={handleFilterKeyDown}
+                style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
+              />
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Proceso"
+                value={filters.proceso}
+                onChange={(e) => handleFilterChange('proceso', e.target.value)}
+                onKeyDown={handleFilterKeyDown}
+                style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
+              />
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Radicado"
+                value={filters.radicado}
+                onChange={(e) => handleFilterChange('radicado', e.target.value)}
+                onKeyDown={handleFilterKeyDown}
+                style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
+              />
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Fecha Solicitud"
+                value={filters.fechaSolicitud}
+                onChange={(e) => handleFilterChange('fechaSolicitud', e.target.value)}
+                onKeyDown={handleFilterKeyDown}
+                style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
+              />
             <input
               type="text"
               className="input-field"
@@ -3592,6 +3910,7 @@ const DataView = ({ records, onUpdateRecords, onNavigate }) => {
               onKeyDown={handleFilterKeyDown}
               style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
             />
+            </div>
           </div>
 
           {/* Table */}
@@ -4017,77 +4336,87 @@ const TemplatesView = ({ templates, selectedTemplate, onSelectTemplate, onNaviga
 
 const PreviewView = ({ template, selectedRecords, profile, onNavigate }) => {
   const [zoom, setZoom] = React.useState(100);
+  const [fitMode, setFitMode] = React.useState('width');
   const [currentPage, setCurrentPage] = React.useState(1);
   const [docxRendering, setDocxRendering] = React.useState(false);
+  const [docxRendered, setDocxRendered] = React.useState(false);
   const previewRef = React.useRef(null);
   const renderedTemplateId = React.useRef(null);
+  const renderedRecordIdx = React.useRef(-1);
 
   const records = selectedRecords?.filter((r) => r.selected) || [];
   const record = records.length > 0 ? records[Math.min(currentPage - 1, records.length - 1)] : null;
-
   const totalPages = Math.max(1, records.length);
 
-  const zoomIn = () => setZoom((z) => Math.min(z + 10, 150));
-  const zoomOut = () => setZoom((z) => Math.max(z - 10, 60));
+  const zoomIn = () => { setFitMode('custom'); setZoom((z) => Math.min(z + 10, 200)); };
+  const zoomOut = () => { setFitMode('custom'); setZoom((z) => Math.max(z - 10, 30)); };
+  const zoomReset = () => { setFitMode('width'); setZoom(100); };
+  const fitWidth = () => setFitMode('width');
+  const fitPage = () => setFitMode('page');
 
-  const renderDocumentContent = () => {
-    if (!template || !record) return null;
-    const content = template.sampleContent || '';
-    return replaceTemplateVariables(content, record, profile);
+  const getScale = () => {
+    if (fitMode === 'width') return 1;
+    if (fitMode === 'page') return 0.6;
+    return zoom / 100;
   };
+
+  const today = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
 
   React.useEffect(() => {
     if (!template || !previewRef.current) {
       renderedTemplateId.current = null;
+      renderedRecordIdx.current = -1;
       return;
     }
-    if (!template.file) {
+    if (template.file) {
+      if (renderedTemplateId.current === template.id && renderedRecordIdx.current === (currentPage - 1)) return;
+      setDocxRendering(true);
+      setDocxRendered(false);
+      const container = previewRef.current;
+      container.innerHTML = '';
+      const options = {
+        className: 'docx-preview',
+        inWrapper: true,
+        ignoreWidth: false,
+        ignoreHeight: false,
+        ignoreFonts: false,
+        breakPages: true,
+        debug: false,
+        experimental: false,
+        trimXmlDeclaration: true,
+        ignoreLastRenderedPageBreak: true,
+        renderHeaders: true,
+        renderFooters: true,
+        renderFootnotes: false,
+        renderEndnotes: false,
+      };
+      docx.renderAsync(template.file, container, null, options)
+        .then(() => {
+          renderedTemplateId.current = template.id;
+          renderedRecordIdx.current = currentPage - 1;
+          setDocxRendering(false);
+          setDocxRendered(true);
+        })
+        .catch((err) => {
+          console.warn('docx-preview error:', err);
+          setDocxRendering(false);
+        });
+    } else {
       renderedTemplateId.current = template.id;
-      return;
+      renderedRecordIdx.current = -1;
     }
-    if (renderedTemplateId.current === template.id) return;
-    setDocxRendering(true);
-    const container = previewRef.current;
-    container.innerHTML = '';
-    const options = {
-      className: 'docx-preview',
-      inWrapper: true,
-      ignoreWidth: false,
-      ignoreHeight: false,
-      ignoreFonts: false,
-      breakPages: true,
-      debug: false,
-      experimental: false,
-      trimXmlDeclaration: true,
-      ignoreLastRenderedPageBreak: true,
-      renderHeaders: true,
-      renderFooters: true,
-      renderFootnotes: false,
-      renderEndnotes: false,
-    };
-    docx.renderAsync(template.file, container, null, options)
-      .then(() => {
-        renderedTemplateId.current = template.id;
-        setDocxRendering(false);
-      })
-      .catch((err) => {
-        console.warn('docx-preview error:', err);
-        setDocxRendering(false);
-      });
-  }, [template]);
-
-  const today = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+  }, [template, currentPage]);
 
   if (!template || records.length === 0) {
     return (
       <div className="animate-fade-in">
         <div className="main-container">
-          <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 1rem' }}>
+          <div className="card" style={{ padding: '4rem', textAlign: 'center' }}>
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 1.25rem' }}>
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#475569', marginBottom: '0.5rem' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#475569', marginBottom: '0.5rem' }}>
               Sin vista previa disponible
             </h3>
             <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1.5rem' }}>
@@ -4103,234 +4432,185 @@ const PreviewView = ({ template, selectedRecords, profile, onNavigate }) => {
   }
 
   return (
-    <div className="animate-fade-in">
-      <div className="main-container">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          <div
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '0.75rem',
-              background: '#eff6ff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#004b93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </div>
-          <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>
-              Módulo 5: Vista Previa del Documento
-            </h2>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>
-              Revisa el documento generado antes de descargar
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Panel (3 cols) */}
-          <div className="lg:col-span-3">
-            <div className="card" style={{ padding: '1.25rem', position: 'sticky', top: '100px' }}>
-              {/* Zoom Controls */}
-              <div className="flex items-center justify-between mb-4">
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Zoom</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    className="btn-secondary"
-                    onClick={zoomOut}
-                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                    disabled={zoom <= 60}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </button>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b', minWidth: '40px', textAlign: 'center' }}>
-                    {zoom}%
-                  </span>
-                  <button
-                    className="btn-secondary"
-                    onClick={zoomIn}
-                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                    disabled={zoom >= 150}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </button>
-                </div>
+    <div className="animate-fade-in" style={{ height: 'calc(100vh - 180px)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', gap: '20px', maxWidth: 1600, width: '100%', margin: '0 auto', padding: '0 1.5rem' }}>
+        {/* Left Sidebar */}
+        <div style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Info Card */}
+          <div className="doc-viewer-sidebar">
+            <div className="sidebar-header">
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b' }}>
+                Módulo 5: Vista Previa Real
               </div>
-
-              {/* Page Navigation */}
-              <div className="flex items-center justify-between mb-4" style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.5rem' }}>
-                <button
-                  className="btn-secondary"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage <= 1}
-                  style={{ padding: '0.25rem 0.5rem' }}
-                >
-                  ‹
-                </button>
-                <span style={{ fontSize: '0.8rem', color: '#475569' }}>
-                  Pág. <strong>{currentPage}</strong> / {totalPages}
-                </span>
-                <button
-                  className="btn-secondary"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage >= totalPages}
-                  style={{ padding: '0.25rem 0.5rem' }}
-                >
-                  ›
-                </button>
+              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                Revisa antes de generar
               </div>
-
-              {/* Summary Box */}
-              <div style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.75rem' }}>
-                <div className="flex justify-between mb-1">
-                  <span style={{ color: '#64748b' }}>Plantilla:</span>
-                  <span style={{ fontWeight: 600, color: '#1e293b' }}>{template?.title?.substring(0, 20)}...</span>
-                </div>
-                <div className="flex justify-between mb-1">
-                  <span style={{ color: '#64748b' }}>Registros:</span>
-                  <span style={{ fontWeight: 600, color: '#1e293b' }}>{records.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span style={{ color: '#64748b' }}>Firmante:</span>
-                  <span style={{ fontWeight: 600, color: '#1e293b' }}>{profile?.name?.split(' ').slice(0, 2).join(' ')}</span>
-                </div>
+            </div>
+            <div className="sidebar-body">
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '2px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantilla</div>
+                <div style={{ fontSize: '0.8rem', color: '#1e293b', fontWeight: 600 }}>{template?.title || 'Sin nombre'}</div>
               </div>
-
-              {/* Confirm Button */}
-              <button
-                className="btn-success w-full"
-                onClick={() => onNavigate('generate')}
-                style={{ justifyContent: 'center', padding: '0.75rem 1rem' }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Confirmar y Generar
-              </button>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '2px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Registros</div>
+                <div style={{ fontSize: '0.8rem', color: '#1e293b', fontWeight: 600 }}>{records.length} documento{records.length !== 1 ? 's' : ''}</div>
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '2px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Firmante</div>
+                <div style={{ fontSize: '0.8rem', color: '#1e293b', fontWeight: 600 }}>{profile?.name || 'N/A'}</div>
+              </div>
+              {record && (
+                <div style={{ padding: '10px', background: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd', marginTop: '12px' }}>
+                  <div style={{ fontSize: '0.65rem', color: '#0369a1', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Documento actual</div>
+                  <div style={{ fontSize: '0.75rem', color: '#0c4a6e', fontWeight: 600 }}>Cuenta: {record.numeroCuenta || record.id}</div>
+                  <div style={{ fontSize: '0.7rem', color: '#0369a1' }}>Radicado: {record.radicadoEntrada || '—'}</div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Right Panel - Document Canvas (9 cols) */}
-          <div className="lg:col-span-9">
-            <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}>
-              <div className="paper-document">
+          {/* Variables Card */}
+          {template?.variables && template.variables.length > 0 && (
+            <div className="doc-viewer-sidebar">
+              <div className="sidebar-header">
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b' }}>
+                  Variables ({template.variables.length})
+                </div>
+              </div>
+              <div className="sidebar-body" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {template.variables.map((v, i) => (
+                    <span key={i} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '3px',
+                      padding: '2px 7px', borderRadius: '5px', fontSize: '10px', fontWeight: 600,
+                      background: v.source === 'Excel' ? '#eff6ff' : v.source === 'Perfil' ? '#faf5ff' : '#ecfdf5',
+                      color: v.source === 'Excel' ? '#1e40af' : v.source === 'Perfil' ? '#6b21a8' : '#047857',
+                      border: `1px solid ${v.source === 'Excel' ? '#bfdbfe' : v.source === 'Perfil' ? '#e9d5ff' : '#a7f3d0'}`,
+                    }}>
+                      {v.key}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button className="btn-success" onClick={() => onNavigate('generate')} style={{ width: '100%', justifyContent: 'center', padding: '12px 16px', fontWeight: 700 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Confirmar y Generar
+            </button>
+            <button className="btn-secondary" onClick={() => onNavigate('templates')} style={{ width: '100%', justifyContent: 'center', padding: '10px 16px' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+              Volver a Plantillas
+            </button>
+          </div>
+        </div>
+
+        {/* Main Viewer */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <div className="doc-viewer-container">
+            {/* Toolbar */}
+            <div className="doc-viewer-toolbar">
+              <div className="toolbar-group">
+                <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1} title="Página anterior">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                </button>
+                <span className="page-info">Pág. {currentPage} / {totalPages}</span>
+                <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} title="Página siguiente">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                </button>
+              </div>
+
+              <div className="toolbar-group">
+                <div className="toolbar-separator" />
+                <button onClick={zoomOut} disabled={zoom <= 30} title="Alejar">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                </button>
+                <span className="zoom-display">{fitMode === 'width' ? 'Ancho' : fitMode === 'page' ? 'Página' : `${zoom}%`}</span>
+                <button onClick={zoomIn} disabled={zoom >= 200} title="Acercar">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                </button>
+                <div className="toolbar-separator" />
+                <button onClick={fitWidth} className={fitMode === 'width' ? 'active' : ''} title="Ajustar al ancho">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 3H3v18h18V3z" /><path d="M9 3v18" /><path d="M15 3v18" /></svg>
+                </button>
+                <button onClick={fitPage} className={fitMode === 'page' ? 'active' : ''} title="Ajustar a página">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                </button>
+                <button onClick={zoomReset} title="Restablecer zoom">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+                </button>
+              </div>
+
+              <div className="toolbar-group">
+                <span className="page-info">{currentPage} / {totalPages}</span>
+              </div>
+            </div>
+
+            {/* Canvas */}
+            <div className="doc-viewer-canvas">
+              <div className="document-page" style={{ transform: `scale(${getScale()})`, width: fitMode === 'width' ? '100%' : '680px', maxWidth: fitMode === 'width' ? '100%' : '680px' }}>
                 {template?.file ? (
-                  <>
+                  <div className="docx-render-zone">
                     {docxRendering && (
-                      <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b', fontSize: '0.85rem' }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#004b93" strokeWidth="2" style={{ animation: 'spin 1s linear infinite', margin: '0 auto 0.75rem', display: 'block' }}>
+                      <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b', fontSize: '0.85rem' }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#004b93" strokeWidth="2" style={{ animation: 'spin 1s linear infinite', margin: '0 auto 0.75rem', display: 'block' }}>
                           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                         </svg>
                         Renderizando documento Word...
                       </div>
                     )}
-                    <div ref={previewRef} style={{ padding: '0.5rem', minHeight: '300px' }} />
-                  </>
+                    <div ref={previewRef} style={{ minHeight: '400px' }} />
+                  </div>
                 ) : (
-                  <div>
-                    <div style={{ textAlign: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid #004b93' }}>
+                  <div className="docx-render-zone">
+                    <div style={{ textAlign: 'center', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '2px solid #004b93' }}>
                       <EssaLogo variant="document" />
                     </div>
                     <div style={{ textAlign: 'right', fontSize: '11px', color: '#475569', marginBottom: '1.5rem' }}>
                       Bucaramanga, {today}
                     </div>
                     <div style={{ fontSize: '11px', lineHeight: 1.75, color: '#1e293b', marginBottom: '2rem', whiteSpace: 'pre-wrap' }}>
-                      {renderDocumentContent()}
+                      {record && replaceTemplateVariables(template.sampleContent || '', record, profile)}
+                    </div>
+                    <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', marginBottom: '2rem' }}>
+                        <div style={{ textAlign: 'center' }}>
+                          {profile?.signatureUrl && (
+                            <img src={profile.signatureUrl} alt="Firma ESSA" style={{ height: '50px', objectFit: 'contain', marginBottom: '0.5rem', opacity: 0.9 }} />
+                          )}
+                          <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.5rem' }}>
+                            <div style={{ fontSize: '10px', fontWeight: 700, color: '#1e293b' }}>{profile?.name || 'Funcionario ESSA'}</div>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>{profile?.position || 'Gestor ESSA'}</div>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>Electrificadora de Santander S.A. E.S.P.</div>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ height: '50px', marginBottom: '0.5rem' }} />
+                          <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.5rem' }}>
+                            <div style={{ fontSize: '10px', fontWeight: 700, color: '#1e293b' }}>{record ? formatApplicantName(record.nombreSolicitante) : 'Cliente'}</div>
+                            <div style={{ fontSize: '9px', color: '#64748b' }}>Titular de la cuenta {record?.numeroCuenta || ''}</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem', textAlign: 'center', fontSize: '8px', color: '#94a3b8', lineHeight: 1.5 }}>
+                        <div>ESSA Generador Documental — Documento generado automáticamente</div>
+                        <div>Electrificadora de Santander S.A. E.S.P. — Grupo EPM</div>
+                        <div style={{ marginTop: '0.25rem' }}>Página {currentPage} de {totalPages}</div>
+                      </div>
                     </div>
                   </div>
                 )}
-
-                {/* Signature Block */}
-                <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
-                  <div className="grid grid-cols-2 gap-8" style={{ marginBottom: '2rem' }}>
-                    {/* ESSA Signature */}
-                    <div style={{ textAlign: 'center' }}>
-                      {profile?.signatureUrl && (
-                        <img
-                          src={profile.signatureUrl}
-                          alt="Firma ESSA"
-                          style={{ height: '50px', objectFit: 'contain', marginBottom: '0.5rem', opacity: 0.9 }}
-                        />
-                      )}
-                      <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.5rem' }}>
-                        <div style={{ fontSize: '10px', fontWeight: 700, color: '#1e293b' }}>
-                          {profile?.name || 'Funcionario ESSA'}
-                        </div>
-                        <div style={{ fontSize: '9px', color: '#64748b' }}>
-                          {profile?.position || 'Gestor ESSA'}
-                        </div>
-                        <div style={{ fontSize: '9px', color: '#64748b' }}>
-                          Electrificadora de Santander S.A. E.S.P.
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Client Signature */}
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ height: '50px', marginBottom: '0.5rem' }} />
-                      <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.5rem' }}>
-                        <div style={{ fontSize: '10px', fontWeight: 700, color: '#1e293b' }}>
-                          {record ? formatApplicantName(record.nombreSolicitante) : 'Cliente'}
-                        </div>
-                        <div style={{ fontSize: '9px', color: '#64748b' }}>
-                          Titular de la cuenta {record?.numeroCuenta || ''}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Page Footer */}
-                  <div
-                    style={{
-                      borderTop: '1px solid #e2e8f0',
-                      paddingTop: '0.75rem',
-                      textAlign: 'center',
-                      fontSize: '8px',
-                      color: '#94a3b8',
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    <div>ESSA Generador Documental — Documento generado automáticamente</div>
-                    <div>Electrificadora de Santander S.A. E.S.P. — Grupo EPM</div>
-                    <div style={{ marginTop: '0.25rem' }}>
-                      Página {currentPage} de {totalPages}
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Bottom Actions */}
-        <div className="flex gap-3 mt-4" style={{ justifyContent: 'space-between' }}>
-          <button className="btn-secondary" onClick={() => onNavigate('templates')}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
-            Volver
-          </button>
-          <button
-            className="btn-success"
-            onClick={() => onNavigate('generate')}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            Confirmar y Generar Documentos
-          </button>
         </div>
       </div>
     </div>
@@ -4340,304 +4620,258 @@ const PreviewView = ({ template, selectedRecords, profile, onNavigate }) => {
 
 const GenerateView = ({ template, records, profile, history, onAddHistory }) => {
   const [progress, setProgress] = React.useState(0);
-  const [done, setDone] = React.useState(false);
+  const [processing, setProcessing] = React.useState(true);
+  const [docResults, setDocResults] = React.useState([]);
   const [downloading, setDownloading] = React.useState(null);
 
   const selectedRecords = records?.filter((r) => r.selected) || [];
+  const successCount = docResults.filter((d) => d.status === 'success').length;
+  const errorCount = docResults.filter((d) => d.status === 'error').length;
+
+  const replaceVarsInDocxXml = (docXml, record) => {
+    const doc = new DOMParser().parseFromString(docXml, 'application/xml');
+    const paragraphs = doc.getElementsByTagName('w:p');
+    const content = template.sampleContent || '';
+    const varNames = [...new Set((content.match(/\[[\w_]+\]/g) || []))];
+
+    for (let p = 0; p < paragraphs.length; p++) {
+      const runs = paragraphs[p].getElementsByTagName('w:r');
+      let pText = '';
+      const runTexts = [];
+      for (let r = 0; r < runs.length; r++) {
+        const tNodes = runs[r].getElementsByTagName('w:t');
+        let runText = '';
+        for (let t = 0; t < tNodes.length; t++) {
+          runText += tNodes[t].textContent || '';
+        }
+        runTexts.push({ run: runs[r], text: runText, tNodes });
+        pText += runText;
+      }
+      let replaced = pText;
+      varNames.forEach((v) => {
+        if (replaced.includes(v)) {
+          const val = replaceTemplateVariables(v, record, profile);
+          replaced = replaced.split(v).join(val);
+        }
+      });
+      if (replaced !== pText) {
+        const firstT = runTexts.length > 0 ? runTexts[0].tNodes[0] : null;
+        if (firstT) {
+          for (let i = 1; i < runTexts.length; i++) {
+            for (let t = 0; t < runTexts[i].tNodes.length; t++) {
+              runTexts[i].tNodes[t].textContent = '';
+            }
+          }
+          firstT.textContent = replaced;
+        }
+      }
+    }
+    return new XMLSerializer().serializeToString(doc);
+  };
+
+  const generateDocxForRecord = async (record) => {
+    if (!template?.file) {
+      return { id: record.id, status: 'error', name: `documento_${record.numeroCuenta || record.id}`, error: 'Sin plantilla DOCX' };
+    }
+    try {
+      const arrayBuffer = await template.file.arrayBuffer();
+      const zip = await JSZip.loadAsync(arrayBuffer);
+      const docXmlFile = zip.file('word/document.xml');
+      if (!docXmlFile) {
+        return { id: record.id, status: 'error', name: `documento_${record.numeroCuenta || record.id}`, error: 'DOCX inválido: sin document.xml' };
+      }
+      let docXml = await docXmlFile.async('text');
+      docXml = replaceVarsInDocxXml(docXml, record);
+      zip.file('word/document.xml', docXml);
+      const outBlob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const fileName = `${(template.title || 'documento').replace(/[^a-zA-Z0-9]/g, '_')}_${record.numeroCuenta || record.id}.docx`;
+      return { id: record.id, status: 'success', name: fileName, blob: outBlob, record };
+    } catch (err) {
+      console.error('DOCX generation error:', err);
+      return { id: record.id, status: 'error', name: `documento_${record.numeroCuenta || record.id}`, error: err.message };
+    }
+  };
 
   React.useEffect(() => {
-    if (done) return;
-    let p = 0;
-    const interval = setInterval(() => {
-      p += Math.random() * 8 + 2;
-      if (p >= 100) {
-        p = 100;
-        clearInterval(interval);
-        setDone(true);
+    if (!processing) return;
+    let idx = 0;
+    const results = [];
+    const processNext = async () => {
+      if (idx >= selectedRecords.length) {
+        setProcessing(false);
+        setProgress(100);
         if (onAddHistory) {
+          const hasErrors = results.some((r) => r.status === 'error');
           onAddHistory({
             id: `gen-${Date.now()}`,
             date: new Date().toLocaleDateString('es-CO'),
             type: selectedRecords.length > 1 ? 'Masivo' : 'Individual',
-            status: 'Completado',
+            status: hasErrors ? 'Parcial' : 'Completado',
             recordsCount: selectedRecords.length,
             templateName: template?.title || 'Plantilla',
           });
         }
+        return;
       }
-      setProgress(Math.min(Math.round(p), 100));
-    }, 200);
-    return () => clearInterval(interval);
-  }, [done]);
+      const result = await generateDocxForRecord(selectedRecords[idx]);
+      results.push(result);
+      setDocResults([...results]);
+      idx++;
+      setProgress(Math.round((idx / selectedRecords.length) * 100));
+      setTimeout(processNext, 50);
+    };
+    processNext();
+  }, []);
 
-  const generateDocContent = (record) => {
-    if (!template) return '';
-    const content = template.sampleContent || '';
-    return replaceTemplateVariables(content, record, profile);
+  const downloadSingle = (doc) => {
+    if (!doc?.blob) return;
+    setDownloading(doc.id);
+    saveAs(doc.blob, doc.name);
+    setTimeout(() => setDownloading(null), 800);
   };
 
-  const downloadIndividual = (record) => {
-    setDownloading('individual');
-    const content = generateDocContent(record);
-    const fileName = `${template?.fileName?.replace('.docx', '') || 'documento'}_${record.numeroCuenta || record.id}.txt`;
-    const fullContent = `ELECTRIFICADORA DE SANTANDER S.A. E.S.P.\nESSA - GRUPO EPM\nNIT: 890.200.222-3\n\n${content}\n\n---\nDocumento generado por ESSA Generador Documental\nFecha: ${new Date().toLocaleDateString('es-CO')}\nFirmante: ${profile?.name || 'N/A'}`;
-    const blob = new Blob([fullContent], { type: 'text/plain;charset=utf-8' });
-    saveAs(blob, fileName);
-    setTimeout(() => setDownloading(null), 1000);
-  };
-
-  const downloadZip = () => {
+  const downloadAll = async () => {
+    const successDocs = docResults.filter((d) => d.status === 'success' && d.blob);
+    if (successDocs.length === 0) return;
+    if (successDocs.length === 1) {
+      downloadSingle(successDocs[0]);
+      return;
+    }
     setDownloading('zip');
     const zip = new JSZip();
     const folder = zip.folder('ESSA_Documentos_Generados');
-    selectedRecords.forEach((record) => {
-      const content = generateDocContent(record);
-      const fileName = `${template?.fileName?.replace('.docx', '') || 'documento'}_${record.numeroCuenta || record.id}.txt`;
-      const fullContent = `ELECTRIFICADORA DE SANTANDER S.A. E.S.P.\nESSA - GRUPO EPM\nNIT: 890.200.222-3\n\n${content}\n\n---\nDocumento generado por ESSA Generador Documental\nFecha: ${new Date().toLocaleDateString('es-CO')}\nFirmante: ${profile?.name || 'N/A'}`;
-      folder.file(fileName, fullContent);
-    });
-    zip.generateAsync({ type: 'blob' }).then((blob) => {
-      saveAs(blob, `ESSA_Documentos_${new Date().toISOString().slice(0, 10)}.zip`);
-      setTimeout(() => setDownloading(null), 1000);
-    });
+    successDocs.forEach((doc) => folder.file(doc.name, doc.blob));
+    const blob = await zip.generateAsync({ type: 'blob' });
+    saveAs(blob, `ESSA_Documentos_${new Date().toISOString().slice(0, 10)}.zip`);
+    setTimeout(() => setDownloading(null), 800);
   };
 
   return (
     <div className="animate-fade-in">
-      <div className="main-container">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '0.75rem',
-              background: '#eff6ff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#004b93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
+      <div className="main-container" style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004b93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M12 18v-6" /><path d="M9 15l3 3 3-3" />
             </svg>
           </div>
           <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>
-              Módulo 6: Generación de Documentos
-            </h2>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>
-              Descarga individual o masiva de documentos generados
-            </p>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>Módulo 6: Generación y Descarga</h2>
+            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Documentos Word generados desde la plantilla con datos reales</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left/Center: Progress and Actions */}
-          <div className="lg:col-span-8">
-            <div className="card" style={{ padding: '2rem' }}>
-              {/* Progress Section */}
-              <div style={{ marginBottom: '2rem' }}>
-                <div className="flex items-center justify-between mb-2">
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>
-                    {done ? 'Generación completada' : 'Generando documentos...'}
-                  </span>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: done ? '#059669' : '#004b93' }}>
-                    {progress}%
-                  </span>
-                </div>
-                <div className="progress-bar" style={{ height: '10px' }}>
-                  <div
-                    className="progress-bar-fill"
-                    style={{
-                      width: `${progress}%`,
-                      backgroundColor: done ? '#10b981' : '#3b82f6',
-                      transition: 'width 0.3s ease',
-                    }}
-                  />
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem' }}>
-                  {done
-                    ? `${selectedRecords.length} documentos generados exitosamente`
-                    : `Procesando ${selectedRecords.length} documentos...`}
-                </div>
-              </div>
-
-              {/* Success Message */}
-              {done && (
-                <div
-                  style={{
-                    padding: '1rem 1.25rem',
-                    borderRadius: '0.75rem',
-                    background: '#ecfdf5',
-                    border: '1px solid #a7f3d0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    marginBottom: '2rem',
-                    animation: 'fade-in 0.3s ease',
-                  }}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
-                  </svg>
-                  <div>
-                    <div style={{ fontWeight: 700, color: '#047857', fontSize: '0.9rem' }}>
-                      Documentos generados correctamente
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: '#059669' }}>
-                      {selectedRecords.length} archivo{selectedRecords.length !== 1 ? 's' : ''} listo{selectedRecords.length !== 1 ? 's' : ''} para descargar
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Download Buttons */}
-              {done && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" style={{ marginBottom: '1.5rem' }}>
-                  <button
-                    className="btn-success"
-                    onClick={() => downloadIndividual(selectedRecords[0])}
-                    disabled={downloading === 'individual' || selectedRecords.length === 0}
-                    style={{ padding: '1rem 1.5rem', justifyContent: 'center' }}
-                  >
-                    {downloading === 'individual' ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" className="animate-spin" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" strokeOpacity="0.3" />
-                        <path d="M12 2 A10 10 0 0 1 22 12" />
-                      </svg>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                      </svg>
-                    )}
-                    Descargar DOCX individual
-                  </button>
-
-                  <button
-                    className="btn-primary"
-                    onClick={downloadZip}
-                    disabled={downloading === 'zip' || selectedRecords.length === 0}
-                    style={{ padding: '1rem 1.5rem', justifyContent: 'center' }}
-                  >
-                    {downloading === 'zip' ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" className="animate-spin" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" strokeOpacity="0.3" />
-                        <path d="M12 2 A10 10 0 0 1 22 12" />
-                      </svg>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
-                    )}
-                    Descargar ZIP masivo
-                  </button>
-                </div>
-              )}
-
-              {/* Summary Info */}
-              {done && (
-                <div
-                  style={{
-                    padding: '1rem',
-                    borderRadius: '0.5rem',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    fontSize: '0.8rem',
-                  }}
-                >
-                  <div className="flex justify-between mb-1">
-                    <span style={{ color: '#64748b' }}>Plantilla utilizada:</span>
-                    <span style={{ fontWeight: 600, color: '#1e293b' }}>{template?.title || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between mb-1">
-                    <span style={{ color: '#64748b' }}>Documentos generados:</span>
-                    <span style={{ fontWeight: 600, color: '#1e293b' }}>{selectedRecords.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span style={{ color: '#64748b' }}>Firmante:</span>
-                    <span style={{ fontWeight: 600, color: '#1e293b' }}>{profile?.name || 'N/A'}</span>
-                  </div>
-                </div>
-              )}
+        <div className="gen-summary-grid">
+          <div className="gen-stat-card">
+            <div className="stat-icon" style={{ background: '#eff6ff' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004b93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
             </div>
+            <div className="stat-value" style={{ color: '#004b93' }}>{selectedRecords.length}</div>
+            <div className="stat-label">Total documentos</div>
           </div>
+          <div className="gen-stat-card">
+            <div className="stat-icon" style={{ background: '#ecfdf5' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+            </div>
+            <div className="stat-value" style={{ color: '#059669' }}>{successCount}</div>
+            <div className="stat-label">Correctos</div>
+          </div>
+          <div className="gen-stat-card">
+            <div className="stat-icon" style={{ background: '#fef2f2' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+            </div>
+            <div className="stat-value" style={{ color: '#dc2626' }}>{errorCount}</div>
+            <div className="stat-label">Con error</div>
+          </div>
+          <div className="gen-stat-card">
+            <div className="stat-icon" style={{ background: '#f5f3ff' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 7V5a4 4 0 0 0-8 0v2" /></svg>
+            </div>
+            <div className="stat-value" style={{ color: '#7c3aed' }}>DOCX</div>
+            <div className="stat-label">Formato</div>
+          </div>
+        </div>
 
-          {/* Right: Decorative Graphic */}
-          <div className="lg:col-span-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div
-              style={{
-                width: '100%',
-                maxWidth: '280px',
-                padding: '2rem',
-                borderRadius: '1rem',
-                background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)',
-                border: '1px solid #e2e8f0',
-                textAlign: 'center',
-              }}
-            >
-              {/* Gear/Document Graphic */}
-              <svg width="120" height="120" viewBox="0 0 120 120" fill="none" style={{ margin: '0 auto' }}>
-                {/* Background circle */}
-                <circle cx="60" cy="60" r="55" fill="#fff" opacity="0.5" />
-                {/* Gear */}
-                <g transform="translate(60, 60)">
-                  <circle cx="0" cy="0" r="20" stroke="#004b93" strokeWidth="3" fill="none" />
-                  <circle cx="0" cy="0" r="8" fill="#004b93" opacity="0.2" />
-                  {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => {
-                    const rad = (angle * Math.PI) / 180;
-                    const x1 = Math.cos(rad) * 20;
-                    const y1 = Math.sin(rad) * 20;
-                    const x2 = Math.cos(rad) * 28;
-                    const y2 = Math.sin(rad) * 28;
-                    return (
-                      <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#004b93" strokeWidth="4" strokeLinecap="round" />
-                    );
-                  })}
-                </g>
-                {/* Document icon overlapping */}
-                <g transform="translate(72, 32)">
-                  <rect x="0" y="0" width="28" height="36" rx="3" fill="#fff" stroke="#10b981" strokeWidth="2" />
-                  <line x1="6" y1="10" x2="22" y2="10" stroke="#10b981" strokeWidth="1.5" opacity="0.5" />
-                  <line x1="6" y1="16" x2="22" y2="16" stroke="#10b981" strokeWidth="1.5" opacity="0.5" />
-                  <line x1="6" y1="22" x2="16" y2="22" stroke="#10b981" strokeWidth="1.5" opacity="0.5" />
-                  <polyline points="18 26 22 22 26 28" stroke="#10b981" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                </g>
+        <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '20px 24px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>
+              {processing ? `Procesando ${docResults.length} de ${selectedRecords.length}...` : errorCount > 0 ? `Completado con ${errorCount} error(es)` : 'Generación completada'}
+            </span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: processing ? '#004b93' : '#059669' }}>{progress}%</span>
+          </div>
+          <div className="gen-progress-track">
+            <div className={`gen-progress-fill ${!processing ? 'complete' : ''}`} style={{ width: `${progress}%` }} />
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '8px' }}>
+            {processing ? 'Generando documentos Word con estructura DOCX real...' : `${successCount} listo${successCount !== 1 ? 's' : ''} para descargar`}
+          </div>
+        </div>
+
+        {!processing && (
+          <div className="fade-in" style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+            <button className="btn-success" onClick={downloadAll} disabled={successCount === 0} style={{ padding: '14px 24px', fontSize: '0.9rem', fontWeight: 700, flex: 1, justifyContent: 'center' }}>
+              {downloading ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" className="animate-spin" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeOpacity="0.3" /><path d="M12 2 A10 10 0 0 1 22 12" /></svg>
+              ) : successCount === 1 ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+              )}
+              {successCount === 1 ? 'Descargar DOCX' : `Descargar ZIP (${successCount} documentos)`}
+            </button>
+          </div>
+        )}
+
+        <div className="gen-doc-list">
+          <div className="list-header">
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>Documentos generados</div>
+            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{docResults.length} de {selectedRecords.length}</div>
+          </div>
+          {docResults.length === 0 && processing && (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" style={{ margin: '0 auto 0.75rem', display: 'block', animation: 'spin 1s linear infinite' }}>
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
-
-              <div style={{ marginTop: '1rem' }}>
-                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.25rem' }}>
-                  Generación Automatizada
+              Iniciando generación...
+            </div>
+          )}
+          {docResults.map((doc, i) => (
+            <div key={doc.id} className="list-row fade-in" style={{ animationDelay: `${i * 30}ms` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: doc.status === 'success' ? '#ecfdf5' : '#fef2f2' }}>
+                  {doc.status === 'success' ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  )}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
-                  Documentos profesionales con datos reales de ESSA
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
+                  <div style={{ fontSize: '0.7rem', color: doc.status === 'success' ? '#059669' : '#dc2626' }}>
+                    {doc.status === 'success' ? `Cuenta: ${doc.record?.numeroCuenta || '—'} — ${doc.record?.nombreSolicitante || ''}` : doc.error}
+                  </div>
                 </div>
               </div>
+              {doc.status === 'success' && (
+                <button className="btn-secondary" onClick={() => downloadSingle(doc)} disabled={downloading === doc.id} style={{ padding: '6px 14px', fontSize: '0.75rem', fontWeight: 600, flexShrink: 0 }}>
+                  {downloading === doc.id ? 'Descargando...' : 'DOCX'}
+                </button>
+              )}
             </div>
-          </div>
+          ))}
+          {!processing && docResults.length === 0 && (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>No se generaron documentos</div>
+          )}
         </div>
 
-        {/* Bottom Actions */}
-        <div className="flex gap-3 mt-4" style={{ justifyContent: 'space-between' }}>
-          <button className="btn-secondary" onClick={() => onNavigate('preview')}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'space-between' }}>
+          <button className="btn-secondary" onClick={() => onNavigate('preview')} style={{ padding: '10px 20px' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
             Volver a Vista Previa
           </button>
-          <button className="btn-secondary" onClick={() => onNavigate('home')}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            Volver al Inicio
+          <button className="btn-secondary" onClick={() => onNavigate('home')} style={{ padding: '10px 20px' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+            Inicio
           </button>
         </div>
       </div>
@@ -4668,6 +4902,7 @@ const App = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) || null;
   const [records, setRecords] = useState([]);
+  const [recordsDb, setRecordsDb] = useState(null);
   const [history, setHistory] = useState(initialHistory);
   const [completedSteps, setCompletedSteps] = useState(['inicio', 'perfil', 'configuracion', 'datos']);
 
@@ -4743,7 +4978,7 @@ const App = () => {
             config={config}
             onSaveConfig={(updated) => setConfig(updated)}
             onNavigate={handleStepChange}
-            onExcelDataLoaded={(newRecords) => setRecords(newRecords)}
+            onExcelDataLoaded={(newRecords, db) => { setRecords(newRecords); setRecordsDb(db); }}
             onTemplatesLoaded={(newTemplates) => {
               setTemplates(newTemplates);
             }}
@@ -4758,6 +4993,7 @@ const App = () => {
               if (step === 'generacion') setGenerationSubView('preview');
               handleStepChange(step);
             }}
+            recordsDb={recordsDb}
           />
         )}
 
