@@ -30,7 +30,10 @@ export function Table<T>({ columns, data, getRowKey, emptyText = 'Sin datos' }: 
         <tbody>
           {data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} style={{ textAlign: 'center', padding: 28, color: 'var(--neutral-500)' }}>
+              <td
+                colSpan={columns.length}
+                style={{ textAlign: 'center', padding: 28, color: 'var(--neutral-500)' }}
+              >
                 {emptyText}
               </td>
             </tr>
@@ -38,7 +41,11 @@ export function Table<T>({ columns, data, getRowKey, emptyText = 'Sin datos' }: 
             data.map((row, idx) => (
               <tr key={getRowKey(row, idx)}>
                 {columns.map((c) => (
-                  <td key={c.key}>{c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? '')}</td>
+                  <td key={c.key}>
+                    {c.render
+                      ? c.render(row)
+                      : String((row as Record<string, unknown>)[c.key] ?? '')}
+                  </td>
                 ))}
               </tr>
             ))

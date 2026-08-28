@@ -166,7 +166,12 @@ export function extractTemplateVariables(content: string | null | undefined): Va
   for (const key of found) {
     vars.push({
       key,
-      label: VAR_LABELS[key] ?? key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
+      label:
+        VAR_LABELS[key] ??
+        key
+          .replace(/_/g, ' ')
+          .toLowerCase()
+          .replace(/\b\w/g, (c) => c.toUpperCase()),
       type: key === 'FIRMA_DOCUMENTO' ? 'Imagen' : key === 'FECHA_SOLICITUD' ? 'Fecha' : 'Texto',
       source: VAR_SOURCES[key] ?? 'Excel',
     });

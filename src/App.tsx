@@ -11,7 +11,14 @@ import TemplatesView from '@/views/TemplatesView';
 import GenerateView from '@/views/GenerateView';
 import { useNavigationStore, type StepId } from '@/store/navigationStore';
 
-const STEP_ORDER: StepId[] = ['inicio', 'perfil', 'configuracion', 'datos', 'plantillas', 'generacion'];
+const STEP_ORDER: StepId[] = [
+  'inicio',
+  'perfil',
+  'configuracion',
+  'datos',
+  'plantillas',
+  'generacion',
+];
 
 const STEP_LABELS: Record<StepId, string> = {
   inicio: 'Inicio',
@@ -84,7 +91,12 @@ export default function App(): JSX.Element {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {showStepper && <StepperBar steps={stepperSteps} onStepClick={handleStepperClick} />}
 
-            <main id="main-content" aria-label={`Vista ${STEP_LABELS[currentStep]}`} data-testid={`view-${currentStep}`} tabIndex={-1}>
+            <main
+              id="main-content"
+              aria-label={`Vista ${STEP_LABELS[currentStep]}`}
+              data-testid={`view-${currentStep}`}
+              tabIndex={-1}
+            >
               <ViewRouter currentStep={currentStep} />
             </main>
           </div>

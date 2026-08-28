@@ -16,14 +16,18 @@ vi.mock('@/utils/excelParser', () => ({
 
 vi.mock('@/utils/docxHelpers', () => ({
   parseDocxFile: vi.fn(async () => 'contenido [NOMBRE_SOLICITANTE]'),
-  extractTemplateVariables: vi.fn(() => [{ key: 'NOMBRE_SOLICITANTE', label: 'Nombre Solicitante', type: 'Texto', source: 'Excel' }]),
+  extractTemplateVariables: vi.fn(() => [
+    { key: 'NOMBRE_SOLICITANTE', label: 'Nombre Solicitante', type: 'Texto', source: 'Excel' },
+  ]),
   fileToTemplate: vi.fn(async (file: File, i: number) => ({
     id: `tpl-file-${i}-${file.name}`,
     title: file.name.replace(/\.docx$/i, ''),
     category: 'Documentos',
     description: 'mock template',
     fileName: file.name,
-    variables: [{ key: 'NOMBRE_SOLICITANTE', label: 'Nombre Solicitante', type: 'Texto', source: 'Excel' }],
+    variables: [
+      { key: 'NOMBRE_SOLICITANTE', label: 'Nombre Solicitante', type: 'Texto', source: 'Excel' },
+    ],
     sampleContent: 'contenido [NOMBRE_SOLICITANTE]',
     file,
   })),
@@ -66,9 +70,27 @@ describe('ConfigView allReady gate', () => {
 
   it('habilita Continuar cuando allReady es true', () => {
     // set all three resources ready via store directly
-    const sac = { file: new File(['a'], 'sac.xlsx'), loading: false, progress: 100, error: null, recordCount: 5 };
-    const mercurio = { file: new File(['b'], 'mercurio.xlsx'), loading: false, progress: 100, error: null, recordCount: 3 };
-    const folder = { file: new File(['c'], 'Plantillas'), loading: false, progress: 100, error: null, recordCount: 4 };
+    const sac = {
+      file: new File(['a'], 'sac.xlsx'),
+      loading: false,
+      progress: 100,
+      error: null,
+      recordCount: 5,
+    };
+    const mercurio = {
+      file: new File(['b'], 'mercurio.xlsx'),
+      loading: false,
+      progress: 100,
+      error: null,
+      recordCount: 3,
+    };
+    const folder = {
+      file: new File(['c'], 'Plantillas'),
+      loading: false,
+      progress: 100,
+      error: null,
+      recordCount: 4,
+    };
 
     useExcelStore.getState().setSacFile(sac);
     useExcelStore.getState().setMercurioFile(mercurio);
@@ -81,9 +103,27 @@ describe('ConfigView allReady gate', () => {
   });
 
   it('deshabilita Continuar si algún recurso tiene error o loading', () => {
-    const sac = { file: new File(['a'], 'sac.xlsx'), loading: false, progress: 100, error: null, recordCount: 5 };
-    const mercurio = { file: new File(['b'], 'mercurio.xlsx'), loading: true, progress: 42, error: null, recordCount: 0 };
-    const folder = { file: new File(['c'], 'Plantillas'), loading: false, progress: 100, error: null, recordCount: 2 };
+    const sac = {
+      file: new File(['a'], 'sac.xlsx'),
+      loading: false,
+      progress: 100,
+      error: null,
+      recordCount: 5,
+    };
+    const mercurio = {
+      file: new File(['b'], 'mercurio.xlsx'),
+      loading: true,
+      progress: 42,
+      error: null,
+      recordCount: 0,
+    };
+    const folder = {
+      file: new File(['c'], 'Plantillas'),
+      loading: false,
+      progress: 100,
+      error: null,
+      recordCount: 2,
+    };
 
     useExcelStore.getState().setSacFile(sac);
     useExcelStore.getState().setMercurioFile(mercurio);
@@ -94,7 +134,13 @@ describe('ConfigView allReady gate', () => {
   });
 
   it('Cancelar limpia y navega a inicio', async () => {
-    const sac = { file: new File(['a'], 'sac.xlsx'), loading: false, progress: 100, error: null, recordCount: 5 };
+    const sac = {
+      file: new File(['a'], 'sac.xlsx'),
+      loading: false,
+      progress: 100,
+      error: null,
+      recordCount: 5,
+    };
     useExcelStore.getState().setSacFile(sac);
     render(<ConfigView />);
     const { fireEvent } = await import('@testing-library/react');
@@ -108,8 +154,12 @@ describe('ConfigView allReady gate', () => {
     render(<ConfigView />);
     const input = screen.getByTestId('m2-input-folder') as HTMLInputElement;
 
-    const docx1 = new File(['docx1'], 'plantilla1.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-    const docx2 = new File(['docx2'], 'plantilla2.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const docx1 = new File(['docx1'], 'plantilla1.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    const docx2 = new File(['docx2'], 'plantilla2.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
     const txt = new File(['txt'], 'readme.txt', { type: 'text/plain' });
     // Simulate webkitRelativePath for folder name
     Object.defineProperty(docx1, 'webkitRelativePath', { value: 'Plantillas/plantilla1.docx' });
@@ -126,7 +176,9 @@ describe('ConfigView allReady gate', () => {
     expect(useTemplateStore.getState().templates[0].fileName).toBe('plantilla1.docx');
     expect(useTemplateStore.getState().templates[1].fileName).toBe('plantilla2.docx');
     // first is selected
-    expect(useTemplateStore.getState().selectedTemplate?.id).toBe(useTemplateStore.getState().templates[0].id);
+    expect(useTemplateStore.getState().selectedTemplate?.id).toBe(
+      useTemplateStore.getState().templates[0].id
+    );
     // excelStore folder recordCount reflects docx count
     expect(useExcelStore.getState().templateFolder?.recordCount).toBe(2);
     expect(screen.getByTestId('m2-templates-list')).toBeInTheDocument();
@@ -144,6 +196,8 @@ describe('ConfigView allReady gate', () => {
     await waitFor(() => {
       expect(useTemplateStore.getState().templates.length).toBe(0);
     });
-    expect(useExcelStore.getState().templateFolder?.error).toEqual(expect.stringContaining('No se encontraron plantillas'));
+    expect(useExcelStore.getState().templateFolder?.error).toEqual(
+      expect.stringContaining('No se encontraron plantillas')
+    );
   });
 });

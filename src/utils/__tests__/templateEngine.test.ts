@@ -2,7 +2,12 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import PizZip from 'pizzip';
-import { generateDocx, replaceTemplateVariables, escapeXml, buildTemplateData } from '../templateEngine';
+import {
+  generateDocx,
+  replaceTemplateVariables,
+  escapeXml,
+  buildTemplateData,
+} from '../templateEngine';
 import { parseDocxFile, extractTemplateVariables, fileToTemplate } from '../docxHelpers';
 import type { Record } from '@/types/record';
 import type { Profile } from '@/types/profile';
@@ -112,7 +117,8 @@ describe('templateEngine', () => {
 
   it('maneja firma como imagen DrawingML 5x2cm si signatureBlob provisto', async () => {
     const file = fixtureFile('Bloqueodecuenta_Electronico_Accede.docx');
-    const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+    const pngBase64 =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
     const pngBytes = Uint8Array.from(Buffer.from(pngBase64, 'base64'));
     const sigBlob = new Blob([pngBytes], { type: 'image/png' });
     const blob = await generateDocx(file, baseRecord, { signatureBlob: sigBlob });
@@ -176,7 +182,8 @@ describe('templateEngine', () => {
   });
 
   it('replaceTemplateVariables helper funciona y limpia FIRMA_DOCUMENTO', () => {
-    const content = 'Hola [PRIMER_NOMBRE] de [NOMBRE_SOLICITANTE] radicado [RADICADO_ENTRADA] firma [FIRMA_DOCUMENTO]';
+    const content =
+      'Hola [PRIMER_NOMBRE] de [NOMBRE_SOLICITANTE] radicado [RADICADO_ENTRADA] firma [FIRMA_DOCUMENTO]';
     const out = replaceTemplateVariables(content, baseRecord, baseProfile);
     expect(out).not.toMatch(/\[[A-Z_]+\]/);
     expect(out).toContain('Juan');
@@ -188,7 +195,9 @@ describe('templateEngine', () => {
   });
 
   it('escapeXml escapa caracteres', () => {
-    expect(escapeXml('a & b <c> "d" \'e\'')).toBe('a &amp; b &lt;c&gt; &quot;d&quot; &apos;e&apos;');
+    expect(escapeXml('a & b <c> "d" \'e\'')).toBe(
+      'a &amp; b &lt;c&gt; &quot;d&quot; &apos;e&apos;'
+    );
   });
 
   it('buildTemplateData mapea correctamente', () => {
@@ -205,7 +214,10 @@ describe('templateEngine', () => {
     const blob = await generateDocx(file, td as unknown as Record);
     const buf = await blobToArrayBuffer(blob);
     const zip = new PizZip(new Uint8Array(buf));
-    const stripped = zip.file('word/document.xml')!.asText().replace(/<[^>]+>/g, '');
+    const stripped = zip
+      .file('word/document.xml')!
+      .asText()
+      .replace(/<[^>]+>/g, '');
     expect(stripped).toContain('Juan');
     expect(stripped).not.toMatch(/\[[A-Z_]+\]/);
   });
@@ -213,8 +225,12 @@ describe('templateEngine', () => {
 
 describe('docxHelpers', () => {
   it('extractTemplateVariables detecta variables', () => {
-    const vars = extractTemplateVariables('Hola [NOMBRE_SOLICITANTE] y [PRIMER_NOMBRE] [NUMERO_CUENTA]');
-    expect(vars.map((v) => v.key)).toEqual(expect.arrayContaining(['NOMBRE_SOLICITANTE', 'PRIMER_NOMBRE', 'NUMERO_CUENTA']));
+    const vars = extractTemplateVariables(
+      'Hola [NOMBRE_SOLICITANTE] y [PRIMER_NOMBRE] [NUMERO_CUENTA]'
+    );
+    expect(vars.map((v) => v.key)).toEqual(
+      expect.arrayContaining(['NOMBRE_SOLICITANTE', 'PRIMER_NOMBRE', 'NUMERO_CUENTA'])
+    );
     expect(vars.find((v) => v.key === 'FIRMA_DOCUMENTO')?.type).toBeUndefined();
   });
 

@@ -4,7 +4,12 @@ interface Props {
 
 export function EnergyIllustration({ className = '' }: Props): JSX.Element {
   return (
-    <div className={`energy-illustration ${className}`} style={{ width: '100%', overflow: 'hidden' }} data-testid="energy-illustration" aria-hidden="true">
+    <div
+      className={`energy-illustration ${className}`}
+      style={{ width: '100%', overflow: 'hidden' }}
+      data-testid="energy-illustration"
+      aria-hidden="true"
+    >
       <svg
         viewBox="0 0 800 300"
         fill="none"
@@ -27,8 +32,16 @@ export function EnergyIllustration({ className = '' }: Props): JSX.Element {
 
         <rect width="800" height="300" fill="url(#skyGrad)" />
 
-        <path d="M0 220 Q100 180 200 200 Q350 170 500 190 Q650 160 800 195 L800 300 L0 300 Z" fill="#e0f2fe" opacity="0.5" />
-        <path d="M0 240 Q150 210 300 230 Q450 200 600 225 Q700 210 800 220 L800 300 L0 300 Z" fill="#dbeafe" opacity="0.4" />
+        <path
+          d="M0 220 Q100 180 200 200 Q350 170 500 190 Q650 160 800 195 L800 300 L0 300 Z"
+          fill="#e0f2fe"
+          opacity="0.5"
+        />
+        <path
+          d="M0 240 Q150 210 300 230 Q450 200 600 225 Q700 210 800 220 L800 300 L0 300 Z"
+          fill="#dbeafe"
+          opacity="0.4"
+        />
 
         <g opacity="0.6">
           <ellipse cx="120" cy="60" rx="40" ry="18" fill="white" />
@@ -48,17 +61,65 @@ export function EnergyIllustration({ className = '' }: Props): JSX.Element {
         <g transform="translate(100, 100)">
           <line x1="0" y1="0" x2="0" y2="120" stroke="#1d4ed8" strokeWidth="4" />
           <circle cx="0" cy="0" r="4" fill="#1d4ed8" />
-          <line x1="0" y1="0" x2="-30" y2="-50" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
-          <line x1="0" y1="0" x2="35" y2="-40" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
-          <line x1="0" y1="0" x2="-5" y2="55" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" />
+          <line
+            x1="0"
+            y1="0"
+            x2="-30"
+            y2="-50"
+            stroke="#3b82f6"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+          <line
+            x1="0"
+            y1="0"
+            x2="35"
+            y2="-40"
+            stroke="#3b82f6"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+          <line
+            x1="0"
+            y1="0"
+            x2="-5"
+            y2="55"
+            stroke="#3b82f6"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
         </g>
 
         <g transform="translate(200, 115)">
           <line x1="0" y1="0" x2="0" y2="105" stroke="#1d4ed8" strokeWidth="3" />
           <circle cx="0" cy="0" r="3" fill="#1d4ed8" />
-          <line x1="0" y1="0" x2="-25" y2="-42" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
-          <line x1="0" y1="0" x2="28" y2="-35" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
-          <line x1="0" y1="0" x2="-4" y2="45" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
+          <line
+            x1="0"
+            y1="0"
+            x2="-25"
+            y2="-42"
+            stroke="#3b82f6"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+          <line
+            x1="0"
+            y1="0"
+            x2="28"
+            y2="-35"
+            stroke="#3b82f6"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+          <line
+            x1="0"
+            y1="0"
+            x2="-4"
+            y2="45"
+            stroke="#3b82f6"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
         </g>
 
         <g transform="translate(340, 80)">
@@ -75,8 +136,20 @@ export function EnergyIllustration({ className = '' }: Props): JSX.Element {
           <rect x="23" y="50" width="4" height="12" rx="2" fill="#1d4ed8" />
         </g>
 
-        <path d="M310 95 Q280 85 200 115" stroke="#3b82f6" strokeWidth="1.5" fill="none" opacity="0.6" />
-        <path d="M310 98 Q280 88 200 118" stroke="#3b82f6" strokeWidth="1.5" fill="none" opacity="0.6" />
+        <path
+          d="M310 95 Q280 85 200 115"
+          stroke="#3b82f6"
+          strokeWidth="1.5"
+          fill="none"
+          opacity="0.6"
+        />
+        <path
+          d="M310 98 Q280 88 200 118"
+          stroke="#3b82f6"
+          strokeWidth="1.5"
+          fill="none"
+          opacity="0.6"
+        />
 
         <g transform="translate(550, 90)">
           <line x1="0" y1="0" x2="0" y2="130" stroke="#1e40af" strokeWidth="5" />
@@ -92,11 +165,33 @@ export function EnergyIllustration({ className = '' }: Props): JSX.Element {
           <rect x="20" y="45" width="4" height="12" rx="2" fill="#1d4ed8" />
         </g>
 
-        <path d="M522 102 Q490 92 420 100" stroke="#3b82f6" strokeWidth="1.5" fill="none" opacity="0.6" />
-        <path d="M522 105 Q490 95 420 103" stroke="#3b82f6" strokeWidth="1.5" fill="none" opacity="0.6" />
+        <path
+          d="M522 102 Q490 92 420 100"
+          stroke="#3b82f6"
+          strokeWidth="1.5"
+          fill="none"
+          opacity="0.6"
+        />
+        <path
+          d="M522 105 Q490 95 420 103"
+          stroke="#3b82f6"
+          strokeWidth="1.5"
+          fill="none"
+          opacity="0.6"
+        />
 
         <g transform="translate(420, 140)">
-          <rect x="-25" y="10" width="50" height="35" rx="3" fill="#1e40af" opacity="0.15" stroke="#1e40af" strokeWidth="1.5" />
+          <rect
+            x="-25"
+            y="10"
+            width="50"
+            height="35"
+            rx="3"
+            fill="#1e40af"
+            opacity="0.15"
+            stroke="#1e40af"
+            strokeWidth="1.5"
+          />
           <rect x="-18" y="15" width="12" height="25" rx="2" fill="#1d4ed8" opacity="0.4" />
           <rect x="6" y="15" width="12" height="25" rx="2" fill="#1d4ed8" opacity="0.4" />
           <line x1="-12" y1="10" x2="-12" y2="2" stroke="#1e40af" strokeWidth="2" />
@@ -169,7 +264,13 @@ export function EnergyIllustration({ className = '' }: Props): JSX.Element {
           <circle cx="5" cy="-1" r="8" fill="#22c55e" opacity="0.4" />
         </g>
 
-        <path d="M0 225 Q100 220 200 225 Q300 218 400 222 Q500 215 600 220 Q700 218 800 222" stroke="#16a34a" strokeWidth="2" fill="none" opacity="0.4" />
+        <path
+          d="M0 225 Q100 220 200 225 Q300 218 400 222 Q500 215 600 220 Q700 218 800 222"
+          stroke="#16a34a"
+          strokeWidth="2"
+          fill="none"
+          opacity="0.4"
+        />
         <rect x="0" y="225" width="800" height="75" fill="url(#groundGrad)" opacity="0.5" />
       </svg>
     </div>

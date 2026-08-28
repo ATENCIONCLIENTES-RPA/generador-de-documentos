@@ -38,7 +38,7 @@ export const useGenerationStore = create<GenerationStore>((set, get) => ({
   retryFailed: () =>
     set((s) => {
       const next = s.docResults.map((r) =>
-        r.status === 'error' ? { ...r, status: 'pending' as const, error: undefined } : r,
+        r.status === 'error' ? { ...r, status: 'pending' as const, error: undefined } : r
       );
       const hasError = next.some((r) => r.status === 'error');
       return {

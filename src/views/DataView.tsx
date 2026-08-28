@@ -82,21 +82,35 @@ export function DataView() {
     const s = filterState.search.trim().toLowerCase();
     if (s) {
       out = out.filter((r) => {
-        const hay = SEARCHABLE_FIELDS.map((k) => String(r[k] ?? '')).join(' ').toLowerCase();
+        const hay = SEARCHABLE_FIELDS.map((k) => String(r[k] ?? ''))
+          .join(' ')
+          .toLowerCase();
         return hay.includes(s);
       });
     }
     if (filterState.cuenta.trim()) {
       const q = filterState.cuenta.trim().toLowerCase();
-      out = out.filter((r) => String(r.numeroCuenta ?? r.cuenta ?? '').toLowerCase().includes(q));
+      out = out.filter((r) =>
+        String(r.numeroCuenta ?? r.cuenta ?? '')
+          .toLowerCase()
+          .includes(q)
+      );
     }
     if (filterState.proceso.trim()) {
       const q = filterState.proceso.trim().toLowerCase();
-      out = out.filter((r) => String(r.numeroProceso ?? '').toLowerCase().includes(q));
+      out = out.filter((r) =>
+        String(r.numeroProceso ?? '')
+          .toLowerCase()
+          .includes(q)
+      );
     }
     if (filterState.radicado.trim()) {
       const q = filterState.radicado.trim().toLowerCase();
-      out = out.filter((r) => String(r.radicadoEntrada ?? '').toLowerCase().includes(q));
+      out = out.filter((r) =>
+        String(r.radicadoEntrada ?? '')
+          .toLowerCase()
+          .includes(q)
+      );
     }
     if (filterState.fechaSolicitud.trim()) {
       const q = filterState.fechaSolicitud.trim();
@@ -108,7 +122,16 @@ export function DataView() {
     // sort: keep stable order by rowId index? simple lexical
     // no explicit sort spec — preserve insertion order (or sort by fechaSolicitud desc if present)
     return out;
-  }, [records, filterState.search, filterState.cuenta, filterState.proceso, filterState.radicado, filterState.fechaSolicitud, showOnlySelected, selectedRows]);
+  }, [
+    records,
+    filterState.search,
+    filterState.cuenta,
+    filterState.proceso,
+    filterState.radicado,
+    filterState.fechaSolicitud,
+    showOnlySelected,
+    selectedRows,
+  ]);
 
   const totalFiltered = filteredRecords.length;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
@@ -123,7 +146,8 @@ export function DataView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [safePage]);
 
-  const allPageSelected = pageRecords.length > 0 && pageRecords.every((r) => selectedRows.has(r.rowId));
+  const allPageSelected =
+    pageRecords.length > 0 && pageRecords.every((r) => selectedRows.has(r.rowId));
   const somePageSelected = pageRecords.some((r) => selectedRows.has(r.rowId)) && !allPageSelected;
 
   useEffect(() => {
@@ -199,9 +223,24 @@ export function DataView() {
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--neutral-700)', marginBottom: 6 }}>No hay registros cargados</div>
-          <div style={{ fontSize: '0.84rem', color: 'var(--neutral-500)', marginBottom: 16 }}>Carga un archivo Excel en el Módulo 2 para ver los datos aquí.</div>
-          <Button variant="primary" onClick={() => goTo('configuracion')} data-testid="data-go-config">
+          <div
+            style={{
+              fontSize: '1.05rem',
+              fontWeight: 800,
+              color: 'var(--neutral-700)',
+              marginBottom: 6,
+            }}
+          >
+            No hay registros cargados
+          </div>
+          <div style={{ fontSize: '0.84rem', color: 'var(--neutral-500)', marginBottom: 16 }}>
+            Carga un archivo Excel en el Módulo 2 para ver los datos aquí.
+          </div>
+          <Button
+            variant="primary"
+            onClick={() => goTo('configuracion')}
+            data-testid="data-go-config"
+          >
             Ir a Cargar Excel
           </Button>
         </div>
@@ -231,20 +270,76 @@ export function DataView() {
       `}</style>
 
       {/* header title */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ width: 40, height: 40, borderRadius: 12, background: '#eff6ff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#004B93', fontWeight: 900 }}>▦</span>
+          <span
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              background: '#eff6ff',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#004B93',
+              fontWeight: 900,
+            }}
+          >
+            ▦
+          </span>
           <div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--neutral-900)', margin: 0, lineHeight: 1.1 }}>Módulo 3: Revisión de Datos</h2>
+            <h2
+              style={{
+                fontSize: '1.2rem',
+                fontWeight: 900,
+                color: 'var(--neutral-900)',
+                margin: 0,
+                lineHeight: 1.1,
+              }}
+            >
+              Módulo 3: Revisión de Datos
+            </h2>
             <p style={{ fontSize: '0.8rem', color: 'var(--neutral-500)', margin: 0 }}>
-              {formatCount(totalFiltered)} registros {selectedRows.size > 0 ? `— ${selectedRows.size} seleccionados` : ''} {activeFilterCount > 0 ? `— ${activeFilterCount} filtro${activeFilterCount > 1 ? 's' : ''} activo${activeFilterCount > 1 ? 's' : ''}` : ''}
+              {formatCount(totalFiltered)} registros{' '}
+              {selectedRows.size > 0 ? `— ${selectedRows.size} seleccionados` : ''}{' '}
+              {activeFilterCount > 0
+                ? `— ${activeFilterCount} filtro${activeFilterCount > 1 ? 's' : ''} activo${activeFilterCount > 1 ? 's' : ''}`
+                : ''}
             </p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Button variant={showOnlySelected ? 'primary' : 'ghost'} size="sm" onClick={() => setShowOnlySelected((v) => !v)} data-testid="dv-toggle-seleccionados">
+          <Button
+            variant={showOnlySelected ? 'primary' : 'ghost'}
+            size="sm"
+            onClick={() => setShowOnlySelected((v) => !v)}
+            data-testid="dv-toggle-seleccionados"
+          >
             {showOnlySelected ? 'Ver todos' : 'Ver seleccionados'}
-            {selectedRows.size > 0 && <span style={{ background: showOnlySelected ? '#fff' : 'var(--essa-primary-50)', color: showOnlySelected ? 'var(--essa-primary)' : 'var(--essa-primary)', border: `1px solid ${showOnlySelected ? '#fff' : '#bfdbfe'}`, borderRadius: 999, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 800, marginLeft: 6 }}>{selectedRows.size}</span>}
+            {selectedRows.size > 0 && (
+              <span
+                style={{
+                  background: showOnlySelected ? '#fff' : 'var(--essa-primary-50)',
+                  color: showOnlySelected ? 'var(--essa-primary)' : 'var(--essa-primary)',
+                  border: `1px solid ${showOnlySelected ? '#fff' : '#bfdbfe'}`,
+                  borderRadius: 999,
+                  padding: '1px 6px',
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  marginLeft: 6,
+                }}
+              >
+                {selectedRows.size}
+              </span>
+            )}
           </Button>
         </div>
       </div>
@@ -263,15 +358,51 @@ export function DataView() {
             />
           </div>
           <div className="dv-filters-grid" style={{ flex: '2 1 420px' }}>
-            <Input placeholder="Cuenta" value={filterState.cuenta} onChange={(e) => setFilter({ cuenta: e.target.value })} aria-label="Filtro cuenta" data-testid="dv-filter-cuenta" />
-            <Input placeholder="Proceso" value={filterState.proceso} onChange={(e) => setFilter({ proceso: e.target.value })} aria-label="Filtro proceso" data-testid="dv-filter-proceso" />
-            <Input placeholder="Radicado" value={filterState.radicado} onChange={(e) => setFilter({ radicado: e.target.value })} aria-label="Filtro radicado" data-testid="dv-filter-radicado" />
-            <Input placeholder="Fecha Solicitud" value={filterState.fechaSolicitud} onChange={(e) => setFilter({ fechaSolicitud: e.target.value })} aria-label="Filtro fecha" data-testid="dv-filter-fecha" />
+            <Input
+              placeholder="Cuenta"
+              value={filterState.cuenta}
+              onChange={(e) => setFilter({ cuenta: e.target.value })}
+              aria-label="Filtro cuenta"
+              data-testid="dv-filter-cuenta"
+            />
+            <Input
+              placeholder="Proceso"
+              value={filterState.proceso}
+              onChange={(e) => setFilter({ proceso: e.target.value })}
+              aria-label="Filtro proceso"
+              data-testid="dv-filter-proceso"
+            />
+            <Input
+              placeholder="Radicado"
+              value={filterState.radicado}
+              onChange={(e) => setFilter({ radicado: e.target.value })}
+              aria-label="Filtro radicado"
+              data-testid="dv-filter-radicado"
+            />
+            <Input
+              placeholder="Fecha Solicitud"
+              value={filterState.fechaSolicitud}
+              onChange={(e) => setFilter({ fechaSolicitud: e.target.value })}
+              aria-label="Filtro fecha"
+              data-testid="dv-filter-fecha"
+            />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Button variant="ghost" size="sm" onClick={handleClearFilters} data-testid="dv-limpiar-filtros" title="Limpiar todos los filtros">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearFilters}
+                data-testid="dv-limpiar-filtros"
+                title="Limpiar todos los filtros"
+              >
                 Limpiar filtros
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleClearSelection} data-testid="dv-limpiar-seleccion" title="Limpiar selección">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearSelection}
+                data-testid="dv-limpiar-seleccion"
+                title="Limpiar selección"
+              >
                 Limpiar selección
               </Button>
             </div>
@@ -279,45 +410,91 @@ export function DataView() {
         </div>
 
         {/* active filter tags + counters */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {activeFilterCount > 0 && (
-              <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--neutral-600)' }} data-testid="dv-active-count">
-                {activeFilterCount} filtro{activeFilterCount > 1 ? 's' : ''} activo{activeFilterCount > 1 ? 's' : ''}
+              <span
+                style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--neutral-600)' }}
+                data-testid="dv-active-count"
+              >
+                {activeFilterCount} filtro{activeFilterCount > 1 ? 's' : ''} activo
+                {activeFilterCount > 1 ? 's' : ''}
               </span>
             )}
             {filterState.search.trim() && (
               <span className="dv-tag" data-testid="dv-tag-search">
-                Búsqueda: {filterState.search.trim()} <button onClick={() => { setSearchInput(''); setFilter({ search: '' }); }} aria-label="Quitar búsqueda">×</button>
+                Búsqueda: {filterState.search.trim()}{' '}
+                <button
+                  onClick={() => {
+                    setSearchInput('');
+                    setFilter({ search: '' });
+                  }}
+                  aria-label="Quitar búsqueda"
+                >
+                  ×
+                </button>
               </span>
             )}
             {filterState.cuenta.trim() && (
               <span className="dv-tag" data-testid="dv-tag-cuenta">
-                Cuenta: {filterState.cuenta.trim()} <button onClick={() => setFilter({ cuenta: '' })} aria-label="Quitar cuenta">×</button>
+                Cuenta: {filterState.cuenta.trim()}{' '}
+                <button onClick={() => setFilter({ cuenta: '' })} aria-label="Quitar cuenta">
+                  ×
+                </button>
               </span>
             )}
             {filterState.proceso.trim() && (
               <span className="dv-tag" data-testid="dv-tag-proceso">
-                Proceso: {filterState.proceso.trim()} <button onClick={() => setFilter({ proceso: '' })} aria-label="Quitar proceso">×</button>
+                Proceso: {filterState.proceso.trim()}{' '}
+                <button onClick={() => setFilter({ proceso: '' })} aria-label="Quitar proceso">
+                  ×
+                </button>
               </span>
             )}
             {filterState.radicado.trim() && (
               <span className="dv-tag" data-testid="dv-tag-radicado">
-                Radicado: {filterState.radicado.trim()} <button onClick={() => setFilter({ radicado: '' })} aria-label="Quitar radicado">×</button>
+                Radicado: {filterState.radicado.trim()}{' '}
+                <button onClick={() => setFilter({ radicado: '' })} aria-label="Quitar radicado">
+                  ×
+                </button>
               </span>
             )}
             {filterState.fechaSolicitud.trim() && (
               <span className="dv-tag" data-testid="dv-tag-fecha">
-                Fecha: {filterState.fechaSolicitud.trim()} <button onClick={() => setFilter({ fechaSolicitud: '' })} aria-label="Quitar fecha">×</button>
+                Fecha: {filterState.fechaSolicitud.trim()}{' '}
+                <button onClick={() => setFilter({ fechaSolicitud: '' })} aria-label="Quitar fecha">
+                  ×
+                </button>
               </span>
             )}
             {showOnlySelected && (
-              <span className="dv-tag" style={{ background: '#EEF6DF', borderColor: '#c5e8a3', color: '#2d5016' }} data-testid="dv-tag-seleccionados">
-                Solo seleccionados <button onClick={() => setShowOnlySelected(false)} aria-label="Quitar seleccionados">×</button>
+              <span
+                className="dv-tag"
+                style={{ background: '#EEF6DF', borderColor: '#c5e8a3', color: '#2d5016' }}
+                data-testid="dv-tag-seleccionados"
+              >
+                Solo seleccionados{' '}
+                <button
+                  onClick={() => setShowOnlySelected(false)}
+                  aria-label="Quitar seleccionados"
+                >
+                  ×
+                </button>
               </span>
             )}
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--neutral-600)', fontWeight: 600 }} data-testid="dv-counter">
+          <div
+            style={{ fontSize: '0.8rem', color: 'var(--neutral-600)', fontWeight: 600 }}
+            data-testid="dv-counter"
+          >
             {totalFiltered === 0
               ? '0 resultados'
               : `Mostrando ${startIdx + 1}–${endIdx} de ${formatCount(totalFiltered)} registro${totalFiltered !== 1 ? 's' : ''}`}
@@ -352,7 +529,10 @@ export function DataView() {
             <tbody>
               {pageRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: 28, color: 'var(--neutral-500)' }}>
+                  <td
+                    colSpan={7}
+                    style={{ textAlign: 'center', padding: 28, color: 'var(--neutral-500)' }}
+                  >
                     Sin resultados — ajusta los filtros
                   </td>
                 </tr>
@@ -381,13 +561,31 @@ export function DataView() {
                           data-testid={`dv-row-checkbox-${r.rowId}`}
                         />
                       </td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', fontWeight: 700 }}>{String(r.numeroCuenta ?? r.cuenta ?? '—')}</td>
-                      <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={String(r.nombreSolicitante ?? '')}>
+                      <td
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {String(r.numeroCuenta ?? r.cuenta ?? '—')}
+                      </td>
+                      <td
+                        style={{
+                          maxWidth: 180,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={String(r.nombreSolicitante ?? '')}
+                      >
                         {String(r.nombreSolicitante ?? '—')}
                       </td>
                       <td style={{ fontSize: '0.78rem' }}>{String(r.radicadoEntrada ?? '—')}</td>
                       <td style={{ fontSize: '0.78rem' }}>{String(r.numeroProceso ?? '—')}</td>
-                      <td style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{String(r.fechaSolicitud ?? '—')}</td>
+                      <td style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+                        {String(r.fechaSolicitud ?? '—')}
+                      </td>
                       <td style={{ textAlign: 'center' }}>
                         <button
                           onClick={() => openEdit(r)}
@@ -407,7 +605,17 @@ export function DataView() {
                           }}
                         >
                           {/* pencil icon */}
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden
+                          >
                             <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                           </svg>
                         </button>
@@ -421,12 +629,33 @@ export function DataView() {
         </div>
 
         {/* pagination */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', borderTop: '1px solid var(--border)', flexWrap: 'wrap', background: '#fff' }}>
-          <div style={{ fontSize: '0.78rem', color: 'var(--neutral-500)', fontWeight: 600 }} data-testid="dv-pagination-info">
-            {totalFiltered === 0 ? '0 resultados' : `${startIdx + 1}–${endIdx} de ${totalFiltered}`} · Pág. {safePage} de {totalPages}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: '12px 14px',
+            borderTop: '1px solid var(--border)',
+            flexWrap: 'wrap',
+            background: '#fff',
+          }}
+        >
+          <div
+            style={{ fontSize: '0.78rem', color: 'var(--neutral-500)', fontWeight: 600 }}
+            data-testid="dv-pagination-info"
+          >
+            {totalFiltered === 0 ? '0 resultados' : `${startIdx + 1}–${endIdx} de ${totalFiltered}`}{' '}
+            · Pág. {safePage} de {totalPages}
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button className="dv-pagination-btn" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)} data-testid="dv-prev" aria-label="Anterior">
+            <button
+              className="dv-pagination-btn"
+              disabled={safePage <= 1}
+              onClick={() => setPage(safePage - 1)}
+              data-testid="dv-prev"
+              aria-label="Anterior"
+            >
               ‹
             </button>
             {pageNums.map((n) => (
@@ -441,7 +670,13 @@ export function DataView() {
                 {n}
               </button>
             ))}
-            <button className="dv-pagination-btn" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)} data-testid="dv-next" aria-label="Siguiente">
+            <button
+              className="dv-pagination-btn"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage(safePage + 1)}
+              data-testid="dv-next"
+              aria-label="Siguiente"
+            >
               ›
             </button>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 6 }}>
@@ -451,13 +686,28 @@ export function DataView() {
                 max={totalPages}
                 value={jumpPage}
                 onChange={(e) => setJumpPage(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleJump(); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleJump();
+                }}
                 placeholder="Ir a..."
                 aria-label="Ir a página"
                 data-testid="dv-jump-input"
-                style={{ width: 74, height: 36, borderRadius: 10, border: '1px solid var(--border)', padding: '0 10px', fontSize: '0.78rem', textAlign: 'center' }}
+                style={{
+                  width: 74,
+                  height: 36,
+                  borderRadius: 10,
+                  border: '1px solid var(--border)',
+                  padding: '0 10px',
+                  fontSize: '0.78rem',
+                  textAlign: 'center',
+                }}
               />
-              <button className="dv-pagination-btn" onClick={handleJump} data-testid="dv-jump-go" style={{ minWidth: 42 }}>
+              <button
+                className="dv-pagination-btn"
+                onClick={handleJump}
+                data-testid="dv-jump-go"
+                style={{ minWidth: 42 }}
+              >
                 Ir
               </button>
             </span>
@@ -466,12 +716,28 @@ export function DataView() {
       </div>
 
       {/* bottom actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', boxShadow: 'var(--shadow-xs)' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          background: '#fff',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          padding: '14px 16px',
+          boxShadow: 'var(--shadow-xs)',
+        }}
+      >
         <Button variant="ghost" onClick={() => goTo('configuracion')} data-testid="dv-volver">
           Volver
         </Button>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.78rem', color: 'var(--neutral-500)', fontWeight: 600 }} data-testid="dv-selected-count">
+          <span
+            style={{ fontSize: '0.78rem', color: 'var(--neutral-500)', fontWeight: 600 }}
+            data-testid="dv-selected-count"
+          >
             {selectedRows.size} seleccionados
           </span>
           <Button

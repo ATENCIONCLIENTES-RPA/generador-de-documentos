@@ -9,7 +9,12 @@ interface SignaturePadProps {
 
 type Point = { x: number; y: number };
 
-export function SignaturePad({ isOpen, onClose, onSave, initialSignature }: SignaturePadProps): JSX.Element | null {
+export function SignaturePad({
+  isOpen,
+  onClose,
+  onSave,
+  initialSignature,
+}: SignaturePadProps): JSX.Element | null {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [penColor, setPenColor] = useState('#002f6c');
@@ -184,7 +189,9 @@ export function SignaturePad({ isOpen, onClose, onSave, initialSignature }: Sign
             borderBottom: '1px solid #e5e7eb',
           }}
         >
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#111827' }}>Firma Digital</h3>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#111827' }}>
+            Firma Digital
+          </h3>
           <button
             onClick={onClose}
             aria-label="Cerrar modal de firma"
@@ -200,7 +207,17 @@ export function SignaturePad({ isOpen, onClose, onSave, initialSignature }: Sign
               justifyContent: 'center',
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -279,7 +296,17 @@ export function SignaturePad({ isOpen, onClose, onSave, initialSignature }: Sign
               marginBottom: 16,
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
               <polyline points="1 4 1 10 7 10" />
               <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
             </svg>
@@ -335,7 +362,17 @@ export function SignaturePad({ isOpen, onClose, onSave, initialSignature }: Sign
               gap: 6,
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
               <polyline points="17 21 17 13 7 13 7 21" />
               <polyline points="7 3 7 8 15 8" />

@@ -75,11 +75,19 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
   }
   if (filter.proceso.trim()) {
     const q = filter.proceso.trim().toLowerCase();
-    out = out.filter((r) => String(r.numeroProceso ?? '').toLowerCase().includes(q));
+    out = out.filter((r) =>
+      String(r.numeroProceso ?? '')
+        .toLowerCase()
+        .includes(q)
+    );
   }
   if (filter.radicado.trim()) {
     const q = filter.radicado.trim().toLowerCase();
-    out = out.filter((r) => String(r.radicadoEntrada ?? '').toLowerCase().includes(q));
+    out = out.filter((r) =>
+      String(r.radicadoEntrada ?? '')
+        .toLowerCase()
+        .includes(q)
+    );
   }
   if (filter.fechaSolicitud.trim()) {
     const q = filter.fechaSolicitud.trim();

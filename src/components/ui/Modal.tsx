@@ -10,7 +10,14 @@ interface Props {
   closeOnOverlay?: boolean;
 }
 
-export function Modal({ open, onClose, title, children, width = 560, closeOnOverlay = true }: Props) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  width = 560,
+  closeOnOverlay = true,
+}: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -22,7 +29,7 @@ export function Modal({ open, onClose, title, children, width = 560, closeOnOver
       if (e.key === 'Escape') onClose();
       if (e.key === 'Tab' && dialogRef.current) {
         const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
         );
         if (focusable.length === 0) return;
         const first = focusable[0];
@@ -39,7 +46,9 @@ export function Modal({ open, onClose, title, children, width = 560, closeOnOver
     document.addEventListener('keydown', onKey);
     // focus first
     queueMicrotask(() => {
-      const f = dialogRef.current?.querySelector<HTMLElement>('button, [href], input, select, textarea, [tabindex]');
+      const f = dialogRef.current?.querySelector<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]'
+      );
       f?.focus();
     });
     return () => {
@@ -98,7 +107,9 @@ export function Modal({ open, onClose, title, children, width = 560, closeOnOver
               borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0',
             }}
           >
-            <h2 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--neutral-900)' }}>{title}</h2>
+            <h2 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--neutral-900)' }}>
+              {title}
+            </h2>
             <button
               aria-label="Cerrar"
               onClick={onClose}
@@ -121,7 +132,7 @@ export function Modal({ open, onClose, title, children, width = 560, closeOnOver
         <div style={{ padding: 20 }}>{children}</div>
       </div>
     </div>,
-    document.body,
+    document.body
   );
 }
 export default Modal;

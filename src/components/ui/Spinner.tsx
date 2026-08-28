@@ -51,14 +51,31 @@ export function Spinner({ variant = 'spinner', size = 22, label, fullPage }: Pro
     );
   }
   const inner = (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, color: 'var(--neutral-500)', fontSize: '0.8125rem', fontWeight: 600 }}>
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 10,
+        color: 'var(--neutral-500)',
+        fontSize: '0.8125rem',
+        fontWeight: 600,
+      }}
+    >
       <SpinnerIcon size={size} />
       {label && <span>{label}</span>}
     </span>
   );
   if (fullPage) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, minHeight: 200 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 40,
+          minHeight: 200,
+        }}
+      >
         {inner}
         <style>{`@keyframes essa-spin{to{transform:rotate(360deg)}}`}</style>
       </div>

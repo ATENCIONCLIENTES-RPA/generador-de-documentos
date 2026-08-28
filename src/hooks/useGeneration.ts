@@ -33,9 +33,17 @@ export interface UseGenerationReturn {
   downloadAll: () => Promise<void>;
 }
 
-function buildFileName(templateFileName: string | undefined, record: EssaRecord, fallbackId: string): string {
-  const base = (templateFileName ?? 'documento').replace(/\.docx$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const suffix = String(record.numeroCuenta ?? record.cuenta ?? record.radicadoEntrada ?? fallbackId).replace(/[^a-zA-Z0-9_-]/g, '_');
+function buildFileName(
+  templateFileName: string | undefined,
+  record: EssaRecord,
+  fallbackId: string
+): string {
+  const base = (templateFileName ?? 'documento')
+    .replace(/\.docx$/i, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_');
+  const suffix = String(
+    record.numeroCuenta ?? record.cuenta ?? record.radicadoEntrada ?? fallbackId
+  ).replace(/[^a-zA-Z0-9_-]/g, '_');
   return `${base}_${suffix}.docx`;
 }
 
@@ -105,7 +113,10 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
   const canGenerate = selectedRecords.length > 0 && !!selectedTemplate;
 
   const processSequential = useCallback(
-    async (indices: number[], existingResults: DocxGenerationResult[]): Promise<DocxGenerationResult[]> => {
+    async (
+      indices: number[],
+      existingResults: DocxGenerationResult[]
+    ): Promise<DocxGenerationResult[]> => {
       const len = selectedRecords.length;
       if (len === 0 || !selectedTemplate) return existingResults;
 
@@ -146,18 +157,34 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
           let blob: Blob;
           if (templateFile) {
             if (signatureBlob) {
-              const templateData = buildTemplateData(rec, { name: profile.name, position: profile.position, email: profile.email });
-              blob = await generateDocx(templateFile as unknown as File, templateData, { signatureBlob });
+              const templateData = buildTemplateData(rec, {
+                name: profile.name,
+                position: profile.position,
+                email: profile.email,
+              });
+              blob = await generateDocx(templateFile as unknown as File, templateData, {
+                signatureBlob,
+              });
             } else {
               // use overload with record+profile for text replacement
-              blob = await generateDocx(templateFile as unknown as File, rec as unknown as Record<string, unknown> as never, { name: profile.name, position: profile.position, email: profile.email } as unknown as never);
+              blob = await generateDocx(
+                templateFile as unknown as File,
+                rec as unknown as Record<string, unknown> as never,
+                {
+                  name: profile.name,
+                  position: profile.position,
+                  email: profile.email,
+                } as unknown as never
+              );
             }
           } else {
             // no file -> fallback text blob (should not happen in prod but allows tests)
             const content = selectedTemplate.sampleContent ?? '';
             // simple fallback: generateDocx would throw due to missing file; create text blob
             const text = `ESSA - ${content} - ${rec.nombreSolicitante ?? ''}`;
-            blob = new Blob([text], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+            blob = new Blob([text], {
+              type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            });
           }
           const fileName = buildFileName(templateFileName, rec, rid);
           next[idx] = {
@@ -209,7 +236,7 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
 
       return next;
     },
-    [selectedRecords, selectedTemplate, profile, setStage, setProgress, setDocResults, options],
+    [selectedRecords, selectedTemplate, profile, setStage, setProgress, setDocResults, options]
   );
 
   const generate = useCallback(async () => {
@@ -231,7 +258,15 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
     setDocResults(initial);
     const indices = initial.map((_, i) => i);
     await processSequential(indices, initial);
-  }, [canGenerate, selectedRecords, selectedTemplate, setStage, setProgress, setDocResults, processSequential]);
+  }, [
+    canGenerate,
+    selectedRecords,
+    selectedTemplate,
+    setStage,
+    setProgress,
+    setDocResults,
+    processSequential,
+  ]);
 
   const retryFailed = useCallback(async () => {
     const current = useGenerationStore.getState().docResults;
@@ -242,26 +277,25 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
     if (failedIndices.length === 0) return;
     setStage('generando');
     // reset failed to pending
-    const reset = current.map((r) => (r.status === 'error' ? { ...r, status: 'pending' as const, error: undefined } : r));
+    const reset = current.map((r) =>
+      r.status === 'error' ? { ...r, status: 'pending' as const, error: undefined } : r
+    );
     setDocResults(reset);
     await processSequential(failedIndices, reset);
   }, [setStage, setDocResults, processSequential]);
 
-  const downloadSingle = useCallback(
-    (id: string) => {
-      const item = useGenerationStore.getState().docResults.find((r) => r.id === id);
-      if (!item?.blob) {
-        console.error(`[useGeneration] downloadSingle: no blob for id ${id}`);
-        return;
-      }
-      try {
-        saveAs(item.blob as Blob, item.fileName || `${id}.docx`);
-      } catch (e) {
-        console.error('[useGeneration] downloadSingle failed', e);
-      }
-    },
-    [],
-  );
+  const downloadSingle = useCallback((id: string) => {
+    const item = useGenerationStore.getState().docResults.find((r) => r.id === id);
+    if (!item?.blob) {
+      console.error(`[useGeneration] downloadSingle: no blob for id ${id}`);
+      return;
+    }
+    try {
+      saveAs(item.blob as Blob, item.fileName || `${id}.docx`);
+    } catch (e) {
+      console.error('[useGeneration] downloadSingle failed', e);
+    }
+  }, []);
 
   const downloadAll = useCallback(async () => {
     const results = useGenerationStore.getState().docResults;

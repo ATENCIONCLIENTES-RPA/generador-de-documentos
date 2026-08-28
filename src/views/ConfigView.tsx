@@ -51,7 +51,7 @@ export function ConfigView() {
         // error already set in store via hook
       }
     },
-    [parseWithProgress, setSacFile, setRecords],
+    [parseWithProgress, setSacFile, setRecords]
   );
 
   const handleMercurioFile = useCallback(
@@ -67,14 +67,16 @@ export function ConfigView() {
         // handled
       }
     },
-    [parseWithProgress, setMercurioFile, setRecords],
+    [parseWithProgress, setMercurioFile, setRecords]
   );
 
   const handleFolderFiles = useCallback(
     async (files: FileList | File[]) => {
       const arr = Array.from(files);
       const docx = arr.filter((f) => f.name.toLowerCase().endsWith('.docx'));
-      const name = (arr[0] as unknown as { webkitRelativePath?: string })?.webkitRelativePath?.split('/')[0] || 'Plantillas';
+      const name =
+        (arr[0] as unknown as { webkitRelativePath?: string })?.webkitRelativePath?.split('/')[0] ||
+        'Plantillas';
       setFolderName(name);
       setFolderTemplates(docx.map((f) => ({ name: f.name, size: f.size })));
       if (docx.length === 0) {
@@ -91,8 +93,10 @@ export function ConfigView() {
       }
       // create pseudo file for store — use first docx or synthetic
       const pseudo = docx[0] ?? arr[0] ?? null;
-      const folderFile = pseudo ? new File([pseudo as unknown as BlobPart], name, { type: pseudo.type }) : null;
-      
+      const folderFile = pseudo
+        ? new File([pseudo as unknown as BlobPart], name, { type: pseudo.type })
+        : null;
+
       const totalBytes = docx.reduce((acc, f) => acc + (f.size || 0), 0);
       setTemplateFolder({
         file: folderFile as unknown as File,
@@ -149,7 +153,7 @@ export function ConfigView() {
         });
       }
     },
-    [setTemplateFolder],
+    [setTemplateFolder]
   );
 
   const onSacDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -178,7 +182,15 @@ export function ConfigView() {
     if (files && files.length > 0) handleFolderFiles(files);
   };
 
-  const readyCount = (sacFile?.file && !sacFile.loading && !sacFile.error ? 1 : 0) + (mercurioFile?.file && !mercurioFile.loading && !mercurioFile.error ? 1 : 0) + (templateFolder?.file && !templateFolder.loading && !templateFolder.error && (templateFolder.recordCount > 0 || !!templateFolder.file) ? 1 : 0);
+  const readyCount =
+    (sacFile?.file && !sacFile.loading && !sacFile.error ? 1 : 0) +
+    (mercurioFile?.file && !mercurioFile.loading && !mercurioFile.error ? 1 : 0) +
+    (templateFolder?.file &&
+    !templateFolder.loading &&
+    !templateFolder.error &&
+    (templateFolder.recordCount > 0 || !!templateFolder.file)
+      ? 1
+      : 0);
   const progressPct = Math.round((readyCount / 3) * 100);
 
   const handleContinuar = () => {
@@ -210,33 +222,143 @@ export function ConfigView() {
 
       {/* HERO */}
       <div className="m2-hero" data-testid="m2-hero">
-        <div className="m2-blur" style={{ width: 280, height: 280, background: 'radial-gradient(circle at 30% 30%, #bfdbfe 0%, transparent 62%)', right: -40, top: -60 }} aria-hidden />
-        <div className="m2-blur" style={{ width: 220, height: 220, background: 'radial-gradient(circle at 30% 30%, #bbf7d0 0%, transparent 62%)', left: -30, bottom: -50, opacity: 0.5 }} aria-hidden />
-        <div className="m2-blur" style={{ width: 160, height: 160, background: 'radial-gradient(circle at 30% 30%, #e9d5ff 0%, transparent 62%)', right: 120, bottom: -30, opacity: 0.32 }} aria-hidden />
+        <div
+          className="m2-blur"
+          style={{
+            width: 280,
+            height: 280,
+            background: 'radial-gradient(circle at 30% 30%, #bfdbfe 0%, transparent 62%)',
+            right: -40,
+            top: -60,
+          }}
+          aria-hidden
+        />
+        <div
+          className="m2-blur"
+          style={{
+            width: 220,
+            height: 220,
+            background: 'radial-gradient(circle at 30% 30%, #bbf7d0 0%, transparent 62%)',
+            left: -30,
+            bottom: -50,
+            opacity: 0.5,
+          }}
+          aria-hidden
+        />
+        <div
+          className="m2-blur"
+          style={{
+            width: 160,
+            height: 160,
+            background: 'radial-gradient(circle at 30% 30%, #e9d5ff 0%, transparent 62%)',
+            right: 120,
+            bottom: -30,
+            opacity: 0.32,
+          }}
+          aria-hidden
+        />
 
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <Badge variant="info" style={{ background: '#fff', borderColor: '#bfdbfe', color: '#1e40af', fontSize: '0.66rem', letterSpacing: '0.08em' }}>
+            <Badge
+              variant="info"
+              style={{
+                background: '#fff',
+                borderColor: '#bfdbfe',
+                color: '#1e40af',
+                fontSize: '0.66rem',
+                letterSpacing: '0.08em',
+              }}
+            >
               MÓDULO 2: CONFIGURACIÓN DE RECURSOS
             </Badge>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: 16,
+              flexWrap: 'wrap',
+            }}
+          >
             <div>
-              <h1 style={{ fontSize: '1.55rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+              <h1
+                style={{
+                  fontSize: '1.55rem',
+                  fontWeight: 900,
+                  color: '#0f172a',
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.15,
+                }}
+              >
                 Configuración de Recursos
               </h1>
-              <p style={{ fontSize: '0.875rem', color: '#475569', marginTop: 6, maxWidth: 640, lineHeight: 1.5 }}>
-                Carga los archivos Excel de <strong style={{ color: '#004B93' }}>SAC</strong> y <strong style={{ color: '#0284C7' }}>Mercurio</strong> y selecciona la carpeta de plantillas Word. El flujo continúa cuando los tres recursos estén listos.
+              <p
+                style={{
+                  fontSize: '0.875rem',
+                  color: '#475569',
+                  marginTop: 6,
+                  maxWidth: 640,
+                  lineHeight: 1.5,
+                }}
+              >
+                Carga los archivos Excel de <strong style={{ color: '#004B93' }}>SAC</strong> y{' '}
+                <strong style={{ color: '#0284C7' }}>Mercurio</strong> y selecciona la carpeta de
+                plantillas Word. El flujo continúa cuando los tres recursos estén listos.
               </p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 999, padding: '6px 10px', boxShadow: 'var(--shadow-xs)', alignSelf: 'flex-start' }}>
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--neutral-500)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: 999,
+                padding: '6px 10px',
+                boxShadow: 'var(--shadow-xs)',
+                alignSelf: 'flex-start',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  color: 'var(--neutral-500)',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                }}
+              >
                 Progreso
               </span>
-              <span style={{ fontSize: '0.78rem', fontWeight: 800, color: readyCount === 3 ? '#15803d' : '#334155' }}>{readyCount}/3</span>
-              <span style={{ width: 1, height: 14, background: 'var(--border)', display: 'inline-block' }} />
-              <span style={{ fontSize: '0.78rem', fontWeight: 800, color: readyCount === 3 ? '#15803d' : 'var(--neutral-600)' }}>{progressPct}%</span>
+              <span
+                style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  color: readyCount === 3 ? '#15803d' : '#334155',
+                }}
+              >
+                {readyCount}/3
+              </span>
+              <span
+                style={{
+                  width: 1,
+                  height: 14,
+                  background: 'var(--border)',
+                  display: 'inline-block',
+                }}
+              />
+              <span
+                style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  color: readyCount === 3 ? '#15803d' : 'var(--neutral-600)',
+                }}
+              >
+                {progressPct}%
+              </span>
             </div>
           </div>
 
@@ -257,13 +379,28 @@ export function ConfigView() {
                 boxShadow: 'inset 0 1px 2px rgba(15,23,42,0.06)',
               }}
             >
-              {[!!(sacFile?.file && !sacFile.loading && !sacFile.error), !!(mercurioFile?.file && !mercurioFile.loading && !mercurioFile.error), !!(templateFolder?.file && !templateFolder.loading && !templateFolder.error && (templateFolder.recordCount > 0 || !!templateFolder.file))].map((filled, i) => (
+              {[
+                !!(sacFile?.file && !sacFile.loading && !sacFile.error),
+                !!(mercurioFile?.file && !mercurioFile.loading && !mercurioFile.error),
+                !!(
+                  templateFolder?.file &&
+                  !templateFolder.loading &&
+                  !templateFolder.error &&
+                  (templateFolder.recordCount > 0 || !!templateFolder.file)
+                ),
+              ].map((filled, i) => (
                 <div
                   key={i}
                   data-testid={`m2-segment-${i}`}
                   className="m2-segment"
                   style={{
-                    background: filled ? (i === 0 ? '#004B93' : i === 1 ? '#0284C7' : '#76BC21') : '#f1f5f9',
+                    background: filled
+                      ? i === 0
+                        ? '#004B93'
+                        : i === 1
+                          ? '#0284C7'
+                          : '#76BC21'
+                      : '#f1f5f9',
                     opacity: filled ? 1 : 0.85,
                     boxShadow: filled ? '0 1px 6px rgba(0,0,0,0.12)' : 'none',
                   }}
@@ -271,7 +408,16 @@ export function ConfigView() {
                 />
               ))}
             </div>
-            <span style={{ fontSize: '0.72rem', color: 'var(--neutral-500)', fontWeight: 600, whiteSpace: 'nowrap' }}>33.33% por recurso</span>
+            <span
+              style={{
+                fontSize: '0.72rem',
+                color: 'var(--neutral-500)',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              33.33% por recurso
+            </span>
           </div>
         </div>
       </div>
@@ -327,74 +473,130 @@ export function ConfigView() {
           />
 
           {/* templates list when selected */}
-          {templateFolder?.file && !templateFolder.loading && !templateFolder.error && folderTemplates.length > 0 && (
-            <div
-              data-testid="m2-templates-list"
-              style={{
-                marginTop: 12,
-                background: '#fff',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-card)',
-                padding: 14,
-                boxShadow: 'var(--shadow-xs)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--neutral-700)' }}>
-                  Plantillas detectadas <span style={{ color: 'var(--neutral-500)', fontWeight: 600 }}>— {folderName || 'Carpeta'} · {folderTemplates.length} .docx</span>
+          {templateFolder?.file &&
+            !templateFolder.loading &&
+            !templateFolder.error &&
+            folderTemplates.length > 0 && (
+              <div
+                data-testid="m2-templates-list"
+                style={{
+                  marginTop: 12,
+                  background: '#fff',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-card)',
+                  padding: 14,
+                  boxShadow: 'var(--shadow-xs)',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    marginBottom: 10,
+                  }}
+                >
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--neutral-700)' }}>
+                    Plantillas detectadas{' '}
+                    <span style={{ color: 'var(--neutral-500)', fontWeight: 600 }}>
+                      — {folderName || 'Carpeta'} · {folderTemplates.length} .docx
+                    </span>
+                  </div>
+                  <Badge variant="accent" style={{ fontSize: '0.68rem' }}>
+                    {folderTemplates.length} archivos
+                  </Badge>
                 </div>
-                <Badge variant="accent" style={{ fontSize: '0.68rem' }}>
-                  {folderTemplates.length} archivos
-                </Badge>
-              </div>
-              <div style={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, paddingRight: 4 }}>
-                {folderTemplates.map((tpl, i) => (
-                  <div
-                    key={`${tpl.name}-${i}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '8px 10px',
-                      borderRadius: 10,
-                      border: '1px solid #e2e8f0',
-                      background: '#f8fafc',
-                      fontSize: '0.8rem',
-                    }}
-                  >
-                    <span
-                      aria-hidden
+                <div
+                  style={{
+                    maxHeight: 180,
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                    paddingRight: 4,
+                  }}
+                >
+                  {folderTemplates.map((tpl, i) => (
+                    <div
+                      key={`${tpl.name}-${i}`}
                       style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 8,
-                        background: '#004B93',
-                        color: '#fff',
-                        display: 'inline-flex',
+                        display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 800,
-                        fontSize: '0.68rem',
-                        flexShrink: 0,
+                        gap: 10,
+                        padding: '8px 10px',
+                        borderRadius: 10,
+                        border: '1px solid #e2e8f0',
+                        background: '#f8fafc',
+                        fontSize: '0.8rem',
                       }}
                     >
-                      W
-                    </span>
-                    <span style={{ flex: 1, color: '#334155', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={tpl.name}>
-                      {tpl.name}
-                    </span>
-                    <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600, whiteSpace: 'nowrap' }}>{(tpl.size / 1024).toFixed(1)} KB</span>
-                  </div>
-                ))}
+                      <span
+                        aria-hidden
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 8,
+                          background: '#004B93',
+                          color: '#fff',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 800,
+                          fontSize: '0.68rem',
+                          flexShrink: 0,
+                        }}
+                      >
+                        W
+                      </span>
+                      <span
+                        style={{
+                          flex: 1,
+                          color: '#334155',
+                          fontWeight: 600,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={tpl.name}
+                      >
+                        {tpl.name}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          color: '#94a3b8',
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {(tpl.size / 1024).toFixed(1)} KB
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {templateFolder?.file && !templateFolder.loading && !templateFolder.error && folderTemplates.length === 0 && templateFolder.recordCount === 0 && (
-            <div style={{ marginTop: 10, fontSize: '0.78rem', color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '8px 12px' }}>
-              No se encontraron plantillas .docx en la carpeta seleccionada.
-            </div>
-          )}
+          {templateFolder?.file &&
+            !templateFolder.loading &&
+            !templateFolder.error &&
+            folderTemplates.length === 0 &&
+            templateFolder.recordCount === 0 && (
+              <div
+                style={{
+                  marginTop: 10,
+                  fontSize: '0.78rem',
+                  color: '#dc2626',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: 10,
+                  padding: '8px 12px',
+                }}
+              >
+                No se encontraron plantillas .docx en la carpeta seleccionada.
+              </div>
+            )}
         </div>
       </div>
 
@@ -418,8 +620,26 @@ export function ConfigView() {
         </Button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
           {!allReady && (
-            <span style={{ fontSize: '0.76rem', color: 'var(--neutral-500)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 6, height: 6, borderRadius: 999, background: '#f59e0b', display: 'inline-block' }} aria-hidden />
+            <span
+              style={{
+                fontSize: '0.76rem',
+                color: 'var(--neutral-500)',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 999,
+                  background: '#f59e0b',
+                  display: 'inline-block',
+                }}
+                aria-hidden
+              />
               Faltan recursos por cargar
             </span>
           )}
@@ -428,10 +648,23 @@ export function ConfigView() {
             disabled={!allReady}
             onClick={handleContinuar}
             data-testid="m2-continuar"
-            title={!allReady ? 'Carga SAC, Mercurio y carpeta para continuar' : 'Continuar al Módulo 3'}
+            title={
+              !allReady ? 'Carga SAC, Mercurio y carpeta para continuar' : 'Continuar al Módulo 3'
+            }
           >
             Continuar al Módulo 3
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ marginLeft: 6 }}>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+              style={{ marginLeft: 6 }}
+            >
               <line x1="5" y1="12" x2="19" y2="12" />
               <polyline points="12 5 19 12 12 19" />
             </svg>

@@ -32,9 +32,19 @@ export function Pagination({ page, pageSize, total, onPageChange }: Props) {
   });
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        flexWrap: 'wrap',
+      }}
+    >
       <span style={{ fontSize: '0.8125rem', color: 'var(--neutral-500)' }}>
-        {total === 0 ? '0 resultados' : `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} de ${total}`}
+        {total === 0
+          ? '0 resultados'
+          : `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} de ${total}`}
       </span>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         <button style={btn()} disabled={!canPrev} onClick={() => onPageChange(page - 1)}>

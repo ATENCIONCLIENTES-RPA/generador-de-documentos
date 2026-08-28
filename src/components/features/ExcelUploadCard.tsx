@@ -80,7 +80,17 @@ function formatBytes(bytes?: number): string {
 
 function IconPlus({ color }: { color: string }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
@@ -88,7 +98,17 @@ function IconPlus({ color }: { color: string }) {
 }
 function IconCheck({ color = '#16A34A' }: { color?: string }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
       <polyline points="22 4 12 14.01 9 11.01" />
     </svg>
@@ -96,7 +116,17 @@ function IconCheck({ color = '#16A34A' }: { color?: string }) {
 }
 function IconWarning() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#DC2626"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
       <line x1="12" y1="9" x2="12" y2="13" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -105,7 +135,17 @@ function IconWarning() {
 }
 function IconUpload({ color }: { color: string }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="17 8 12 3 7 8" />
       <line x1="12" y1="3" x2="12" y2="15" />
@@ -114,7 +154,17 @@ function IconUpload({ color }: { color: string }) {
 }
 function IconFolder({ color }: { color: string }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
     </svg>
   );
@@ -138,15 +188,25 @@ export function ExcelUploadCard({
   const isError = !!fileState?.error;
   const isCompleted = !!fileState?.file && !isLoading && !isError;
 
-  const status: 'idle' | 'loading' | 'completed' | 'error' = isLoading ? 'loading' : isError ? 'error' : isCompleted ? 'completed' : 'idle';
+  const status: 'idle' | 'loading' | 'completed' | 'error' = isLoading
+    ? 'loading'
+    : isError
+      ? 'error'
+      : isCompleted
+        ? 'completed'
+        : 'idle';
 
   const progressVal = Math.min(100, Math.max(0, Math.round(fileState?.progress ?? 0)));
-  const stageText = fileState?.stage || (accent === 'folder' ? 'Analizando plantillas...' : 'Procesando archivo...');
+  const stageText =
+    fileState?.stage ||
+    (accent === 'folder' ? 'Analizando plantillas...' : 'Procesando archivo...');
 
   const formattedBytesProcessed = formatBytes(fileState?.bytesProcessed);
   const formattedTotalBytes = formatBytes(fileState?.totalBytes || fileState?.file?.size);
   const sizeSubtitle =
-    formattedBytesProcessed && formattedTotalBytes && formattedBytesProcessed !== formattedTotalBytes
+    formattedBytesProcessed &&
+    formattedTotalBytes &&
+    formattedBytesProcessed !== formattedTotalBytes
       ? `${formattedBytesProcessed} / ${formattedTotalBytes}`
       : formattedTotalBytes
         ? formattedTotalBytes
@@ -167,7 +227,8 @@ export function ExcelUploadCard({
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
-        transition: 'transform 180ms ease-out, box-shadow 180ms ease-out, border-color 180ms ease-out',
+        transition:
+          'transform 180ms ease-out, box-shadow 180ms ease-out, border-color 180ms ease-out',
         animation: 'm2-enter 280ms cubic-bezier(0.16,1,0.3,1)',
       }}
       onMouseEnter={(e) => {
@@ -216,25 +277,60 @@ export function ExcelUploadCard({
 
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        <span className={`m2-icon-box ${iconBoxClass ?? ''}`} style={{ background: a.iconBg, color: a.iconColor }} aria-hidden>
-          {accent === 'folder' ? <IconFolder color={a.iconColor} /> : <IconUpload color={a.iconColor} />}
+        <span
+          className={`m2-icon-box ${iconBoxClass ?? ''}`}
+          style={{ background: a.iconBg, color: a.iconColor }}
+          aria-hidden
+        >
+          {accent === 'folder' ? (
+            <IconFolder color={a.iconColor} />
+          ) : (
+            <IconUpload color={a.iconColor} />
+          )}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: '0.9375rem', color: 'var(--neutral-900)', lineHeight: 1.2 }}>{title}</div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--neutral-500)', marginTop: 3, lineHeight: 1.4 }}>{subtitle}</div>
+          <div
+            style={{
+              fontWeight: 800,
+              fontSize: '0.9375rem',
+              color: 'var(--neutral-900)',
+              lineHeight: 1.2,
+            }}
+          >
+            {title}
+          </div>
+          <div
+            style={{
+              fontSize: '0.78rem',
+              color: 'var(--neutral-500)',
+              marginTop: 3,
+              lineHeight: 1.4,
+            }}
+          >
+            {subtitle}
+          </div>
         </div>
         {isCompleted && (
-          <span className="m2-badge m2-pop-in" style={{ background: '#f0fdf4', color: '#15803d', borderColor: '#bbf7d0' }}>
+          <span
+            className="m2-badge m2-pop-in"
+            style={{ background: '#f0fdf4', color: '#15803d', borderColor: '#bbf7d0' }}
+          >
             <IconCheck /> Listo
           </span>
         )}
         {isLoading && (
-          <span className="m2-badge" style={{ background: a.badgeBg, color: a.badgeColor, borderColor: a.lightBorder }}>
+          <span
+            className="m2-badge"
+            style={{ background: a.badgeBg, color: a.badgeColor, borderColor: a.lightBorder }}
+          >
             <span className="m2-pulse-dot" aria-hidden /> Procesando ({progressVal}%)
           </span>
         )}
         {isError && (
-          <span className="m2-badge" style={{ background: '#fef2f2', color: '#dc2626', borderColor: '#fecaca' }}>
+          <span
+            className="m2-badge"
+            style={{ background: '#fef2f2', color: '#dc2626', borderColor: '#fecaca' }}
+          >
             <IconWarning /> Error
           </span>
         )}
@@ -278,7 +374,9 @@ export function ExcelUploadCard({
           ref={inputRef}
           type="file"
           accept={accent === 'folder' ? undefined : '.xlsx,.xls,.csv'}
-          {...(accent === 'folder' ? ({ webkitdirectory: '', directory: '' } as unknown as Record<string, string>) : {})}
+          {...(accent === 'folder'
+            ? ({ webkitdirectory: '', directory: '' } as unknown as Record<string, string>)
+            : {})}
           multiple={accent === 'folder'}
           style={{ display: 'none' }}
           onChange={onSelect}
@@ -304,19 +402,35 @@ export function ExcelUploadCard({
               <IconPlus color={a.iconColor} />
             </span>
             <div style={{ fontSize: '0.86rem', color: 'var(--neutral-700)', fontWeight: 600 }}>
-              Arrastra tu archivo aquí o <span style={{ color: a.iconColor, fontWeight: 800 }}>haz clic para buscar</span>
+              Arrastra tu archivo aquí o{' '}
+              <span style={{ color: a.iconColor, fontWeight: 800 }}>haz clic para buscar</span>
             </div>
             <div style={{ fontSize: '0.73rem', color: 'var(--neutral-400)' }}>
-              {accent === 'folder' ? 'Carpeta con plantillas .docx' : 'Formatos aceptados: .xlsx, .xls, .csv'}
+              {accent === 'folder'
+                ? 'Carpeta con plantillas .docx'
+                : 'Formatos aceptados: .xlsx, .xls, .csv'}
             </div>
           </>
         )}
 
         {status === 'loading' && fileState && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
+          <div
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              alignItems: 'center',
+            }}
+          >
             {/* Animated dual spinner with center percentage */}
             <div className="m2-spinner-wrap" aria-hidden>
-              <svg width="48" height="48" viewBox="0 0 48 48" style={{ position: 'absolute', inset: 0 }}>
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 48 48"
+                style={{ position: 'absolute', inset: 0 }}
+              >
                 <circle cx="24" cy="24" r="20" stroke="#f1f5f9" strokeWidth="4" fill="none" />
                 <circle
                   className="m2-spinner-ring-outer"
@@ -343,7 +457,15 @@ export function ExcelUploadCard({
                   style={{ transformOrigin: '24px 24px', opacity: 0.8 }}
                 />
               </svg>
-              <span style={{ fontSize: '0.68rem', fontWeight: 900, color: a.iconColor, letterSpacing: '-0.02em', zIndex: 2 }}>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 900,
+                  color: a.iconColor,
+                  letterSpacing: '-0.02em',
+                  zIndex: 2,
+                }}
+              >
                 {progressVal}%
               </span>
             </div>
@@ -365,17 +487,43 @@ export function ExcelUploadCard({
               }}
             >
               <span className="m2-pulse-dot" aria-hidden />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stageText}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {stageText}
+              </span>
             </div>
 
             {/* High-def progress bar */}
-            <div style={{ width: '100%', maxWidth: '340px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem' }}>
-                <span style={{ color: 'var(--neutral-500)', fontWeight: 600 }}>Avance en tiempo real</span>
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '340px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.72rem',
+                }}
+              >
+                <span style={{ color: 'var(--neutral-500)', fontWeight: 600 }}>
+                  Avance en tiempo real
+                </span>
                 <span style={{ fontWeight: 800, color: a.iconColor }}>{progressVal}%</span>
               </div>
 
-              <div className="m2-progress-track" role="progressbar" aria-valuenow={progressVal} aria-valuemin={0} aria-valuemax={100} aria-label="Progreso de carga">
+              <div
+                className="m2-progress-track"
+                role="progressbar"
+                aria-valuenow={progressVal}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Progreso de carga"
+              >
                 <div className="m2-progress-fill" style={{ width: `${progressVal}%` }}>
                   <div className="m2-progress-shimmer" />
                 </div>
@@ -383,8 +531,26 @@ export function ExcelUploadCard({
             </div>
 
             {/* File info footer */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', color: 'var(--neutral-400)', maxWidth: 280 }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--neutral-600)' }} title={fileState.file?.name}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: '0.72rem',
+                color: 'var(--neutral-400)',
+                maxWidth: 280,
+              }}
+            >
+              <span
+                style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontWeight: 600,
+                  color: 'var(--neutral-600)',
+                }}
+                title={fileState.file?.name}
+              >
                 {fileState.file?.name}
               </span>
               {sizeSubtitle && (
@@ -398,11 +564,31 @@ export function ExcelUploadCard({
         )}
 
         {status === 'completed' && fileState && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
-            <span className="m2-pop-in" style={{ color: '#16a34a', display: 'inline-flex', padding: 6, background: '#dcfce7', borderRadius: 999 }} aria-hidden>
+          <div
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              alignItems: 'center',
+            }}
+          >
+            <span
+              className="m2-pop-in"
+              style={{
+                color: '#16a34a',
+                display: 'inline-flex',
+                padding: 6,
+                background: '#dcfce7',
+                borderRadius: 999,
+              }}
+              aria-hidden
+            >
               <IconCheck color="#16a34a" />
             </span>
-            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#15803d' }}>Archivo cargado correctamente</div>
+            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#15803d' }}>
+              Archivo cargado correctamente
+            </div>
             <div
               style={{
                 fontSize: '0.76rem',
@@ -420,7 +606,8 @@ export function ExcelUploadCard({
               }}
               title={fileState.file?.name}
             >
-              {fileState.file?.name} — {fileState.recordCount} {accent === 'folder' ? 'plantillas detectadas' : 'registros válidos'}
+              {fileState.file?.name} — {fileState.recordCount}{' '}
+              {accent === 'folder' ? 'plantillas detectadas' : 'registros válidos'}
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
               <button
@@ -481,12 +668,32 @@ export function ExcelUploadCard({
         )}
 
         {status === 'error' && fileState && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
-            <span style={{ display: 'inline-flex', padding: 6, background: '#fee2e2', borderRadius: 999 }} aria-hidden>
+          <div
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              alignItems: 'center',
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                padding: 6,
+                background: '#fee2e2',
+                borderRadius: 999,
+              }}
+              aria-hidden
+            >
               <IconWarning />
             </span>
-            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#dc2626' }}>Error al cargar</div>
-            <div style={{ fontSize: '0.76rem', color: '#991b1b', maxWidth: 280, lineHeight: 1.4 }}>{fileState.error}</div>
+            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#dc2626' }}>
+              Error al cargar
+            </div>
+            <div style={{ fontSize: '0.76rem', color: '#991b1b', maxWidth: 280, lineHeight: 1.4 }}>
+              {fileState.error}
+            </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
               <button
                 type="button"

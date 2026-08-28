@@ -21,7 +21,7 @@ export function useSelection() {
       }
       toggleRow(id);
     },
-    [toggleRow],
+    [toggleRow]
   );
 
   return {

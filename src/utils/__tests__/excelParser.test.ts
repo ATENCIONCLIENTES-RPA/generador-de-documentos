@@ -59,7 +59,7 @@ describe('excelParser', () => {
   });
 
   it('parseExcelFile normaliza keys case-insensitive', async () => {
-    const file = makeFile([{ 'numero_cuenta': '999', 'nombre_solicitante': 'Ana' }]);
+    const file = makeFile([{ numero_cuenta: '999', nombre_solicitante: 'Ana' }]);
     const records = await parseExcelFile(file);
     expect(records).toHaveLength(1);
     expect(records[0]!.numeroCuenta).toBe('999');
@@ -68,7 +68,7 @@ describe('excelParser', () => {
 
   it('parseExcelFile invoca el callback de progreso con etapas y bytes', async () => {
     const progressReports: Array<{ stage: string; progress: number }> = [];
-    const file = makeFile([{ 'NOMBRE_SOLICITANTE': 'Carlos', 'NUMERO_CUENTA': '101' }]);
+    const file = makeFile([{ NOMBRE_SOLICITANTE: 'Carlos', NUMERO_CUENTA: '101' }]);
     const records = await parseExcelFile(file, (info) => {
       progressReports.push({ stage: info.stage, progress: info.progress });
     });

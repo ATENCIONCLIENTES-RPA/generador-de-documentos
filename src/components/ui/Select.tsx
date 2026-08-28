@@ -16,8 +16,19 @@ const Select = forwardRef<HTMLSelectElement, Props>(
   ({ label, error, options, placeholder, id, style, ...rest }, ref) => {
     const sid = id ?? (label ? `sel-${label.replace(/\s+/g, '-').toLowerCase()}` : undefined);
     return (
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 6, ...(style as React.CSSProperties) }}>
-        {label && <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--neutral-700)' }}>{label}</span>}
+      <label
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          ...(style as React.CSSProperties),
+        }}
+      >
+        {label && (
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--neutral-700)' }}>
+            {label}
+          </span>
+        )}
         <div style={{ position: 'relative' }}>
           <select
             ref={ref}
@@ -59,10 +70,14 @@ const Select = forwardRef<HTMLSelectElement, Props>(
             ▾
           </span>
         </div>
-        {error && <span style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 600 }}>{error}</span>}
+        {error && (
+          <span style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 600 }}>
+            {error}
+          </span>
+        )}
       </label>
     );
-  },
+  }
 );
 Select.displayName = 'Select';
 export default Select;

@@ -27,7 +27,7 @@ interface ExcelStore {
 function computeAllReady(
   sac: ExcelFileState | null,
   mercurio: ExcelFileState | null,
-  folder: ExcelFileState | null,
+  folder: ExcelFileState | null
 ): boolean {
   if (!sac || !mercurio || !folder) return false;
   if (sac.loading || mercurio.loading || folder.loading) return false;

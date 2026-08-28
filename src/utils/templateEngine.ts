@@ -93,7 +93,7 @@ export function buildTemplateData(record: EssaRecord, profile?: Profile | null):
 export function replaceTemplateVariables(
   content: string | null | undefined,
   record: EssaRecord,
-  profile?: Profile | null,
+  profile?: Profile | null
 ): string {
   if (!content) return '';
   const rawName = (record?.nombreSolicitante as string) || '';
@@ -172,7 +172,8 @@ function detectMimeType(blob: Blob, bytes: Uint8Array): MimeType {
   if (t.includes('svg')) return MimeType.Svg;
   // sniff magic bytes
   if (bytes.length >= 8) {
-    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return MimeType.Png;
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47)
+      return MimeType.Png;
     if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return MimeType.Jpeg;
     if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return MimeType.Gif;
     if (bytes[0] === 0x42 && bytes[1] === 0x4d) return MimeType.Bmp;
@@ -191,7 +192,7 @@ function isProfileLike(v: unknown): v is Profile {
 export async function generateDocx(
   templateFile: File,
   data: TemplateData | EssaRecord,
-  opts?: { signatureBlob?: Blob } | Profile | null,
+  opts?: { signatureBlob?: Blob } | Profile | null
 ): Promise<Blob> {
   if (!templateFile) throw new Error('templateFile is required');
 
@@ -202,20 +203,30 @@ export async function generateDocx(
   let templateData: TemplateData;
   let signatureBlob: Blob | undefined;
 
-  if (opts && isProfileLike(opts) && !('signatureBlob' in (opts as unknown as globalThis.Record<string, unknown>))) {
+  if (
+    opts &&
+    isProfileLike(opts) &&
+    !('signatureBlob' in (opts as unknown as globalThis.Record<string, unknown>))
+  ) {
     // second arg is EssaRecord, third is Profile
     templateData = buildTemplateData(data as EssaRecord, opts as Profile);
   } else {
     // data is already TemplateData (or EssaRecord treated as TemplateData)
     // If data looks like EssaRecord (has nombreSolicitante), convert via builder for safety,
     // unless it already contains upper keys like NOMBRE_SOLICITANTE
-    const hasUpperKey = Object.keys(data as globalThis.Record<string, unknown>).some((k) => k === k.toUpperCase() && k.includes('_'));
+    const hasUpperKey = Object.keys(data as globalThis.Record<string, unknown>).some(
+      (k) => k === k.toUpperCase() && k.includes('_')
+    );
     if ((data as EssaRecord).nombreSolicitante !== undefined && !hasUpperKey) {
       templateData = buildTemplateData(data as EssaRecord, null);
     } else {
       templateData = { ...(data as TemplateData) };
     }
-    if (opts && typeof opts === 'object' && 'signatureBlob' in (opts as unknown as globalThis.Record<string, unknown>)) {
+    if (
+      opts &&
+      typeof opts === 'object' &&
+      'signatureBlob' in (opts as unknown as globalThis.Record<string, unknown>)
+    ) {
       signatureBlob = (opts as { signatureBlob?: Blob }).signatureBlob ?? undefined;
       // allow profile inside opts? not needed
     }
@@ -255,16 +266,25 @@ export async function generateDocx(
   const handler = new TemplateHandler({
     delimiters: { tagStart: '[', tagEnd: ']' },
     scopeDataResolver: (args: unknown) => {
-      const a = args as { data: globalThis.Record<string, unknown>; strPath: string[]; path: unknown[] };
+      const a = args as {
+        data: globalThis.Record<string, unknown>;
+        strPath: string[];
+        path: unknown[];
+      };
       const lastKey = a.strPath[a.strPath.length - 1] ?? '';
       // try direct lookup in current scope data, then global templateData
       let val: unknown = undefined;
-      if (a.data && lastKey in a.data) val = (a.data as globalThis.Record<string, unknown>)[lastKey];
+      if (a.data && lastKey in a.data)
+        val = (a.data as globalThis.Record<string, unknown>)[lastKey];
       if (val === undefined && lastKey in (templateData as globalThis.Record<string, unknown>)) {
         val = (templateData as globalThis.Record<string, unknown>)[lastKey];
       }
       // Preserve image objects, handle missing string values
-      if (val !== null && typeof val === 'object' && (val as globalThis.Record<string, unknown>)._type) {
+      if (
+        val !== null &&
+        typeof val === 'object' &&
+        (val as globalThis.Record<string, unknown>)._type
+      ) {
         return val as unknown as string;
       }
       if (val === null || val === undefined || val === '') return '—';
@@ -276,7 +296,12 @@ export async function generateDocx(
 
   let processedBuffer: ArrayBuffer;
   try {
-    const out = await handler.process(templateBuffer, templateData as unknown as globalThis.Record<string, unknown> as unknown as Parameters<typeof handler.process>[1]);
+    const out = await handler.process(
+      templateBuffer,
+      templateData as unknown as globalThis.Record<string, unknown> as unknown as Parameters<
+        typeof handler.process
+      >[1]
+    );
     // handler.process exports same binary type as input (ArrayBuffer -> ArrayBuffer)
     if ((out as unknown) instanceof ArrayBuffer) {
       processedBuffer = out as ArrayBuffer;
@@ -285,7 +310,10 @@ export async function generateDocx(
     } else if ((out as unknown) instanceof Uint8Array) {
       // Fallback if handler unexpectedly returns Uint8Array (e.g., node Buffer is Uint8Array)
       const u8 = out as unknown as Uint8Array;
-      processedBuffer = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
+      processedBuffer = u8.buffer.slice(
+        u8.byteOffset,
+        u8.byteOffset + u8.byteLength
+      ) as ArrayBuffer;
     } else {
       // Generic fallback
       processedBuffer = out as unknown as ArrayBuffer;
@@ -323,7 +351,11 @@ export async function generateDocx(
           let rep: string;
           if (val !== undefined && val !== null && val !== '' && typeof val !== 'object') {
             rep = escapeXml(String(val));
-          } else if (typeof val === 'object' && val !== null && (val as globalThis.Record<string, unknown>)._type === 'image') {
+          } else if (
+            typeof val === 'object' &&
+            val !== null &&
+            (val as globalThis.Record<string, unknown>)._type === 'image'
+          ) {
             // image already handled by easy-template-x, this shouldn't happen in fallback
             rep = '';
           } else {
@@ -339,13 +371,16 @@ export async function generateDocx(
 
         // Write replaced text to first w:t, empty the rest
         let idx = 0;
-        return paraContent.replace(/(<w:t(?:\s[^>]*)?>)([\s\S]*?)(<\/w:t>)/g, (_m: string, open: string, _text: string, close: string) => {
-          if (idx === 0) {
-            idx++;
-            return open + replaced + close;
+        return paraContent.replace(
+          /(<w:t(?:\s[^>]*)?>)([\s\S]*?)(<\/w:t>)/g,
+          (_m: string, open: string, _text: string, close: string) => {
+            if (idx === 0) {
+              idx++;
+              return open + replaced + close;
+            }
+            return open + close;
           }
-          return open + close;
-        });
+        );
       });
 
       // Final sweep: any remaining literal markers (outside paragraphs, e.g. headers fallback)
@@ -354,7 +389,7 @@ export async function generateDocx(
     };
 
     const xmlFiles = Object.keys(zip.files).filter(
-      (n) => n === 'word/document.xml' || n.startsWith('word/header') || n.startsWith('word/footer'),
+      (n) => n === 'word/document.xml' || n.startsWith('word/header') || n.startsWith('word/footer')
     );
 
     for (const fname of xmlFiles) {

@@ -54,7 +54,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                     width: 8,
                     height: 8,
                     borderRadius: 999,
-                    background: t.kind === 'success' ? 'var(--essa-accent)' : t.kind === 'error' ? 'var(--danger)' : 'var(--essa-primary-100)',
+                    background:
+                      t.kind === 'success'
+                        ? 'var(--essa-accent)'
+                        : t.kind === 'error'
+                          ? 'var(--danger)'
+                          : 'var(--essa-primary-100)',
                     flexShrink: 0,
                   }}
                 />
@@ -62,7 +67,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               </div>
             ))}
           </div>,
-          document.body,
+          document.body
         )}
     </ToastCtx.Provider>
   );

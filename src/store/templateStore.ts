@@ -34,8 +34,7 @@ export const useTemplateStore = create<TemplateStore>((set, get) => ({
   removeTemplate: (id) =>
     set((s) => {
       const templates = s.templates.filter((t) => t.id !== id);
-      const selectedTemplate =
-        s.selectedTemplate?.id === id ? null : s.selectedTemplate;
+      const selectedTemplate = s.selectedTemplate?.id === id ? null : s.selectedTemplate;
       return { templates, selectedTemplate };
     }),
 

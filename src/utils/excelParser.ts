@@ -9,12 +9,22 @@ export function getExcelCellValue(obj: RawExcelRow | null | undefined, keys: str
   }
   const normalizedKeyMap: Record<string, unknown> = {};
   for (const key of Object.keys(obj)) {
-    const cleanKey = key.trim().toLowerCase().replace(/[_\-.\s]+/g, '');
+    const cleanKey = key
+      .trim()
+      .toLowerCase()
+      .replace(/[_\-.\s]+/g, '');
     normalizedKeyMap[cleanKey] = (obj as Record<string, unknown>)[key];
   }
   for (const k of keys) {
-    const cleanQuery = k.trim().toLowerCase().replace(/[_\-.\s]+/g, '');
-    if (normalizedKeyMap[cleanQuery] !== undefined && normalizedKeyMap[cleanQuery] !== null && String(normalizedKeyMap[cleanQuery]).trim() !== '') {
+    const cleanQuery = k
+      .trim()
+      .toLowerCase()
+      .replace(/[_\-.\s]+/g, '');
+    if (
+      normalizedKeyMap[cleanQuery] !== undefined &&
+      normalizedKeyMap[cleanQuery] !== null &&
+      String(normalizedKeyMap[cleanQuery]).trim() !== ''
+    ) {
       return normalizedKeyMap[cleanQuery];
     }
   }
@@ -61,55 +71,122 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
   const rowId = `row_${index}_${timestamp}`;
 
   const rawId = getExcelCellValue(row, ['ID', 'id', 'Id', 'NRO', 'NUMERO', 'CONSECUTIVO', 'ITEM']);
-  const recordId: number | string = !isNaN(Number(rawId)) && Number(rawId) > 0 ? Number(rawId) : index + 1;
+  const recordId: number | string =
+    !isNaN(Number(rawId)) && Number(rawId) > 0 ? Number(rawId) : index + 1;
 
   const fechaSolRaw = getExcelCellValue(row, [
-    'FECHA_SOLICITUD', 'FECHA SOLICITUD', 'FECHA_RADICACION', 'FECHA RADICACION',
-    'FECHA', 'FECHA_DE_SOLICITUD', 'FECHA_INGRESO', 'FECHA SOLICITUD PQR',
+    'FECHA_SOLICITUD',
+    'FECHA SOLICITUD',
+    'FECHA_RADICACION',
+    'FECHA RADICACION',
+    'FECHA',
+    'FECHA_DE_SOLICITUD',
+    'FECHA_INGRESO',
+    'FECHA SOLICITUD PQR',
   ]);
   const fechaVencRaw = getExcelCellValue(row, [
-    'FECHA_VENCIMIENTO', 'FECHA VENCIMIENTO', 'VENCIMIENTO', 'FECHA_LIMITE',
-    'FECHA LIMITE', 'FECHA_MAXIMA', 'FECHA VENCIMIENTO PQR',
+    'FECHA_VENCIMIENTO',
+    'FECHA VENCIMIENTO',
+    'VENCIMIENTO',
+    'FECHA_LIMITE',
+    'FECHA LIMITE',
+    'FECHA_MAXIMA',
+    'FECHA VENCIMIENTO PQR',
   ]);
   const numeroProcRaw = getExcelCellValue(row, [
-    'NUMERO_PROCESO', 'NUMERO PROCESO', 'NO_PROCESO', 'NO. PROCESO',
-    'PROCESO', 'EXPEDIENTE', 'NUMERO_EXPEDIENTE', 'CODIGO_PROCESO', 'TRAMITE',
+    'NUMERO_PROCESO',
+    'NUMERO PROCESO',
+    'NO_PROCESO',
+    'NO. PROCESO',
+    'PROCESO',
+    'EXPEDIENTE',
+    'NUMERO_EXPEDIENTE',
+    'CODIGO_PROCESO',
+    'TRAMITE',
   ]);
   const radicadoRaw = getExcelCellValue(row, [
-    'RADICADO_ENTRADA', 'RADICADO ENTRADA', 'RADICADO', 'NO_RADICADO',
-    'NO. RADICADO', 'NUMERO_RADICADO', 'NUMERO RADICADO', 'RADICADO_PQR', 'RADICACION',
+    'RADICADO_ENTRADA',
+    'RADICADO ENTRADA',
+    'RADICADO',
+    'NO_RADICADO',
+    'NO. RADICADO',
+    'NUMERO_RADICADO',
+    'NUMERO RADICADO',
+    'RADICADO_PQR',
+    'RADICACION',
   ]);
   const nombreSolRaw = getExcelCellValue(row, [
-    'NOMBRE_SOLICITANTE', 'NOMBRE SOLICITANTE', 'SOLICITANTE', 'NOMBRE',
-    'CLIENTE', 'NOMBRE_CLIENTE', 'NOMBRE CLIENTE', 'TITULAR', 'USUARIO', 'NOMBRE_USUARIO',
+    'NOMBRE_SOLICITANTE',
+    'NOMBRE SOLICITANTE',
+    'SOLICITANTE',
+    'NOMBRE',
+    'CLIENTE',
+    'NOMBRE_CLIENTE',
+    'NOMBRE CLIENTE',
+    'TITULAR',
+    'USUARIO',
+    'NOMBRE_USUARIO',
   ]);
   const cedulaSolRaw = getExcelCellValue(row, [
-    'CEDULA_SOLICITANTE', 'CEDULA SOLICITANTE', 'CEDULA', 'IDENTIFICACION',
-    'DOCUMENTO', 'NIT', 'CC', 'NUMERO_DOCUMENTO', 'DOC_SOLICITANTE',
+    'CEDULA_SOLICITANTE',
+    'CEDULA SOLICITANTE',
+    'CEDULA',
+    'IDENTIFICACION',
+    'DOCUMENTO',
+    'NIT',
+    'CC',
+    'NUMERO_DOCUMENTO',
+    'DOC_SOLICITANTE',
   ]);
   const direccionSolRaw = getExcelCellValue(row, [
-    'DIRECCION_SOLICITANTE', 'DIRECCION SOLICITANTE', 'DIRECCION',
-    'DIRECCION_PREDIO', 'DIRECCION PREDIO', 'PREDIO', 'UBICACION', 'DIR_SOLICITANTE',
+    'DIRECCION_SOLICITANTE',
+    'DIRECCION SOLICITANTE',
+    'DIRECCION',
+    'DIRECCION_PREDIO',
+    'DIRECCION PREDIO',
+    'PREDIO',
+    'UBICACION',
+    'DIR_SOLICITANTE',
   ]);
   const deptoSolRaw = getExcelCellValue(row, [
-    'DEPTO_SOLICITANTE', 'DEPTO SOLICITANTE', 'DEPARTAMENTO_SOLICITANTE',
-    'DEPARTAMENTO', 'DEPTO', 'DEPARTAMENTO SOLICITANTE',
+    'DEPTO_SOLICITANTE',
+    'DEPTO SOLICITANTE',
+    'DEPARTAMENTO_SOLICITANTE',
+    'DEPARTAMENTO',
+    'DEPTO',
+    'DEPARTAMENTO SOLICITANTE',
   ]);
   const municipioSolRaw = getExcelCellValue(row, [
-    'MUNICIPIO_SOLICITANTE', 'MUNICIPIO SOLICITANTE', 'MUNICIPIO',
-    'CIUDAD', 'CIUDAD_SOLICITANTE', 'MUNICIPIO SOLICITANTE',
+    'MUNICIPIO_SOLICITANTE',
+    'MUNICIPIO SOLICITANTE',
+    'MUNICIPIO',
+    'CIUDAD',
+    'CIUDAD_SOLICITANTE',
+    'MUNICIPIO SOLICITANTE',
   ]);
   const correoSolRaw = getExcelCellValue(row, [
-    'CORREO_SOLICITANTE', 'CORREO SOLICITANTE', 'CORREO', 'EMAIL',
-    'CORREO_ELECTRONICO', 'E-MAIL', 'EMAIL_SOLICITANTE',
+    'CORREO_SOLICITANTE',
+    'CORREO SOLICITANTE',
+    'CORREO',
+    'EMAIL',
+    'CORREO_ELECTRONICO',
+    'E-MAIL',
+    'EMAIL_SOLICITANTE',
   ]);
   const cuentaRaw = getExcelCellValue(row, [
-    'NUMERO_CUENTA', 'NUMERO CUENTA', 'CUENTA', 'CUENTA_CONTRATO',
-    'CUENTA CONTRATO', 'CONTRATO', 'NIU', 'CUENTA_ESSA', 'NUMERO DE CUENTA',
+    'NUMERO_CUENTA',
+    'NUMERO CUENTA',
+    'CUENTA',
+    'CUENTA_CONTRATO',
+    'CUENTA CONTRATO',
+    'CONTRATO',
+    'NIU',
+    'CUENTA_ESSA',
+    'NUMERO DE CUENTA',
   ]);
 
   const base: EssaRecord = {
-    ...(row as Record<string, unknown>) as unknown as EssaRecord,
+    ...(row as Record<string, unknown> as unknown as EssaRecord),
     rowId,
     id: recordId,
     status: 'Pendiente',
@@ -138,7 +215,7 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
 function isValidRow(item: unknown): boolean {
   if (!item || typeof item !== 'object') return false;
   const values = Object.values(item as Record<string, unknown>).filter(
-    (v) => v !== undefined && v !== null && String(v).trim() !== '',
+    (v) => v !== undefined && v !== null && String(v).trim() !== ''
   );
   return values.length > 0;
 }
@@ -146,7 +223,8 @@ function isValidRow(item: unknown): boolean {
 function isFilteredCuenta(value: unknown): boolean {
   if (value === null || value === undefined) return true;
   const s = String(value).trim();
-  if (s === '' || s === '0' || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined') return true;
+  if (s === '' || s === '0' || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined')
+    return true;
   if (!isNaN(Number(s)) && Number(s) === 0) return true;
   return false;
 }
@@ -170,7 +248,7 @@ export function formatBytes(bytes?: number): string {
 
 async function blobToArrayBuffer(
   blob: Blob,
-  onProgress?: (info: ParseProgressInfo) => void,
+  onProgress?: (info: ParseProgressInfo) => void
 ): Promise<ArrayBuffer> {
   const total = blob.size || 0;
   return await new Promise<ArrayBuffer>((resolve, reject) => {
@@ -202,7 +280,7 @@ async function blobToArrayBuffer(
 
 export async function parseExcelFile(
   file: File,
-  onProgress?: (info: ParseProgressInfo) => void,
+  onProgress?: (info: ParseProgressInfo) => void
 ): Promise<EssaRecord[]> {
   onProgress?.({
     stage: 'Iniciando lectura del archivo...',
@@ -292,7 +370,10 @@ export async function parseExcelFile(
 }
 
 // Legacy sync helper kept for compatibility with older callers that pass binary directly
-export function parseExcelBinary(dataBinary: string | ArrayBuffer): { records: EssaRecord[]; rawCount: number } {
+export function parseExcelBinary(dataBinary: string | ArrayBuffer): {
+  records: EssaRecord[];
+  rawCount: number;
+} {
   const wb = XLSX.read(dataBinary, { type: typeof dataBinary === 'string' ? 'binary' : 'array' });
   const wsname = wb.SheetNames[0];
   if (!wsname) return { records: [], rawCount: 0 };

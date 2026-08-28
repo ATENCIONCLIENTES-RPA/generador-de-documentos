@@ -110,7 +110,9 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
           // remove any toolbar/header that docx-preview might inject (ensure clean)
           // docx-preview does not inject gray toolbar by default, but guard: strip elements with gray bg if any
           if (cancelled || !previewContainerRef.current) return;
-          const maybeToolbar = previewContainerRef.current.querySelectorAll('[class*="toolbar"], [class*="header"]');
+          const maybeToolbar = previewContainerRef.current.querySelectorAll(
+            '[class*="toolbar"], [class*="header"]'
+          );
           maybeToolbar.forEach((el) => {
             const style = (el as HTMLElement).style;
             const bg = style.background ?? style.backgroundColor ?? '';
@@ -159,7 +161,10 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
 
   if (loading) {
     return (
-      <div data-testid="templates-view" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div
+        data-testid="templates-view"
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+      >
         <div
           data-testid="tv-loading"
           style={{
@@ -176,7 +181,9 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
           }}
         >
           <Spinner size={28} />
-          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--neutral-600)' }}>Cargando plantillas…</div>
+          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--neutral-600)' }}>
+            Cargando plantillas…
+          </div>
         </div>
       </div>
     );
@@ -184,7 +191,10 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
 
   if (!templates || templates.length === 0) {
     return (
-      <div data-testid="templates-view" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div
+        data-testid="templates-view"
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+      >
         <div
           data-testid="tv-empty"
           style={{
@@ -196,15 +206,51 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <div style={{ width: 56, height: 56, borderRadius: 14, background: '#f1f5f9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 14,
+              background: '#f1f5f9',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 12,
+            }}
+          >
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#94a3b8"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
           </div>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--neutral-700)', marginBottom: 6 }}>No hay plantillas disponibles</div>
-          <div style={{ fontSize: '0.84rem', color: 'var(--neutral-500)', marginBottom: 16 }}>Carga plantillas .docx en el Módulo 2 para verlas aquí.</div>
-          <Button variant="primary" onClick={() => goTo('configuracion')} data-testid="tv-go-config">
+          <div
+            style={{
+              fontSize: '1rem',
+              fontWeight: 800,
+              color: 'var(--neutral-700)',
+              marginBottom: 6,
+            }}
+          >
+            No hay plantillas disponibles
+          </div>
+          <div style={{ fontSize: '0.84rem', color: 'var(--neutral-500)', marginBottom: 16 }}>
+            Carga plantillas .docx en el Módulo 2 para verlas aquí.
+          </div>
+          <Button
+            variant="primary"
+            onClick={() => goTo('configuracion')}
+            data-testid="tv-go-config"
+          >
             Ir a Cargar Plantillas
           </Button>
         </div>
@@ -226,8 +272,29 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
 
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ width: 40, height: 40, borderRadius: 12, background: '#eff6ff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#004B93' }} aria-hidden>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#004B93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <span
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            background: '#eff6ff',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#004B93',
+          }}
+          aria-hidden
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#004B93"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
             <line x1="16" y1="13" x2="8" y2="13" />
@@ -235,22 +302,67 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
           </svg>
         </span>
         <div>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--neutral-900)', margin: 0, lineHeight: 1.1 }}>Módulo 4: Selección de Plantilla</h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--neutral-500)', margin: 0 }}>Elige la plantilla y previsualiza el documento con datos reales</p>
+          <h2
+            style={{
+              fontSize: '1.2rem',
+              fontWeight: 900,
+              color: 'var(--neutral-900)',
+              margin: 0,
+              lineHeight: 1.1,
+            }}
+          >
+            Módulo 4: Selección de Plantilla
+          </h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--neutral-500)', margin: 0 }}>
+            Elige la plantilla y previsualiza el documento con datos reales
+          </p>
         </div>
       </div>
 
       <div className="tv-grid" data-testid="tv-grid">
         {/* Left: Template Gallery */}
-        <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', minHeight: 520 }}>
-          <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--neutral-700)' }}>Plantillas</span>
+        <div
+          style={{
+            background: '#fff',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            overflow: 'hidden',
+            boxShadow: 'var(--shadow-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 520,
+          }}
+        >
+          <div
+            style={{
+              padding: '10px 12px',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+            }}
+          >
+            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--neutral-700)' }}>
+              Plantillas
+            </span>
             <Badge variant="info" style={{ fontSize: '0.68rem' }} data-testid="tv-count">
               {templates.length} plantilla{templates.length !== 1 ? 's' : ''}
             </Badge>
           </div>
 
-          <div data-testid="tv-list" style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 520 }}>
+          <div
+            data-testid="tv-list"
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              maxHeight: 520,
+            }}
+          >
             {templates.map((tpl: Template) => {
               const isActive = selectedTemplate?.id === tpl.id;
               const catStyle = getCategoryStyle(tpl.category);
@@ -293,13 +405,30 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
                       color: '#004B93',
                     }}
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
                   </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                    <span
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        marginBottom: 4,
+                        flexWrap: 'wrap',
+                      }}
+                    >
                       <span
                         style={{
                           display: 'inline-flex',
@@ -317,19 +446,61 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
                       >
                         {tpl.category ?? 'General'}
                       </span>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--neutral-500)', background: '#f8fafc', border: '1px solid var(--border)', borderRadius: 999, padding: '2px 7px' }} data-testid={`tv-varcount-${tpl.id}`}>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          color: 'var(--neutral-500)',
+                          background: '#f8fafc',
+                          border: '1px solid var(--border)',
+                          borderRadius: 999,
+                          padding: '2px 7px',
+                        }}
+                        data-testid={`tv-varcount-${tpl.id}`}
+                      >
                         {varCount} var
                       </span>
                     </span>
-                    <span style={{ display: 'block', fontSize: '0.84rem', fontWeight: 800, color: 'var(--neutral-800)', lineHeight: 1.25, marginBottom: 4 }} data-testid={`tv-title-${tpl.id}`}>
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: '0.84rem',
+                        fontWeight: 800,
+                        color: 'var(--neutral-800)',
+                        lineHeight: 1.25,
+                        marginBottom: 4,
+                      }}
+                      data-testid={`tv-title-${tpl.id}`}
+                    >
                       {tpl.title}
                     </span>
                     {tpl.description && (
-                      <span style={{ display: 'block', fontSize: '0.74rem', color: 'var(--neutral-500)', lineHeight: 1.35, marginBottom: 4 }} className="tv-desc" data-testid={`tv-desc-${tpl.id}`}>
+                      <span
+                        style={{
+                          display: 'block',
+                          fontSize: '0.74rem',
+                          color: 'var(--neutral-500)',
+                          lineHeight: 1.35,
+                          marginBottom: 4,
+                        }}
+                        className="tv-desc"
+                        data-testid={`tv-desc-${tpl.id}`}
+                      >
                         {tpl.description}
                       </span>
                     )}
-                    <span style={{ display: 'block', fontSize: '0.66rem', color: '#94a3b8', fontFamily: 'var(--font-mono, ui-monospace)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={tpl.fileName}>
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: '0.66rem',
+                        color: '#94a3b8',
+                        fontFamily: 'var(--font-mono, ui-monospace)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title={tpl.fileName}
+                    >
                       {tpl.fileName}
                     </span>
                     {tpl.sampleContent && (
@@ -357,8 +528,21 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
                     )}
                   </span>
                   {isActive && (
-                    <span style={{ color: '#004B93', flexShrink: 0, marginTop: 2 }} aria-hidden data-testid={`tv-check-${tpl.id}`}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                    <span
+                      style={{ color: '#004B93', flexShrink: 0, marginTop: 2 }}
+                      aria-hidden
+                      data-testid={`tv-check-${tpl.id}`}
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                     </span>
@@ -370,18 +554,71 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
         </div>
 
         {/* Right: Preview Panel */}
-        <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', minHeight: 520 }} data-testid="tv-preview-panel">
+        <div
+          style={{
+            background: '#fff',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            overflow: 'hidden',
+            boxShadow: 'var(--shadow-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 520,
+          }}
+          data-testid="tv-preview-panel"
+        >
           {!selectedTemplate ? (
-            <div data-testid="tv-preview-empty" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center', color: 'var(--neutral-400)' }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }} aria-hidden>
+            <div
+              data-testid="tv-preview-empty"
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '48px 24px',
+                textAlign: 'center',
+                color: 'var(--neutral-400)',
+              }}
+            >
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#cbd5e1"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ marginBottom: 12 }}
+                aria-hidden
+              >
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
               </svg>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--neutral-600)' }}>Selecciona una plantilla</div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--neutral-500)', marginTop: 4 }}>Elige una plantilla de la izquierda para previsualizar</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--neutral-600)' }}>
+                Selecciona una plantilla
+              </div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--neutral-500)', marginTop: 4 }}>
+                Elige una plantilla de la izquierda para previsualizar
+              </div>
               {previewRecord && (
-                <div style={{ marginTop: 12, fontSize: '0.76rem', color: 'var(--neutral-500)', background: '#f8fafc', border: '1px solid var(--border)', borderRadius: 999, padding: '6px 12px' }} data-testid="tv-preview-record-hint">
-                  Vista previa usará: {(previewRecord as unknown as { nombreSolicitante?: string }).nombreSolicitante ?? (previewRecord as unknown as { numeroCuenta?: string }).numeroCuenta ?? 'primer registro seleccionado'}
+                <div
+                  style={{
+                    marginTop: 12,
+                    fontSize: '0.76rem',
+                    color: 'var(--neutral-500)',
+                    background: '#f8fafc',
+                    border: '1px solid var(--border)',
+                    borderRadius: 999,
+                    padding: '6px 12px',
+                  }}
+                  data-testid="tv-preview-record-hint"
+                >
+                  Vista previa usará:{' '}
+                  {(previewRecord as unknown as { nombreSolicitante?: string }).nombreSolicitante ??
+                    (previewRecord as unknown as { numeroCuenta?: string }).numeroCuenta ??
+                    'primer registro seleccionado'}
                 </div>
               )}
             </div>
@@ -444,28 +681,52 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
                       }}
                     >
                       {fallbackContent || (
-                        <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Sin contenido de vista previa</span>
+                        <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                          Sin contenido de vista previa
+                        </span>
                       )}
                     </div>
                     {/* if both failed, at least show title */}
                     {!fallbackContent && !selectedTemplate.file && (
-                      <div style={{ fontSize: '0.84rem', color: '#64748b' }}>{selectedTemplate.title}</div>
+                      <div style={{ fontSize: '0.84rem', color: '#64748b' }}>
+                        {selectedTemplate.title}
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
 
               {/* Variable tags below preview */}
-              <div style={{ padding: '14px 16px', borderTop: '1px solid var(--border)', background: '#fff' }} data-testid="tv-variables">
-                <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--neutral-600)', marginBottom: 8 }}>
+              <div
+                style={{
+                  padding: '14px 16px',
+                  borderTop: '1px solid var(--border)',
+                  background: '#fff',
+                }}
+                data-testid="tv-variables"
+              >
+                <div
+                  style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    color: 'var(--neutral-600)',
+                    marginBottom: 8,
+                  }}
+                >
                   Variables detectadas ({selectedTemplate.variables?.length ?? 0})
                 </div>
                 {!selectedTemplate.variables || selectedTemplate.variables.length === 0 ? (
-                  <div style={{ fontSize: '0.78rem', color: 'var(--neutral-400)' }} data-testid="tv-no-vars">
+                  <div
+                    style={{ fontSize: '0.78rem', color: 'var(--neutral-400)' }}
+                    data-testid="tv-no-vars"
+                  >
                     Esta plantilla no tiene variables detectadas
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} data-testid="tv-vars-list">
+                  <div
+                    style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}
+                    data-testid="tv-vars-list"
+                  >
                     {selectedTemplate.variables.map((v) => {
                       const vs = getSourceStyle(v.source);
                       return (
@@ -488,16 +749,39 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
                           }}
                         >
                           [{v.key}]
-                          <span style={{ opacity: 0.75, fontWeight: 600, fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{v.source}</span>
+                          <span
+                            style={{
+                              opacity: 0.75,
+                              fontWeight: 600,
+                              fontSize: '0.62rem',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.06em',
+                            }}
+                          >
+                            {v.source}
+                          </span>
                         </span>
                       );
                     })}
                   </div>
                 )}
                 {previewRecord && (
-                  <div style={{ marginTop: 10, fontSize: '0.72rem', color: 'var(--neutral-500)' }} data-testid="tv-preview-record">
-                    Vista previa con: <strong style={{ color: 'var(--neutral-700)' }}>{String((previewRecord as unknown as Record<string, unknown>).nombreSolicitante ?? (previewRecord as unknown as Record<string, unknown>).numeroCuenta ?? (previewRecord as unknown as Record<string, unknown>).rowId ?? 'registro')}</strong>
-                    {selectedRecords.length > 1 && <span> · {selectedRecords.length} seleccionados</span>}
+                  <div
+                    style={{ marginTop: 10, fontSize: '0.72rem', color: 'var(--neutral-500)' }}
+                    data-testid="tv-preview-record"
+                  >
+                    Vista previa con:{' '}
+                    <strong style={{ color: 'var(--neutral-700)' }}>
+                      {String(
+                        (previewRecord as unknown as Record<string, unknown>).nombreSolicitante ??
+                          (previewRecord as unknown as Record<string, unknown>).numeroCuenta ??
+                          (previewRecord as unknown as Record<string, unknown>).rowId ??
+                          'registro'
+                      )}
+                    </strong>
+                    {selectedRecords.length > 1 && (
+                      <span> · {selectedRecords.length} seleccionados</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -534,7 +818,18 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
             style={{ marginLeft: 'auto' }}
           >
             Continuar a Generación
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ marginLeft: 6 }}>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+              style={{ marginLeft: 6 }}
+            >
               <line x1="5" y1="12" x2="19" y2="12" />
               <polyline points="12 5 19 12 12 19" />
             </svg>

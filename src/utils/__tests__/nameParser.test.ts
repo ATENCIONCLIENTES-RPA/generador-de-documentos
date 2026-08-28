@@ -21,7 +21,9 @@ describe('nameParser', () => {
   });
 
   it('formatApplicantName: 4 palabras apellidos primero', () => {
-    expect(formatApplicantName('CARRILLO PALACIO JUAN CARLOS')).toBe('Juan Carlos Carrillo Palacio');
+    expect(formatApplicantName('CARRILLO PALACIO JUAN CARLOS')).toBe(
+      'Juan Carlos Carrillo Palacio'
+    );
   });
 
   it('extractFirstName: 3 palabras apellido + 2 nombres', () => {

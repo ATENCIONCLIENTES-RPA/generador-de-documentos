@@ -36,7 +36,11 @@ function isDirty(a: EssaRecord | null, b: EssaRecord | null): boolean {
     // only consider string values for simplicity
     if (String(a[k] ?? '') !== String(b[k] ?? '')) {
       // if key is among editable fields or any string field, consider dirty
-      if (keys.includes(k as keyof EssaRecord) || typeof a[k] === 'string' || typeof b[k] === 'string') {
+      if (
+        keys.includes(k as keyof EssaRecord) ||
+        typeof a[k] === 'string' ||
+        typeof b[k] === 'string'
+      ) {
         // but ignore internal non-editable? we treat any difference as dirty except rowId/id
         if (k === 'rowId' || k === 'id') continue;
         return true;
@@ -113,7 +117,13 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
   if (!open) return null;
 
   return (
-    <Modal open={open} onClose={requestClose} title="Editar registro" width={760} closeOnOverlay={!showUnsavedWarning}>
+    <Modal
+      open={open}
+      onClose={requestClose}
+      title="Editar registro"
+      width={760}
+      closeOnOverlay={!showUnsavedWarning}
+    >
       <style>{`
         .rem-section { border:1px solid var(--border); border-radius:12px; padding:14px; background:#fff; }
         .rem-section + .rem-section { margin-top:14px; }
@@ -131,46 +141,136 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
           {/* INFORMACIÓN DEL TRÁMITE */}
           <div className="rem-section" data-testid="rem-section-tramite">
             <div className="rem-section-title">
-              <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--essa-primary)', display: 'inline-block' }} aria-hidden />
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 999,
+                  background: 'var(--essa-primary)',
+                  display: 'inline-block',
+                }}
+                aria-hidden
+              />
               Información del trámite
             </div>
             <div className="rem-grid">
-              <Input label="Proceso" value={String(draft.numeroProceso ?? '')} onChange={(e) => set('numeroProceso', e.target.value)} placeholder="Número de proceso" />
-              <Input label="Radicado" value={String(draft.radicadoEntrada ?? '')} onChange={(e) => set('radicadoEntrada', e.target.value)} placeholder="Radicado de entrada" />
-              <Input label="Cuenta" value={String(draft.numeroCuenta ?? draft.cuenta ?? '')} onChange={(e) => set('numeroCuenta', e.target.value)} placeholder="Número de cuenta" />
-              <DatePicker label="Fecha solicitud" value={String(draft.fechaSolicitud ?? '')} onChange={(e) => set('fechaSolicitud', e.target.value)} />
-              <DatePicker label="Fecha vencimiento" value={String(draft.fechaVencimiento ?? '')} onChange={(e) => set('fechaVencimiento', e.target.value)} />
+              <Input
+                label="Proceso"
+                value={String(draft.numeroProceso ?? '')}
+                onChange={(e) => set('numeroProceso', e.target.value)}
+                placeholder="Número de proceso"
+              />
+              <Input
+                label="Radicado"
+                value={String(draft.radicadoEntrada ?? '')}
+                onChange={(e) => set('radicadoEntrada', e.target.value)}
+                placeholder="Radicado de entrada"
+              />
+              <Input
+                label="Cuenta"
+                value={String(draft.numeroCuenta ?? draft.cuenta ?? '')}
+                onChange={(e) => set('numeroCuenta', e.target.value)}
+                placeholder="Número de cuenta"
+              />
+              <DatePicker
+                label="Fecha solicitud"
+                value={String(draft.fechaSolicitud ?? '')}
+                onChange={(e) => set('fechaSolicitud', e.target.value)}
+              />
+              <DatePicker
+                label="Fecha vencimiento"
+                value={String(draft.fechaVencimiento ?? '')}
+                onChange={(e) => set('fechaVencimiento', e.target.value)}
+              />
             </div>
           </div>
 
           {/* INFORMACIÓN DEL SOLICITANTE */}
           <div className="rem-section" data-testid="rem-section-solicitante">
             <div className="rem-section-title">
-              <span style={{ width: 6, height: 6, borderRadius: 999, background: '#76BC21', display: 'inline-block' }} aria-hidden />
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 999,
+                  background: '#76BC21',
+                  display: 'inline-block',
+                }}
+                aria-hidden
+              />
               Información del solicitante
             </div>
             <div className="rem-grid">
-              <Input label="Nombre" value={String(draft.nombreSolicitante ?? '')} onChange={(e) => set('nombreSolicitante', e.target.value)} placeholder="Nombre completo" />
-              <Input label="Cédula" value={String(draft.cedulaSolicitante ?? '')} onChange={(e) => set('cedulaSolicitante', e.target.value)} placeholder="Cédula" />
-              <Input label="Dirección" value={String(draft.direccionSolicitante ?? '')} onChange={(e) => set('direccionSolicitante', e.target.value)} placeholder="Dirección" />
-              <Input label="Departamento" value={String(draft.departamentoSolicitante ?? '')} onChange={(e) => set('departamentoSolicitante', e.target.value)} placeholder="Departamento" />
-              <Input label="Municipio" value={String(draft.municipioSolicitante ?? '')} onChange={(e) => set('municipioSolicitante', e.target.value)} placeholder="Municipio" />
-              <Input label="Correo" value={String(draft.correoSolicitante ?? '')} onChange={(e) => set('correoSolicitante', e.target.value)} placeholder="correo@ejemplo.com" type="email" />
+              <Input
+                label="Nombre"
+                value={String(draft.nombreSolicitante ?? '')}
+                onChange={(e) => set('nombreSolicitante', e.target.value)}
+                placeholder="Nombre completo"
+              />
+              <Input
+                label="Cédula"
+                value={String(draft.cedulaSolicitante ?? '')}
+                onChange={(e) => set('cedulaSolicitante', e.target.value)}
+                placeholder="Cédula"
+              />
+              <Input
+                label="Dirección"
+                value={String(draft.direccionSolicitante ?? '')}
+                onChange={(e) => set('direccionSolicitante', e.target.value)}
+                placeholder="Dirección"
+              />
+              <Input
+                label="Departamento"
+                value={String(draft.departamentoSolicitante ?? '')}
+                onChange={(e) => set('departamentoSolicitante', e.target.value)}
+                placeholder="Departamento"
+              />
+              <Input
+                label="Municipio"
+                value={String(draft.municipioSolicitante ?? '')}
+                onChange={(e) => set('municipioSolicitante', e.target.value)}
+                placeholder="Municipio"
+              />
+              <Input
+                label="Correo"
+                value={String(draft.correoSolicitante ?? '')}
+                onChange={(e) => set('correoSolicitante', e.target.value)}
+                placeholder="correo@ejemplo.com"
+                type="email"
+              />
             </div>
           </div>
 
           {/* DESCRIPCIONES */}
           <div className="rem-section" data-testid="rem-section-descripciones">
             <div className="rem-section-title">
-              <span style={{ width: 6, height: 6, borderRadius: 999, background: '#0284C7', display: 'inline-block' }} aria-hidden />
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 999,
+                  background: '#0284C7',
+                  display: 'inline-block',
+                }}
+                aria-hidden
+              />
               Descripciones
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--neutral-700)' }}>Descripción / Hechos</span>
+                <span
+                  style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--neutral-700)' }}
+                >
+                  Descripción / Hechos
+                </span>
                 <textarea
                   className="rem-textarea"
-                  value={String((draft as Record<string, unknown>)['descripcion'] ?? (draft as Record<string, unknown>)['DESCRIPCION'] ?? (draft as Record<string, unknown>)['hechos'] ?? '')}
+                  value={String(
+                    (draft as Record<string, unknown>)['descripcion'] ??
+                      (draft as Record<string, unknown>)['DESCRIPCION'] ??
+                      (draft as Record<string, unknown>)['hechos'] ??
+                      ''
+                  )}
                   onChange={(e) => set('descripcion', e.target.value)}
                   placeholder="Descripción detallada…"
                   rows={4}
@@ -178,10 +278,18 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
                 />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--neutral-700)' }}>Observaciones</span>
+                <span
+                  style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--neutral-700)' }}
+                >
+                  Observaciones
+                </span>
                 <textarea
                   className="rem-textarea"
-                  value={String((draft as Record<string, unknown>)['observaciones'] ?? (draft as Record<string, unknown>)['OBSERVACIONES'] ?? '')}
+                  value={String(
+                    (draft as Record<string, unknown>)['observaciones'] ??
+                      (draft as Record<string, unknown>)['OBSERVACIONES'] ??
+                      ''
+                  )}
                   onChange={(e) => set('observaciones', e.target.value)}
                   placeholder="Observaciones adicionales…"
                   rows={3}
@@ -207,13 +315,29 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
                 gap: 10,
               }}
             >
-              <div style={{ fontSize: '0.875rem', fontWeight: 800, color: '#92400e' }}>¿Descartar cambios?</div>
-              <div style={{ fontSize: '0.8125rem', color: '#78350f', lineHeight: 1.5 }}>Tienes cambios sin guardar. Si cierras ahora se perderán.</div>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                <Button variant="ghost" size="sm" onClick={continueEditing} data-testid="rem-continue-editing">
+              <div style={{ fontSize: '0.875rem', fontWeight: 800, color: '#92400e' }}>
+                ¿Descartar cambios?
+              </div>
+              <div style={{ fontSize: '0.8125rem', color: '#78350f', lineHeight: 1.5 }}>
+                Tienes cambios sin guardar. Si cierras ahora se perderán.
+              </div>
+              <div
+                style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={continueEditing}
+                  data-testid="rem-continue-editing"
+                >
                   Continuar editando
                 </Button>
-                <Button variant="danger" size="sm" onClick={discardAndClose} data-testid="rem-discard">
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={discardAndClose}
+                  data-testid="rem-discard"
+                >
                   Descartar
                 </Button>
               </div>
@@ -221,7 +345,16 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
           )}
 
           {/* footer */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 10,
+              marginTop: 18,
+              paddingTop: 16,
+              borderTop: '1px solid var(--border)',
+            }}
+          >
             <Button variant="ghost" onClick={requestClose} data-testid="rem-cancel">
               Cancelar
             </Button>

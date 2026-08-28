@@ -31,12 +31,27 @@ const sizes: Record<Size, React.CSSProperties> = {
 };
 
 function variantStyle(v: Variant, disabled: boolean | undefined): React.CSSProperties {
-  if (disabled) return { background: 'var(--neutral-100)', color: 'var(--neutral-400)', borderColor: 'var(--border)', cursor: 'not-allowed' };
+  if (disabled)
+    return {
+      background: 'var(--neutral-100)',
+      color: 'var(--neutral-400)',
+      borderColor: 'var(--border)',
+      cursor: 'not-allowed',
+    };
   switch (v) {
     case 'primary':
-      return { background: 'var(--essa-primary)', color: '#fff', borderColor: 'var(--essa-primary)', boxShadow: '0 2px 8px rgba(0,75,147,.22)' };
+      return {
+        background: 'var(--essa-primary)',
+        color: '#fff',
+        borderColor: 'var(--essa-primary)',
+        boxShadow: '0 2px 8px rgba(0,75,147,.22)',
+      };
     case 'secondary':
-      return { background: '#fff', color: 'var(--essa-primary)', borderColor: 'var(--border-strong)' };
+      return {
+        background: '#fff',
+        color: 'var(--essa-primary)',
+        borderColor: 'var(--border-strong)',
+      };
     case 'ghost':
       return { background: 'transparent', color: 'var(--neutral-700)', borderColor: 'transparent' };
     case 'danger':
@@ -84,7 +99,7 @@ const Button = forwardRef<HTMLButtonElement, Props>(
         </button>
       </>
     );
-  },
+  }
 );
 Button.displayName = 'Button';
 export default Button;

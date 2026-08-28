@@ -46,6 +46,6 @@ export const useProfileStore = create<ProfileStore>()(
       name: 'essa-profile',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ profile: state.profile }),
-    },
-  ),
+    }
+  )
 );

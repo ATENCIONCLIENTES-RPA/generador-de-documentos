@@ -23,7 +23,8 @@ function makeTemplate(overrides: Partial<Template> & { id: string }): Template {
       { key: 'NOMBRE_SOLICITANTE', label: 'Nombre Solicitante', type: 'Texto', source: 'Excel' },
       { key: 'RADICADO_ENTRADA', label: 'Radicado', type: 'Texto', source: 'Excel' },
     ],
-    sampleContent: overrides.sampleContent ?? 'Estimado [NOMBRE_SOLICITANTE] radicado [RADICADO_ENTRADA]',
+    sampleContent:
+      overrides.sampleContent ?? 'Estimado [NOMBRE_SOLICITANTE] radicado [RADICADO_ENTRADA]',
     file: overrides.file,
   } as Template;
 }
@@ -82,8 +83,19 @@ describe('TemplatesView — M4 preview fixes', () => {
   });
 
   it('renderiza lista de plantillas con título, categoría, variable count y sampleContent preview', () => {
-    const t1 = makeTemplate({ id: 'tpl-1', title: 'Bloqueo de Cuenta', category: 'Cartas', sampleContent: 'Hola [NOMBRE_SOLICITANTE] contenido largo de ejemplo para preview truncation' });
-    const t2 = makeTemplate({ id: 'tpl-2', title: 'Contrato ESSA', category: 'Contratos', variables: [{ key: 'NUMERO_CUENTA', label: 'Cuenta', type: 'Texto', source: 'Excel' }], sampleContent: 'Contrato [NUMERO_CUENTA]' });
+    const t1 = makeTemplate({
+      id: 'tpl-1',
+      title: 'Bloqueo de Cuenta',
+      category: 'Cartas',
+      sampleContent: 'Hola [NOMBRE_SOLICITANTE] contenido largo de ejemplo para preview truncation',
+    });
+    const t2 = makeTemplate({
+      id: 'tpl-2',
+      title: 'Contrato ESSA',
+      category: 'Contratos',
+      variables: [{ key: 'NUMERO_CUENTA', label: 'Cuenta', type: 'Texto', source: 'Excel' }],
+      sampleContent: 'Contrato [NUMERO_CUENTA]',
+    });
     useTemplateStore.setState({ templates: [t1, t2], selectedTemplate: null });
     render(<TemplatesView />);
 
@@ -104,10 +116,18 @@ describe('TemplatesView — M4 preview fixes', () => {
   });
 
   it('click seleccionar plantilla → preview panel y variable tags', async () => {
-    const t1 = makeTemplate({ id: 'tpl-1', title: 'Bloqueo', sampleContent: 'Hola [NOMBRE_SOLICITANTE] radicado [RADICADO_ENTRADA]' });
+    const t1 = makeTemplate({
+      id: 'tpl-1',
+      title: 'Bloqueo',
+      sampleContent: 'Hola [NOMBRE_SOLICITANTE] radicado [RADICADO_ENTRADA]',
+    });
     useTemplateStore.setState({ templates: [t1], selectedTemplate: null });
     // seed a record and select it
-    const rec = makeRecord({ rowId: 'row_0_1', nombreSolicitante: 'María López', radicadoEntrada: 'RAD-999' });
+    const rec = makeRecord({
+      rowId: 'row_0_1',
+      nombreSolicitante: 'María López',
+      radicadoEntrada: 'RAD-999',
+    });
     useDataStore.setState({
       records: [rec] as unknown as EssaRecord[],
       selectedRows: new Set(['row_0_1']),
@@ -173,14 +193,27 @@ describe('TemplatesView — M4 preview fixes', () => {
     // sin toolbar gris — ensure no element with gray toolbar text in preview
     expect(screen.queryByText(/toolbar/i)).not.toBeInTheDocument();
     // ensure no gray header bar element (we removed)
-    const grayHeaders = viewer.querySelectorAll('[style*="background: #e5e7eb"], [style*="background:#e5e7eb"]');
+    const grayHeaders = viewer.querySelectorAll(
+      '[style*="background: #e5e7eb"], [style*="background:#e5e7eb"]'
+    );
     expect(grayHeaders.length).toBe(0);
   });
 
   it('usa datos reales seleccionados para vista previa (selectedRecords)', async () => {
-    const t1 = makeTemplate({ id: 'tpl-1', sampleContent: 'Cliente [NOMBRE_SOLICITANTE] cuenta [NUMERO_CUENTA]' });
-    const rec1 = makeRecord({ rowId: 'row_0_1', nombreSolicitante: 'Ana Torres', numeroCuenta: '111' });
-    const rec2 = makeRecord({ rowId: 'row_1_1', nombreSolicitante: 'Carlos Ruiz', numeroCuenta: '222' });
+    const t1 = makeTemplate({
+      id: 'tpl-1',
+      sampleContent: 'Cliente [NOMBRE_SOLICITANTE] cuenta [NUMERO_CUENTA]',
+    });
+    const rec1 = makeRecord({
+      rowId: 'row_0_1',
+      nombreSolicitante: 'Ana Torres',
+      numeroCuenta: '111',
+    });
+    const rec2 = makeRecord({
+      rowId: 'row_1_1',
+      nombreSolicitante: 'Carlos Ruiz',
+      numeroCuenta: '222',
+    });
     useTemplateStore.setState({ templates: [t1], selectedTemplate: t1 });
     useDataStore.setState({
       records: [rec1, rec2] as unknown as EssaRecord[],

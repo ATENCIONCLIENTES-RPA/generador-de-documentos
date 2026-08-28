@@ -25,7 +25,11 @@ export function ProfileView(): JSX.Element {
 
   // keep local form in sync if profile external changes (persist hydrate)
   useEffect(() => {
-    setForm({ name: profile.name ?? '', position: profile.position ?? '', email: profile.email ?? '' });
+    setForm({
+      name: profile.name ?? '',
+      position: profile.position ?? '',
+      email: profile.email ?? '',
+    });
     setSignature(profile.signatureUrl ?? null);
   }, [profile.name, profile.position, profile.email, profile.signatureUrl]);
 
@@ -77,7 +81,12 @@ export function ProfileView(): JSX.Element {
 
   const handleSave = () => {
     if (!validate()) return;
-    setProfile({ name: form.name.trim(), position: form.position.trim(), email: form.email.trim(), signatureUrl: signature });
+    setProfile({
+      name: form.name.trim(),
+      position: form.position.trim(),
+      email: form.email.trim(),
+      signatureUrl: signature,
+    });
     complete('perfil');
     goTo('configuracion');
   };
@@ -88,7 +97,11 @@ export function ProfileView(): JSX.Element {
 
   const handleClearDraft = () => {
     // restore to stored profile
-    setForm({ name: profile.name ?? '', position: profile.position ?? '', email: profile.email ?? '' });
+    setForm({
+      name: profile.name ?? '',
+      position: profile.position ?? '',
+      email: profile.email ?? '',
+    });
     setSignature(profile.signatureUrl ?? null);
     setErrors({});
   };
@@ -106,7 +119,10 @@ export function ProfileView(): JSX.Element {
             overflow: 'hidden',
           }}
         >
-          <div style={{ height: 4, background: 'linear-gradient(90deg, #004B93, #3b82f6)' }} aria-hidden />
+          <div
+            style={{ height: 4, background: 'linear-gradient(90deg, #004B93, #3b82f6)' }}
+            aria-hidden
+          />
 
           <div style={{ padding: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
@@ -123,18 +139,46 @@ export function ProfileView(): JSX.Element {
                   color: '#004B93',
                 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#004B93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#004B93"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                   <circle cx="12" cy="7" r="4" />
                 </svg>
               </span>
               <div>
-                <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--neutral-900)', margin: 0, lineHeight: 1.1 }}>Módulo 1: Configuración de Perfil</h2>
-                <p style={{ fontSize: '0.8rem', color: 'var(--neutral-500)', margin: 0 }}>Información del funcionario firmante</p>
+                <h2
+                  style={{
+                    fontSize: '1.2rem',
+                    fontWeight: 800,
+                    color: 'var(--neutral-900)',
+                    margin: 0,
+                    lineHeight: 1.1,
+                  }}
+                >
+                  Módulo 1: Configuración de Perfil
+                </h2>
+                <p style={{ fontSize: '0.8rem', color: 'var(--neutral-500)', margin: 0 }}>
+                  Información del funcionario firmante
+                </p>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 20 }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 14,
+                marginBottom: 20,
+              }}
+            >
               <div>
                 <Input
                   label="Nombre completo"
@@ -144,7 +188,14 @@ export function ProfileView(): JSX.Element {
                   aria-label="Nombre completo"
                   data-testid="profile-name"
                 />
-                {errors.name && <span data-testid="profile-error-name" style={{ fontSize: '0.72rem', color: '#dc2626' }}>{errors.name}</span>}
+                {errors.name && (
+                  <span
+                    data-testid="profile-error-name"
+                    style={{ fontSize: '0.72rem', color: '#dc2626' }}
+                  >
+                    {errors.name}
+                  </span>
+                )}
               </div>
               <div>
                 <Input
@@ -155,7 +206,14 @@ export function ProfileView(): JSX.Element {
                   aria-label="Cargo"
                   data-testid="profile-position"
                 />
-                {errors.position && <span data-testid="profile-error-position" style={{ fontSize: '0.72rem', color: '#dc2626' }}>{errors.position}</span>}
+                {errors.position && (
+                  <span
+                    data-testid="profile-error-position"
+                    style={{ fontSize: '0.72rem', color: '#dc2626' }}
+                  >
+                    {errors.position}
+                  </span>
+                )}
               </div>
               <div>
                 <Input
@@ -167,23 +225,42 @@ export function ProfileView(): JSX.Element {
                   aria-label="Correo electrónico"
                   data-testid="profile-email"
                 />
-                {errors.email && <span data-testid="profile-error-email" style={{ fontSize: '0.72rem', color: '#dc2626' }}>{errors.email}</span>}
+                {errors.email && (
+                  <span
+                    data-testid="profile-error-email"
+                    style={{ fontSize: '0.72rem', color: '#dc2626' }}
+                  >
+                    {errors.email}
+                  </span>
+                )}
               </div>
             </div>
 
             <div style={{ marginBottom: 18 }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>Firma Digital</h3>
+              <h3
+                style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginBottom: 10 }}
+              >
+                Firma Digital
+              </h3>
 
               <div
                 data-testid="signature-dropzone"
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
                 role="button"
                 tabIndex={0}
                 aria-label="Arrastra tu imagen de firma aquí o haz clic para buscar"
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fileInputRef.current?.click();
+                  }
+                }}
                 style={{
                   minHeight: 140,
                   marginBottom: 10,
@@ -201,17 +278,40 @@ export function ProfileView(): JSX.Element {
                   transition: 'border-color 150ms var(--ease), background 150ms var(--ease)',
                 }}
               >
-                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileSelect} data-testid="profile-file-input" aria-hidden />
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
+                  data-testid="profile-file-input"
+                  aria-hidden
+                />
+                <svg
+                  width="36"
+                  height="36"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#94a3b8"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
                 <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                  Arrastra tu imagen de firma aquí o <span style={{ color: '#004B93', fontWeight: 600 }}>haz clic para buscar</span>
+                  Arrastra tu imagen de firma aquí o{' '}
+                  <span style={{ color: '#004B93', fontWeight: 600 }}>haz clic para buscar</span>
                 </div>
-                <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Formatos: PNG, JPG, SVG (max 2MB)</div>
-                {errors.signature && <span style={{ fontSize: '0.72rem', color: '#dc2626' }}>{errors.signature}</span>}
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                  Formatos: PNG, JPG, SVG (max 2MB)
+                </div>
+                {errors.signature && (
+                  <span style={{ fontSize: '0.72rem', color: '#dc2626' }}>{errors.signature}</span>
+                )}
               </div>
 
               <div style={{ textAlign: 'center', marginBottom: 12, fontSize: '0.8rem' }}>
@@ -248,10 +348,25 @@ export function ProfileView(): JSX.Element {
                     gap: 12,
                   }}
                 >
-                  <img src={signature} alt="Firma digital" data-testid="profile-signature-img" style={{ height: 60, objectFit: 'contain', borderRadius: 6, background: '#fff', border: '1px solid #e2e8f0' }} />
+                  <img
+                    src={signature}
+                    alt="Firma digital"
+                    data-testid="profile-signature-img"
+                    style={{
+                      height: 60,
+                      objectFit: 'contain',
+                      borderRadius: 6,
+                      background: '#fff',
+                      border: '1px solid #e2e8f0',
+                    }}
+                  />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#0f172a' }}>Firma cargada</div>
-                    <div style={{ fontSize: '0.7rem', color: '#64748b' }}>La firma se aplicará automáticamente en los documentos generados.</div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#0f172a' }}>
+                      Firma cargada
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                      La firma se aplicará automáticamente en los documentos generados.
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -261,9 +376,25 @@ export function ProfileView(): JSX.Element {
                     }}
                     aria-label="Eliminar firma"
                     data-testid="profile-remove-signature"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4 }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#94a3b8',
+                      padding: 4,
+                    }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
                       <line x1="18" y1="6" x2="6" y2="18" />
                       <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
@@ -273,8 +404,22 @@ export function ProfileView(): JSX.Element {
             </div>
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-              <Button variant="ghost" onClick={handleCancel} data-testid="profile-cancel" aria-label="Cancelar perfil">Cancelar</Button>
-              <Button variant="ghost" onClick={handleClearDraft} data-testid="profile-clear-draft" aria-label="Restablecer perfil">Restablecer</Button>
+              <Button
+                variant="ghost"
+                onClick={handleCancel}
+                data-testid="profile-cancel"
+                aria-label="Cancelar perfil"
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleClearDraft}
+                data-testid="profile-clear-draft"
+                aria-label="Restablecer perfil"
+              >
+                Restablecer
+              </Button>
               <Button
                 variant="primary"
                 onClick={handleSave}
@@ -282,7 +427,17 @@ export function ProfileView(): JSX.Element {
                 data-testid="profile-save"
                 aria-label="Guardar perfil"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
                   <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
                   <polyline points="17 21 17 13 7 13 7 21" />
                   <polyline points="7 3 7 8 15 8" />
@@ -291,7 +446,16 @@ export function ProfileView(): JSX.Element {
               </Button>
             </div>
             {profile.signatureUrl && !signature && (
-              <div style={{ marginTop: 8, fontSize: '0.72rem', color: 'var(--neutral-500)', textAlign: 'right' }}>Firma persistida actualmente: guardada en navegador</div>
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: '0.72rem',
+                  color: 'var(--neutral-500)',
+                  textAlign: 'right',
+                }}
+              >
+                Firma persistida actualmente: guardada en navegador
+              </div>
             )}
           </div>
         </div>

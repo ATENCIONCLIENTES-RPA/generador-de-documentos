@@ -26,10 +26,46 @@ function StepDot({ status }: { status: StepStatus }) {
     transition: 'all var(--duration-md) var(--ease)',
   };
   if (status === 'completed')
-    return <span aria-hidden style={{ ...base, background: 'var(--essa-accent)', color: '#fff', borderColor: 'var(--essa-accent)' }}>✓</span>;
+    return (
+      <span
+        aria-hidden
+        style={{
+          ...base,
+          background: 'var(--essa-accent)',
+          color: '#fff',
+          borderColor: 'var(--essa-accent)',
+        }}
+      >
+        ✓
+      </span>
+    );
   if (status === 'active')
-    return <span aria-hidden style={{ ...base, background: 'var(--essa-primary)', color: '#fff', boxShadow: '0 4px 14px rgba(0,75,147,.32)' }}>●</span>;
-  return <span aria-hidden style={{ ...base, background: '#fff', color: 'var(--neutral-400)', borderColor: 'var(--border-strong)' }}>○</span>;
+    return (
+      <span
+        aria-hidden
+        style={{
+          ...base,
+          background: 'var(--essa-primary)',
+          color: '#fff',
+          boxShadow: '0 4px 14px rgba(0,75,147,.32)',
+        }}
+      >
+        ●
+      </span>
+    );
+  return (
+    <span
+      aria-hidden
+      style={{
+        ...base,
+        background: '#fff',
+        color: 'var(--neutral-400)',
+        borderColor: 'var(--border-strong)',
+      }}
+    >
+      ○
+    </span>
+  );
 }
 
 export function StepperBar({ steps, onStepClick }: Props) {
@@ -51,7 +87,10 @@ export function StepperBar({ steps, onStepClick }: Props) {
       }}
     >
       {steps.map((s, idx) => (
-        <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+        <div
+          key={s.key}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}
+        >
           <button
             onClick={() => onStepClick?.(s.key)}
             aria-label={`Ir a ${s.label}`}
@@ -88,7 +127,11 @@ export function StepperBar({ steps, onStepClick }: Props) {
               data-testid={`stepper-line-${s.key}`}
               style={{
                 background:
-                  s.status === 'completed' ? 'var(--essa-accent)' : s.status === 'active' ? 'var(--essa-primary-100)' : 'var(--neutral-200)',
+                  s.status === 'completed'
+                    ? 'var(--essa-accent)'
+                    : s.status === 'active'
+                      ? 'var(--essa-primary-100)'
+                      : 'var(--neutral-200)',
                 minWidth: 24,
               }}
             />

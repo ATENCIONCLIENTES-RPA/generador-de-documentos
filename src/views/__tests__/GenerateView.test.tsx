@@ -14,9 +14,14 @@ vi.mock('@/utils/templateEngine', () => ({
   generateDocx: vi.fn(async (file: File, _data: unknown) => {
     // simulate successful docx generation
     const buf = new Uint8Array([0x50, 0x4b]); // zip header
-    return new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    return new Blob([buf], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
   }),
-  buildTemplateData: vi.fn((rec: EssaRecord, profile: unknown) => ({ NOMBRE_SOLICITANTE: String(rec.nombreSolicitante ?? ''), _profile: profile })),
+  buildTemplateData: vi.fn((rec: EssaRecord, profile: unknown) => ({
+    NOMBRE_SOLICITANTE: String(rec.nombreSolicitante ?? ''),
+    _profile: profile,
+  })),
   replaceTemplateVariables: (s: string) => s,
 }));
 
@@ -55,7 +60,11 @@ function makeTemplate(overrides: Partial<Template> & { id: string }): Template {
       { key: 'NUMERO_CUENTA', label: 'Cuenta', type: 'Texto', source: 'Excel' },
     ],
     sampleContent: overrides.sampleContent ?? 'Hola [NOMBRE_SOLICITANTE] cuenta [NUMERO_CUENTA]',
-    file: overrides.file ?? (new File([new Uint8Array([1, 2, 3])], `${overrides.id}.docx`, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }) as unknown as File),
+    file:
+      overrides.file ??
+      (new File([new Uint8Array([1, 2, 3])], `${overrides.id}.docx`, {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      }) as unknown as File),
   } as Template;
 }
 
@@ -90,7 +99,9 @@ function resetStores() {
     editingRecord: null,
   });
   useTemplateStore.setState({ templates: [], selectedTemplate: null });
-  useProfileStore.setState({ profile: { name: 'Func EssA', position: 'Gestor', email: 'a@essa.com.co', signatureUrl: null } });
+  useProfileStore.setState({
+    profile: { name: 'Func EssA', position: 'Gestor', email: 'a@essa.com.co', signatureUrl: null },
+  });
   useGenerationStore.setState({ stage: 'revision', progress: 0, docResults: [] });
 }
 
@@ -104,10 +115,27 @@ describe('GenerateView — M5+6 unificado', () => {
   });
 
   it('sidebar renders: 25% lista navegable + Documento X de Y + prev/next + status por doc', async () => {
-    const rec1 = makeRecord({ rowId: 'row_0_1', nombreSolicitante: 'Ana López', numeroCuenta: '1001', radicadoEntrada: 'RAD-001' });
-    const rec2 = makeRecord({ rowId: 'row_1_1', nombreSolicitante: 'Carlos Ruiz', numeroCuenta: '1002', radicadoEntrada: 'RAD-002' });
+    const rec1 = makeRecord({
+      rowId: 'row_0_1',
+      nombreSolicitante: 'Ana López',
+      numeroCuenta: '1001',
+      radicadoEntrada: 'RAD-001',
+    });
+    const rec2 = makeRecord({
+      rowId: 'row_1_1',
+      nombreSolicitante: 'Carlos Ruiz',
+      numeroCuenta: '1002',
+      radicadoEntrada: 'RAD-002',
+    });
     const tpl = makeTemplate({ id: 'tpl-1', title: 'Tpl Test' });
-    useDataStore.setState({ records: [rec1, rec2] as unknown as EssaRecord[], selectedRows: new Set(['row_0_1', 'row_1_1']), filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' }, currentPage: 1, pageSize: 10, editingRecord: null });
+    useDataStore.setState({
+      records: [rec1, rec2] as unknown as EssaRecord[],
+      selectedRows: new Set(['row_0_1', 'row_1_1']),
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+      currentPage: 1,
+      pageSize: 10,
+      editingRecord: null,
+    });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
 
     render(<GenerateView />);
@@ -117,7 +145,10 @@ describe('GenerateView — M5+6 unificado', () => {
     expect(screen.getByTestId('gv-sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('gv-center')).toBeInTheDocument();
     // toolbar search placeholder exact (there are 2 inputs with same placeholder; check via testId)
-    expect(screen.getByTestId('gv-search')).toHaveAttribute('placeholder', 'Buscar por cuenta, radicado o nombre');
+    expect(screen.getByTestId('gv-search')).toHaveAttribute(
+      'placeholder',
+      'Buscar por cuenta, radicado o nombre'
+    );
     expect(screen.getAllByPlaceholderText('Buscar por cuenta, radicado o nombre')).toHaveLength(2);
     // sidebar list items
     expect(screen.getByTestId('gv-sidebar-list')).toBeInTheDocument();
@@ -152,9 +183,20 @@ describe('GenerateView — M5+6 unificado', () => {
   });
 
   it('status bar compacta clicable filtra lista', async () => {
-    const recs = [makeRecord({ rowId: 'row_0_1', numeroCuenta: '1001' }), makeRecord({ rowId: 'row_1_1', numeroCuenta: '1002' }), makeRecord({ rowId: 'row_2_1', numeroCuenta: '1003' })];
+    const recs = [
+      makeRecord({ rowId: 'row_0_1', numeroCuenta: '1001' }),
+      makeRecord({ rowId: 'row_1_1', numeroCuenta: '1002' }),
+      makeRecord({ rowId: 'row_2_1', numeroCuenta: '1003' }),
+    ];
     const tpl = makeTemplate({ id: 'tpl-1' });
-    useDataStore.setState({ records: recs as unknown as EssaRecord[], selectedRows: new Set(['row_0_1', 'row_1_1', 'row_2_1']), filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' }, currentPage: 1, pageSize: 10, editingRecord: null });
+    useDataStore.setState({
+      records: recs as unknown as EssaRecord[],
+      selectedRows: new Set(['row_0_1', 'row_1_1', 'row_2_1']),
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+      currentPage: 1,
+      pageSize: 10,
+      editingRecord: null,
+    });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
     render(<GenerateView />);
 
@@ -170,7 +212,13 @@ describe('GenerateView — M5+6 unificado', () => {
       stage: 'con_errores',
       progress: 100,
       docResults: [
-        { id: 'row_0_1', recordId: 'row_0_1', fileName: 'a.docx', status: 'success', blob: new Blob(['x']) },
+        {
+          id: 'row_0_1',
+          recordId: 'row_0_1',
+          fileName: 'a.docx',
+          status: 'success',
+          blob: new Blob(['x']),
+        },
         { id: 'row_1_1', recordId: 'row_1_1', fileName: 'b.docx', status: 'error', error: 'fail' },
         { id: 'row_2_1', recordId: 'row_2_1', fileName: 'c.docx', status: 'pending' },
       ],
@@ -198,7 +246,14 @@ describe('GenerateView — M5+6 unificado', () => {
 
     // add record but no template
     const rec = makeRecord({ rowId: 'row_0_1' });
-    useDataStore.setState({ records: [rec] as unknown as EssaRecord[], selectedRows: new Set(['row_0_1']), filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' }, currentPage: 1, pageSize: 10, editingRecord: null });
+    useDataStore.setState({
+      records: [rec] as unknown as EssaRecord[],
+      selectedRows: new Set(['row_0_1']),
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+      currentPage: 1,
+      pageSize: 10,
+      editingRecord: null,
+    });
     // re-render? Zustand will trigger
     expect(btn).toBeDisabled();
 
@@ -213,7 +268,14 @@ describe('GenerateView — M5+6 unificado', () => {
     const rec1 = makeRecord({ rowId: 'row_0_1', numeroCuenta: '1001' });
     const rec2 = makeRecord({ rowId: 'row_1_1', numeroCuenta: '1002' });
     const tpl = makeTemplate({ id: 'tpl-1' });
-    useDataStore.setState({ records: [rec1, rec2] as unknown as EssaRecord[], selectedRows: new Set(['row_0_1', 'row_1_1']), filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' }, currentPage: 1, pageSize: 10, editingRecord: null });
+    useDataStore.setState({
+      records: [rec1, rec2] as unknown as EssaRecord[],
+      selectedRows: new Set(['row_0_1', 'row_1_1']),
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+      currentPage: 1,
+      pageSize: 10,
+      editingRecord: null,
+    });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
 
     const onAddHistory = vi.fn();
@@ -229,8 +291,12 @@ describe('GenerateView — M5+6 unificado', () => {
     });
 
     // await progress 100 and stage Finalizado
-    await waitFor(() => expect(screen.getByTestId('gv-progress-pct')).toHaveTextContent('100%'), { timeout: 2000 });
-    await waitFor(() => expect(screen.getByTestId('generation-stage-indicator')).toHaveTextContent('Finalizado'));
+    await waitFor(() => expect(screen.getByTestId('gv-progress-pct')).toHaveTextContent('100%'), {
+      timeout: 2000,
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId('generation-stage-indicator')).toHaveTextContent('Finalizado')
+    );
 
     // per-doc status updates to Completado
     expect(screen.getByTestId('gv-status-row_0_1')).toHaveTextContent('Completado');
@@ -255,7 +321,9 @@ describe('GenerateView — M5+6 unificado', () => {
 
     // download all triggers ZIP with folder name
     fireEvent.click(screen.getByTestId('gv-download-all'));
-    await waitFor(() => expect(vi.mocked(saveAs).mock.calls.length).toBeGreaterThan(callsAfterSingle));
+    await waitFor(() =>
+      expect(vi.mocked(saveAs).mock.calls.length).toBeGreaterThan(callsAfterSingle)
+    );
     // second call should be zip: check last call arg type Blob and name pattern
     const lastCall = vi.mocked(saveAs).mock.calls[vi.mocked(saveAs).mock.calls.length - 1];
     expect(lastCall[1]).toMatch(/^ESSA_Documentos_\d{4}-\d{2}-\d{2}_\d{4}\.zip$/);
@@ -263,23 +331,43 @@ describe('GenerateView — M5+6 unificado', () => {
     // simulate error case for retry
     const { generateDocx } = await import('@/utils/templateEngine');
     // reset to have one error (synthetic, no mock needed yet)
-    useGenerationStore.setState({ stage: 'con_errores', progress: 100, docResults: [
-      { id: 'row_0_1', recordId: 'row_0_1', fileName: 'a.docx', status: 'error', error: 'boom' },
-      { id: 'row_1_1', recordId: 'row_1_1', fileName: 'b.docx', status: 'success', blob: new Blob(['ok']) },
-    ]});
+    useGenerationStore.setState({
+      stage: 'con_errores',
+      progress: 100,
+      docResults: [
+        { id: 'row_0_1', recordId: 'row_0_1', fileName: 'a.docx', status: 'error', error: 'boom' },
+        {
+          id: 'row_1_1',
+          recordId: 'row_1_1',
+          fileName: 'b.docx',
+          status: 'success',
+          blob: new Blob(['ok']),
+        },
+      ],
+    });
     expect(await screen.findByTestId('gv-retry-btn')).toBeInTheDocument();
     expect(screen.getByTestId('generation-stage-indicator')).toHaveTextContent('Con errores');
 
     // now mock success for retry
     vi.mocked(generateDocx).mockResolvedValueOnce(new Blob(['recovered']) as unknown as Blob);
     fireEvent.click(screen.getByTestId('gv-retry-btn'));
-    await waitFor(() => expect(screen.getByTestId('gv-status-row_0_1')).toHaveTextContent('Completado'), { timeout: 2000 });
+    await waitFor(
+      () => expect(screen.getByTestId('gv-status-row_0_1')).toHaveTextContent('Completado'),
+      { timeout: 2000 }
+    );
   });
 
   it('GenerationStageIndicator shows stages with colors/icons', () => {
     const rec = makeRecord({ rowId: 'row_0_1' });
     const tpl = makeTemplate({ id: 'tpl-1' });
-    useDataStore.setState({ records: [rec] as unknown as EssaRecord[], selectedRows: new Set(['row_0_1']), filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' }, currentPage: 1, pageSize: 10, editingRecord: null });
+    useDataStore.setState({
+      records: [rec] as unknown as EssaRecord[],
+      selectedRows: new Set(['row_0_1']),
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+      currentPage: 1,
+      pageSize: 10,
+      editingRecord: null,
+    });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
     const { rerender } = render(<GenerateView />);
     expect(screen.getByTestId('generation-stage-indicator')).toHaveTextContent('Revisión');
@@ -288,11 +376,19 @@ describe('GenerateView — M5+6 unificado', () => {
     rerender(<GenerateView />);
     expect(screen.getByTestId('generation-stage-indicator')).toHaveTextContent('Generando');
 
-    useGenerationStore.setState({ stage: 'finalizado', progress: 100, docResults: [{ id: 'row_0_1', fileName: 'a.docx', status: 'success', blob: new Blob(['x']) }] });
+    useGenerationStore.setState({
+      stage: 'finalizado',
+      progress: 100,
+      docResults: [{ id: 'row_0_1', fileName: 'a.docx', status: 'success', blob: new Blob(['x']) }],
+    });
     rerender(<GenerateView />);
     expect(screen.getByTestId('generation-stage-indicator')).toHaveTextContent('Finalizado');
 
-    useGenerationStore.setState({ stage: 'con_errores', progress: 100, docResults: [{ id: 'row_0_1', fileName: 'a.docx', status: 'error', error: 'e' }] });
+    useGenerationStore.setState({
+      stage: 'con_errores',
+      progress: 100,
+      docResults: [{ id: 'row_0_1', fileName: 'a.docx', status: 'error', error: 'e' }],
+    });
     rerender(<GenerateView />);
     expect(screen.getByTestId('generation-stage-indicator')).toHaveTextContent('Con errores');
   });

@@ -6,11 +6,26 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-const STAGE_MAP: Record<string, { label: string; bg: string; color: string; border: string; icon: string }> = {
+const STAGE_MAP: Record<
+  string,
+  { label: string; bg: string; color: string; border: string; icon: string }
+> = {
   revision: { label: 'Revisión', bg: '#f1f5f9', color: '#475569', border: '#e2e8f0', icon: '◷' },
   generando: { label: 'Generando', bg: '#eff6ff', color: '#1e40af', border: '#bfdbfe', icon: '⟳' },
-  finalizado: { label: 'Finalizado', bg: '#ecfdf5', color: '#065f46', border: '#a7f3d0', icon: '✓' },
-  con_errores: { label: 'Con errores', bg: '#fef2f2', color: '#991b1b', border: '#fecaca', icon: '✕' },
+  finalizado: {
+    label: 'Finalizado',
+    bg: '#ecfdf5',
+    color: '#065f46',
+    border: '#a7f3d0',
+    icon: '✓',
+  },
+  con_errores: {
+    label: 'Con errores',
+    bg: '#fef2f2',
+    color: '#991b1b',
+    border: '#fecaca',
+    icon: '✕',
+  },
 };
 
 export function GenerationStageIndicator({ stage, className, style }: Props) {
@@ -38,7 +53,9 @@ export function GenerationStageIndicator({ stage, className, style }: Props) {
         ...style,
       }}
     >
-      <span aria-hidden style={{ fontSize: '0.9em', lineHeight: 1 }}>{cfg.icon}</span>
+      <span aria-hidden style={{ fontSize: '0.9em', lineHeight: 1 }}>
+        {cfg.icon}
+      </span>
       {cfg.label}
     </span>
   );

@@ -21,7 +21,7 @@ export interface UseExcelParserReturn {
   parseWithProgress: (
     file: File,
     setState: (s: ExcelFileState | null) => void,
-    onRecords?: (records: EssaRecord[]) => void,
+    onRecords?: (records: EssaRecord[]) => void
   ) => Promise<EssaRecord[]>;
   reset: () => void;
 }
@@ -53,7 +53,7 @@ export function useExcelParser(options?: UseExcelParserOptions): UseExcelParserR
     async (
       file: File,
       setState: (s: ExcelFileState | null) => void,
-      onRecords?: (records: EssaRecord[]) => void,
+      onRecords?: (records: EssaRecord[]) => void
     ): Promise<EssaRecord[]> => {
       let currentProgress = 0;
       let targetProgress = 8;
@@ -155,7 +155,10 @@ export function useExcelParser(options?: UseExcelParserOptions): UseExcelParserR
         activeTimers.current.delete(ticker);
 
         const msg = err instanceof Error ? err.message : 'Error al procesar el archivo';
-        console.error('[useExcelParser] parseWithProgress failed', { fileName: file.name, error: msg });
+        console.error('[useExcelParser] parseWithProgress failed', {
+          fileName: file.name,
+          error: msg,
+        });
 
         const failedState: ExcelFileState = {
           file,
@@ -173,14 +176,14 @@ export function useExcelParser(options?: UseExcelParserOptions): UseExcelParserR
         throw err;
       }
     },
-    [options],
+    [options]
   );
 
   const parse = useCallback(
     async (file: File): Promise<EssaRecord[]> => {
       return parseWithProgress(file, setInternal as (s: ExcelFileState | null) => void);
     },
-    [parseWithProgress],
+    [parseWithProgress]
   );
 
   return {

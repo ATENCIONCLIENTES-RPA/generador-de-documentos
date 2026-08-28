@@ -54,7 +54,7 @@ function seedRecords(n = 14): EssaRecord[] {
         radicadoEntrada: `RAD-${i % 3 === 0 ? 'A' : 'B'}-${i}`,
         fechaSolicitud: `2026-01-${String(10 + (i % 20)).padStart(2, '0')}`,
         correoSolicitante: `user${i}@example.com`,
-      }),
+      })
     );
   }
   return recs;
@@ -161,14 +161,18 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     act(() => {
       vi.advanceTimersByTime(350);
     });
-    await waitFor(() => expect(screen.getByTestId('dv-counter')).toHaveTextContent(/Mostrando 1–1 de 1/));
+    await waitFor(() =>
+      expect(screen.getByTestId('dv-counter')).toHaveTextContent(/Mostrando 1–1 de 1/)
+    );
     expect(screen.getByTestId('dv-tag-search')).toBeInTheDocument();
     // clear search via tag X
     fireEvent.click(within(screen.getByTestId('dv-tag-search')).getByRole('button'));
     act(() => {
       vi.advanceTimersByTime(350);
     });
-    await waitFor(() => expect(screen.getByTestId('dv-counter')).toHaveTextContent(/Mostrando 1–10 de 14/));
+    await waitFor(() =>
+      expect(screen.getByTestId('dv-counter')).toHaveTextContent(/Mostrando 1–10 de 14/)
+    );
   });
 
   it('selección Set persists entre filtros (rowId, no índice)', async () => {
