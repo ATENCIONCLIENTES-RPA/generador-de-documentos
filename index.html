@@ -1074,6 +1074,99 @@ nav button:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; bord
 /* Smooth card transitions */
 .card { transition: box-shadow 0.2s ease; }
 
+/* === Módulo 2 - Modern Redesign === */
+.m2-hero {
+  background: linear-gradient(135deg, #002a5c 0%, #004b93 45%, #0e6bcf 100%);
+  border-radius: 1.25rem;
+  padding: 1.5rem 1.75rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 12px 32px -8px rgba(0,75,147,0.35);
+}
+.m2-hero::before {
+  content: '';
+  position: absolute;
+  top: -40%; right: -10%;
+  width: 420px; height: 420px;
+  background: radial-gradient(circle, rgba(118,188,33,0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+.m2-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -30%; left: 10%;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+.m2-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+@media (max-width: 900px) { .m2-grid { grid-template-columns: 1fr; } }
+.m2-card {
+  background: #fff;
+  border-radius: 1.1rem;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.28s cubic-bezier(0.4,0,0.2,1), box-shadow 0.28s ease, border-color 0.28s ease;
+  animation: m2-enter 0.5s cubic-bezier(0.4,0,0.2,1) both;
+}
+.m2-card:nth-child(1) { animation-delay: 0.05s; }
+.m2-card:nth-child(2) { animation-delay: 0.12s; }
+.m2-card:nth-child(3) { animation-delay: 0.19s; }
+.m2-card:hover { transform: translateY(-3px); box-shadow: 0 16px 32px -10px rgba(15,23,42,0.14); }
+.m2-card.accent-sac { border-top: 3px solid #004b93; }
+.m2-card.accent-mercurio { border-top: 3px solid #0ea5a6; }
+.m2-card.accent-folder { border-top: 3px solid #f59e0b; }
+.m2-card.is-loading { border-color: #bfdbfe; box-shadow: 0 0 0 3px rgba(59,130,246,0.08); }
+.m2-card.is-success { border-color: #a7f3d0; box-shadow: 0 0 0 3px rgba(16,185,129,0.07); }
+.m2-card.is-error { border-color: #fecaca; box-shadow: 0 0 0 3px rgba(239,68,68,0.07); }
+.m2-icon-box {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.m2-icon-sac { background: linear-gradient(135deg, #dbeafe, #eff6ff); color: #004b93; border: 1px solid #bfdbfe; }
+.m2-icon-mercurio { background: linear-gradient(135deg, #ccfbf1, #f0fdfa); color: #0e7a7b; border: 1px solid #99f6e4; }
+.m2-icon-folder { background: linear-gradient(135deg, #fef3c7, #fffbeb); color: #b45309; border: 1px solid #fde68a; }
+.m2-drop {
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 0.9rem;
+  padding: 1.4rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  background: #f8fafc;
+  transition: all 0.22s ease;
+  position: relative;
+  overflow: hidden;
+}
+.m2-drop:hover { border-color: #94a3b8; background: #f1f5f9; }
+.m2-drop.dragover { border-color: #004b93; background: #eff6ff; transform: scale(1.01); box-shadow: inset 0 0 0 1px #004b93; }
+.m2-drop.dragover-mercurio { border-color: #0ea5a6; background: #f0fdfa; box-shadow: inset 0 0 0 1px #0ea5a6; }
+.m2-drop.dragover-folder { border-color: #f59e0b; background: #fffbeb; box-shadow: inset 0 0 0 1px #f59e0b; }
+.m2-drop.loading { cursor: default; background: #fff; border-style: solid; border-color: #e2e8f0; }
+.m2-progress-track { height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden; position: relative; }
+.m2-progress-fill { height: 100%; border-radius: 999px; transition: width 0.4s cubic-bezier(0.4,0,0.2,1); position: relative; overflow: hidden; }
+.m2-progress-fill::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  animation: m2-shimmer 1.2s infinite;
+}
+.m2-badge {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.02em;
+  padding: 0.22rem 0.6rem; border-radius: 999px;
+  border: 1px solid;
+}
+@keyframes m2-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes m2-shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+@keyframes m2-pulse-dot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.92); } }
+
 /* Animations for step indicators */
 .step-circle {
   width: 2rem;
@@ -1670,6 +1763,33 @@ const parsePersonName = (rawName) => ({
   fullName: formatApplicantName(rawName),
 });
 
+const escapeXml = (str) => {
+  if (str == null || str === '') return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+};
+
+const patchXmlText = (xmlText, record, profile) => {
+  return xmlText.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (fullMatch) => {
+    const texts = [];
+    fullMatch.replace(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g, (m, t) => { texts.push(t); return m; });
+    const combined = texts.join('');
+    const markers = combined.match(/\[[A-Z_]+\]/g);
+    if (!markers || markers.length === 0) return fullMatch;
+    const uniqueMarkers = [...new Set(markers)];
+    let replaced = combined;
+    uniqueMarkers.forEach((v) => {
+      const val = replaceTemplateVariables(v, record, profile);
+      replaced = replaced.split(v).join(val);
+    });
+    if (replaced === combined) return fullMatch;
+    let idx = 0;
+    return fullMatch.replace(/(<w:t(?:\s[^>]*)?>)([\s\S]*?)(<\/w:t>)/g, (m, open, text, close) => {
+      if (idx === 0) { idx++; return open + replaced + close; }
+      return open + '' + close;
+    });
+  });
+};
+
 const replaceTemplateVariables = (content, record, profile) => {
   if (!content) return '';
   const rawName = record?.nombreSolicitante || '';
@@ -1677,42 +1797,42 @@ const replaceTemplateVariables = (content, record, profile) => {
   const nombreNormalizado = formatApplicantName(rawName);
   const cuenta = record?.numeroCuenta || record?.cuenta || '';
   return content
-    .replace(/\[NOMBRE_SOLICITANTE\]/g, nombreNormalizado || '—')
-    .replace(/\[PRIMER_NOMBRE\]/g, primerNombre || '—')
-    .replace(/\[RADICADO_ENTRADA\]/g, record?.radicadoEntrada || '—')
-    .replace(/\[NUMERO_PROCESO\]/g, record?.numeroProceso || '—')
-    .replace(/\[FECHA_SOLICITUD\]/g, record?.fechaSolicitud || '—')
-    .replace(/\[NUMERO_CUENTA\]/g, cuenta || '—')
-    .replace(/\[CORREO_SOLICITANTE\]/g, record?.correoSolicitante || '—')
-    .replace(/\[DIRECCION_SOLICITANTE\]/g, record?.direccionSolicitante || '—')
-    .replace(/\[CEDULA_SOLICITANTE\]/g, record?.cedulaSolicitante || '—')
-    .replace(/\[TELEFONO_SOLICITANTE\]/g, record?.telefonoSolicitante || '—')
-    .replace(/\[CELULAR_SOLICITANTE\]/g, record?.celularSolicitante || '—')
-    .replace(/\[MUNICIPIO_SOLICITANTE\]/g, record?.municipioSolicitante || '—')
-    .replace(/\[DEPTO_SOLICITANTE\]/g, record?.departamentoSolicitante || '—')
-    .replace(/\[BARRIO_SOLICITANTE\]/g, record?.barrioSolicitante || '—')
-    .replace(/\[MEDIO_SOLICITUD\]/g, record?.medioSolicitud || '—')
-    .replace(/\[NOMBRE_SUSCRIPTOR\]/g, record?.nombreSuscriptor || '—')
-    .replace(/\[CEDULA_SUSCRIPTOR\]/g, record?.cedulaSuscriptor || '—')
-    .replace(/\[TELEFONO_SUSCRIPTOR\]/g, record?.telefonoSuscriptor || '—')
-    .replace(/\[DIRECCION_SUSCRIPTOR\]/g, record?.direccionSuscriptor || '—')
-    .replace(/\[MUNICIPIO_SUSCRIPTOR\]/g, record?.municipioSuscriptor || '—')
-    .replace(/\[OBSERVACION_PROCESO\]/g, record?.observacionProceso || '—')
-    .replace(/\[OBSERVACION_DECISION\]/g, record?.observacionDecision || '—')
-    .replace(/\[CIRCUITO\]/g, record?.circuito || '—')
-    .replace(/\[NOMBRE_CIRCUITO\]/g, record?.nombreCircuito || '—')
-    .replace(/\[ID_TRAFO\]/g, record?.idTrafo || '—')
-    .replace(/\[NUMERO_MEDIDOR\]/g, record?.numeroMedidor || '—')
-    .replace(/\[MARCA_MEDIDOR\]/g, record?.marcaMedidor || '—')
-    .replace(/\[TIPO_MEDIDOR\]/g, record?.tipoMedidor || '—')
-    .replace(/\[DIAS_REGISTRO\]/g, record?.diasRegistro || '—')
-    .replace(/\[NUMERO_REVISION\]/g, record?.numeroRevision || '—')
-    .replace(/\[ESTADO_REVISION\]/g, record?.estadoRevision || '—')
-    .replace(/\[TIPO_REVISION\]/g, record?.tipoRevision || '—')
-    .replace(/\[DESCRIPCION_MOTIVO\]/g, record?.descripcionMotivo || '—')
-    .replace(/\[NOMBRE_FIRMANTE\]/g, profile?.name || 'Funcionario ESSA')
-    .replace(/\[CARGO_FIRMANTE\]/g, profile?.position || 'Gestor ESSA')
-    .replace(/\[CORREO_FIRMANTE\]/g, profile?.email || 'notificaciones@essa.com.co')
+    .replace(/\[NOMBRE_SOLICITANTE\]/g, escapeXml(nombreNormalizado) || '—')
+    .replace(/\[PRIMER_NOMBRE\]/g, escapeXml(primerNombre) || '—')
+    .replace(/\[RADICADO_ENTRADA\]/g, escapeXml(record?.radicadoEntrada) || '—')
+    .replace(/\[NUMERO_PROCESO\]/g, escapeXml(record?.numeroProceso) || '—')
+    .replace(/\[FECHA_SOLICITUD\]/g, escapeXml(record?.fechaSolicitud) || '—')
+    .replace(/\[NUMERO_CUENTA\]/g, escapeXml(cuenta) || '—')
+    .replace(/\[CORREO_SOLICITANTE\]/g, escapeXml(record?.correoSolicitante) || '—')
+    .replace(/\[DIRECCION_SOLICITANTE\]/g, escapeXml(record?.direccionSolicitante) || '—')
+    .replace(/\[CEDULA_SOLICITANTE\]/g, escapeXml(record?.cedulaSolicitante) || '—')
+    .replace(/\[TELEFONO_SOLICITANTE\]/g, escapeXml(record?.telefonoSolicitante) || '—')
+    .replace(/\[CELULAR_SOLICITANTE\]/g, escapeXml(record?.celularSolicitante) || '—')
+    .replace(/\[MUNICIPIO_SOLICITANTE\]/g, escapeXml(record?.municipioSolicitante) || '—')
+    .replace(/\[DEPTO_SOLICITANTE\]/g, escapeXml(record?.departamentoSolicitante) || '—')
+    .replace(/\[BARRIO_SOLICITANTE\]/g, escapeXml(record?.barrioSolicitante) || '—')
+    .replace(/\[MEDIO_SOLICITUD\]/g, escapeXml(record?.medioSolicitud) || '—')
+    .replace(/\[NOMBRE_SUSCRIPTOR\]/g, escapeXml(record?.nombreSuscriptor) || '—')
+    .replace(/\[CEDULA_SUSCRIPTOR\]/g, escapeXml(record?.cedulaSuscriptor) || '—')
+    .replace(/\[TELEFONO_SUSCRIPTOR\]/g, escapeXml(record?.telefonoSuscriptor) || '—')
+    .replace(/\[DIRECCION_SUSCRIPTOR\]/g, escapeXml(record?.direccionSuscriptor) || '—')
+    .replace(/\[MUNICIPIO_SUSCRIPTOR\]/g, escapeXml(record?.municipioSuscriptor) || '—')
+    .replace(/\[OBSERVACION_PROCESO\]/g, escapeXml(record?.observacionProceso) || '—')
+    .replace(/\[OBSERVACION_DECISION\]/g, escapeXml(record?.observacionDecision) || '—')
+    .replace(/\[CIRCUITO\]/g, escapeXml(record?.circuito) || '—')
+    .replace(/\[NOMBRE_CIRCUITO\]/g, escapeXml(record?.nombreCircuito) || '—')
+    .replace(/\[ID_TRAFO\]/g, escapeXml(record?.idTrafo) || '—')
+    .replace(/\[NUMERO_MEDIDOR\]/g, escapeXml(record?.numeroMedidor) || '—')
+    .replace(/\[MARCA_MEDIDOR\]/g, escapeXml(record?.marcaMedidor) || '—')
+    .replace(/\[TIPO_MEDIDOR\]/g, escapeXml(record?.tipoMedidor) || '—')
+    .replace(/\[DIAS_REGISTRO\]/g, escapeXml(record?.diasRegistro) || '—')
+    .replace(/\[NUMERO_REVISION\]/g, escapeXml(record?.numeroRevision) || '—')
+    .replace(/\[ESTADO_REVISION\]/g, escapeXml(record?.estadoRevision) || '—')
+    .replace(/\[TIPO_REVISION\]/g, escapeXml(record?.tipoRevision) || '—')
+    .replace(/\[DESCRIPCION_MOTIVO\]/g, escapeXml(record?.descripcionMotivo) || '—')
+    .replace(/\[NOMBRE_FIRMANTE\]/g, escapeXml(profile?.name) || 'Funcionario ESSA')
+    .replace(/\[CARGO_FIRMANTE\]/g, escapeXml(profile?.position) || 'Gestor ESSA')
+    .replace(/\[CORREO_FIRMANTE\]/g, escapeXml(profile?.email) || 'notificaciones@essa.com.co')
     .replace(/\[FIRMA_DOCUMENTO\]/g, '');
 };
 
@@ -3480,314 +3600,191 @@ const ConfigView = ({ config, onSaveConfig, onNavigate, onExcelDataLoaded, onTem
     }
   };
 
-  const renderExcelSection = ({ title, fileState, setFileState, dragOver, setDragOver, inputRef, onFile, onDrop, onSelect }) => (
-    <div className="card" style={{ padding: '1.5rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>
-          {title}
-        </h3>
-        {fileState.loaded && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', fontWeight: 600, color: '#059669', background: '#ecfdf5', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-            Cargado
-          </span>
-        )}
-        {fileState.loading && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', fontWeight: 600, color: '#004b93', background: '#eff6ff', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" className="animate-spin"><circle cx="12" cy="12" r="10" stroke="#e2e8f0" strokeWidth="3" fill="none" /><path d="M12 2 A10 10 0 0 1 22 12" stroke="#004b93" strokeWidth="3" fill="none" strokeLinecap="round" /></svg>
-            Procesando
-          </span>
-        )}
-        {fileState.error && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', fontWeight: 600, color: '#dc2626', background: '#fef2f2', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-            Error
-          </span>
-        )}
-      </div>
-
-      <div
-        className={`drop-zone ${fileState.loading ? 'processing' : ''} ${dragOver ? 'hover' : ''}`}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={onDrop}
-        onClick={() => !fileState.loading && inputRef.current?.click()}
-        style={{ minHeight: '200px' }}
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".xlsx,.xls"
-          style={{ display: 'none' }}
-          onChange={onSelect}
-        />
-
-        {fileState.loading ? (
-          <>
-            <div style={{ width: '48px', height: '48px', marginBottom: '0.5rem' }}>
-              <svg width="48" height="48" viewBox="0 0 48 48" className="animate-spin">
-                <circle cx="24" cy="24" r="20" stroke="#e2e8f0" strokeWidth="4" fill="none" />
-                <path d="M24 4 A20 20 0 0 1 44 24" stroke="#004b93" strokeWidth="4" fill="none" strokeLinecap="round" />
-              </svg>
-            </div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b', marginBottom: '0.5rem' }}>
-              {fileState.stage}
-            </div>
-            <div className="progress-bar" style={{ width: '220px', marginTop: '0.25rem' }}>
-              <div className="progress-bar-fill" style={{ width: `${fileState.progress}%`, background: '#004b93' }} />
-            </div>
-            <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem' }}>
-              {Math.round(fileState.progress)}%
-            </div>
-          </>
-        ) : fileState.loaded ? (
-          <>
-            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
-            </div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#059669' }}>
-              Archivo cargado correctamente
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.125rem' }}>
-              {fileState.fileName} — {fileState.recordCount.toLocaleString('es-CO')} registros detectados
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-              <button
-                className="btn-secondary"
-                style={{ fontSize: '0.7rem', padding: '0.3rem 0.75rem' }}
-                onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
-                Reemplazar
-              </button>
-              <button
-                className="btn-secondary"
-                style={{ fontSize: '0.7rem', padding: '0.3rem 0.75rem', color: '#dc2626' }}
-                onClick={(e) => { e.stopPropagation(); setFileState({ loading: false, progress: 0, stage: '', loaded: false, fileName: '', recordCount: 0, records: [], error: '' }); }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                Eliminar
-              </button>
-            </div>
-          </>
-        ) : fileState.error ? (
-          <>
-            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-            </div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#dc2626' }}>
-              Error al cargar archivo
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.125rem', maxWidth: '280px' }}>
-              {fileState.error}
-            </div>
-            <button
-              className="btn-primary"
-              style={{ fontSize: '0.7rem', padding: '0.35rem 1rem', marginTop: '0.75rem' }}
-              onClick={(e) => { e.stopPropagation(); setFileState({ loading: false, progress: 0, stage: '', loaded: false, fileName: '', recordCount: 0, records: [], error: '' }); inputRef.current?.click(); }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
-              Intentar de nuevo
-            </button>
-          </>
-        ) : (
-          <>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
+  const ExcelCard = ({ title, subtitle, fileState, setFileState, dragOver, setDragOver, inputRef, onDrop, onSelect, accent, iconBoxClass }) => {
+    const status = fileState.error ? 'error' : fileState.loaded ? 'success' : fileState.loading ? 'loading' : 'idle';
+    return (
+      <div className={`m2-card accent-${accent} ${status === 'loading' ? 'is-loading' : ''} ${status === 'success' ? 'is-success' : ''} ${status === 'error' ? 'is-error' : ''}`} style={{ padding: '1.2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1rem' }}>
+          <div className={`m2-icon-box ${iconBoxClass}`}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="8" y1="13" x2="16" y2="13" />
+              <line x1="8" y1="17" x2="13" y2="17" />
             </svg>
-            <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-              Arrastra tu archivo Excel aquí o{' '}
-              <span style={{ color: '#004b93', fontWeight: 600 }}>haz clic para buscar</span>
-            </div>
-            <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-              Formatos: .xlsx, .xls
-            </div>
-          </>
-        )}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3 style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>{title}</h3>
+            <p style={{ fontSize: '0.72rem', color: '#64748b', margin: 0 }}>{subtitle}</p>
+          </div>
+          {status === 'success' && <span className="m2-badge" style={{ color: '#047857', background: '#ecfdf5', borderColor: '#a7f3d0' }}><span style={{ width: 6, height: 6, borderRadius: 999, background: '#10b981', display: 'inline-block', animation: 'm2-pulse-dot 1.6s infinite' }} />Cargado</span>}
+          {status === 'loading' && <span className="m2-badge" style={{ color: '#1d4ed8', background: '#eff6ff', borderColor: '#bfdbfe' }}><svg width="10" height="10" viewBox="0 0 24 24" className="animate-spin"><circle cx="12" cy="12" r="10" stroke="#dbeafe" strokeWidth="3" fill="none" /><path d="M12 2 A10 10 0 0 1 22 12" stroke="#2563eb" strokeWidth="3" fill="none" strokeLinecap="round" /></svg>Procesando</span>}
+          {status === 'error' && <span className="m2-badge" style={{ color: '#b91c1c', background: '#fef2f2', borderColor: '#fecaca' }}>Error</span>}
+          {status === 'idle' && <span className="m2-badge" style={{ color: '#64748b', background: '#f8fafc', borderColor: '#e2e8f0' }}>Archivo</span>}
+        </div>
+        <div
+          className={`m2-drop ${status === 'loading' ? 'loading' : ''} ${dragOver ? `dragover dragover-${accent}` : ''}`}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={onDrop}
+          onClick={() => !fileState.loading && inputRef.current?.click()}
+          style={{ minHeight: '188px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <input ref={inputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={onSelect} />
+          {status === 'loading' ? (
+            <>
+              <div style={{ position: 'relative', width: 54, height: 54, marginBottom: 10 }}>
+                <svg width="54" height="54" viewBox="0 0 54 54" className="animate-spin" style={{ position: 'absolute', inset: 0 }}>
+                  <circle cx="27" cy="27" r="20" stroke="#e2e8f0" strokeWidth="4" fill="none" />
+                  <path d="M27 7 A20 20 0 0 1 47 27" stroke={accent === 'mercurio' ? '#0ea5a6' : '#004b93'} strokeWidth="4" fill="none" strokeLinecap="round" />
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.62rem', fontWeight: 800, color: accent === 'mercurio' ? '#0e7a7b' : '#004b93' }}>{Math.round(fileState.progress)}%</div>
+              </div>
+              <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#0f172a' }}>{fileState.stage}</div>
+              <div className="m2-progress-track" style={{ width: '78%', marginTop: 10 }}>
+                <div className="m2-progress-fill" style={{ width: `${fileState.progress}%`, background: accent === 'mercurio' ? 'linear-gradient(90deg,#0ea5a6,#14b8a6)' : 'linear-gradient(90deg,#004b93,#3b82f6)' }} />
+              </div>
+            </>
+          ) : status === 'success' ? (
+            <>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#ecfdf5,#d1fae5)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8, border: '1px solid #a7f3d0' }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+              </div>
+              <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#065f46' }}>Archivo cargado correctamente</div>
+              <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 2, textAlign: 'center', maxWidth: '92%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileState.fileName} — {fileState.recordCount.toLocaleString('es-CO')} registros</div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button className="btn-secondary" style={{ fontSize: '0.7rem', padding: '0.32rem 0.7rem', borderRadius: 999 }} onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}>Reemplazar</button>
+                <button className="btn-secondary" style={{ fontSize: '0.7rem', padding: '0.32rem 0.7rem', borderRadius: 999, color: '#dc2626' }} onClick={(e) => { e.stopPropagation(); setFileState({ loading: false, progress: 0, stage: '', loaded: false, fileName: '', recordCount: 0, records: [], error: '' }); }}>Eliminar</button>
+              </div>
+            </>
+          ) : status === 'error' ? (
+            <>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8, border: '1px solid #fecaca' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+              </div>
+              <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#991b1b' }}>No se pudo cargar</div>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 2, maxWidth: 260 }}>{fileState.error}</div>
+              <button className="btn-primary" style={{ fontSize: '0.7rem', padding: '0.32rem 0.9rem', marginTop: 10, borderRadius: 999 }} onClick={(e) => { e.stopPropagation(); setFileState({ loading: false, progress: 0, stage: '', loaded: false, fileName: '', recordCount: 0, records: [], error: '' }); inputRef.current?.click(); }}>Reintentar</button>
+            </>
+          ) : (
+            <>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: accent === 'mercurio' ? '#f0fdfa' : '#eff6ff', border: `1px solid ${accent === 'mercurio' ? '#99f6e4' : '#bfdbfe'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={accent === 'mercurio' ? '#0e7a7b' : '#004b93'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+              </div>
+              <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#334155' }}>Arrastra tu Excel aquí o <span style={{ color: accent === 'mercurio' ? '#0e7a7b' : '#004b93', fontWeight: 800 }}>explora</span></div>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 2 }}>Formatos permitidos: .xlsx, .xls</div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="animate-fade-in">
       <div className="main-container">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '0.75rem',
-              background: '#eff6ff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#004b93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
+        <div className="m2-hero">
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.9rem', alignItems: 'center' }}>
+              <div style={{ width: 46, height: 46, borderRadius: 12, background: 'rgba(255,255,255,0.14)', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+              </div>
+              <div>
+                <h2 style={{ fontSize: '1.22rem', fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.1 }}>Módulo 2: Configuración de Recursos</h2>
+                <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.82)', margin: '2px 0 0', fontWeight: 500 }}>Carga tus archivos Excel y selecciona la carpeta de plantillas Word para comenzar</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {[
+                { label: 'SAC', done: sacFile.loaded, loading: sacFile.loading, error: !!sacFile.error },
+                { label: 'Mercurio', done: mercurioFile.loaded, loading: mercurioFile.loading, error: !!mercurioFile.error },
+                { label: 'Plantillas', done: templateFolder.selected, loading: false, error: !!templateFolder.error },
+              ].map((s) => (
+                <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)', padding: '0.32rem 0.6rem', borderRadius: 999, backdropFilter: 'blur(6px)' }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 999, background: s.error ? '#f87171' : s.done ? '#4ade80' : s.loading ? '#60a5fa' : 'rgba(255,255,255,0.5)', boxShadow: s.done ? '0 0 0 4px rgba(74,222,128,0.22)' : s.loading ? '0 0 0 4px rgba(96,165,250,0.22)' : 'none', display: 'inline-block' }} />
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#fff', letterSpacing: '0.02em' }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>
-              Módulo 2: Configuración de Recursos
-            </h2>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>
-              Carga de datos Excel y selección de plantillas Word
-            </p>
+          <div style={{ position: 'relative', zIndex: 1, marginTop: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <div style={{ height: 6, flex: '1 1 220px', maxWidth: 360, background: 'rgba(255,255,255,0.18)', borderRadius: 999, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.14)' }}>
+              <div style={{ height: '100%', width: `${[sacFile.loaded, mercurioFile.loaded, templateFolder.selected].filter(Boolean).length * 33.33}%`, background: 'linear-gradient(90deg,#4ade80,#22c55e)', borderRadius: 999, transition: 'width 0.5s cubic-bezier(0.4,0,0.2,1)' }} />
+            </div>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>{[sacFile.loaded, mercurioFile.loaded, templateFolder.selected].filter(Boolean).length}/3 completados</span>
+            {allReady && <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#fff', background: 'rgba(74,222,128,0.22)', border: '1px solid rgba(74,222,128,0.45)', padding: '0.18rem 0.55rem', borderRadius: 999 }}>Listo para continuar →</span>}
           </div>
         </div>
 
-        {/* Three Sections Layout */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '1.5rem' }}>
-          {/* Section 1: SAC Excel */}
-          {renderExcelSection({
-            title: '1. Carga de Archivo Excel SAC',
-            fileState: sacFile,
-            setFileState: setSacFile,
-            dragOver: dragOverSac,
-            setDragOver: setDragOverSac,
-            inputRef: sacInputRef,
-            onFile: handleSacFile,
-            onDrop: handleSacDrop,
-            onSelect: handleSacSelect,
-          })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: '1.1rem 0 0.6rem' }}>
+          <span style={{ width: 22, height: 22, borderRadius: 8, background: '#dbeafe', color: '#004b93', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem', fontWeight: 800 }}>◩</span>
+          <h3 style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>Archivos de datos</h3>
+          <span style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+          <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600, background: '#f1f5f9', padding: '0.15rem 0.5rem', borderRadius: 999, border: '1px solid #e2e8f0' }}>Formatos: .xlsx, .xls</span>
+        </div>
 
-          {/* Section 2: Mercurio Excel */}
-          {renderExcelSection({
-            title: '2. Carga de Archivo Excel de Mercurio',
-            fileState: mercurioFile,
-            setFileState: setMercurioFile,
-            dragOver: dragOverMercurio,
-            setDragOver: setDragOverMercurio,
-            inputRef: mercurioInputRef,
-            onFile: handleMercurioFile,
-            onDrop: handleMercurioDrop,
-            onSelect: handleMercurioSelect,
-          })}
+        <div className="m2-grid" style={{ marginBottom: '1.1rem' }}>
+          <ExcelCard title="1. Excel SAC" subtitle="Base principal de trámites" fileState={sacFile} setFileState={setSacFile} dragOver={dragOverSac} setDragOver={setDragOverSac} inputRef={sacInputRef} onDrop={handleSacDrop} onSelect={handleSacSelect} accent="sac" iconBoxClass="m2-icon-sac" />
+          <ExcelCard title="2. Excel Mercurio" subtitle="Base complementaria Mercurio" fileState={mercurioFile} setFileState={setMercurioFile} dragOver={dragOverMercurio} setDragOver={setDragOverMercurio} inputRef={mercurioInputRef} onDrop={handleMercurioDrop} onSelect={handleMercurioSelect} accent="mercurio" iconBoxClass="m2-icon-mercurio" />
+        </div>
 
-          {/* Section 3: Template Folder */}
-          <div className="card" style={{ padding: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>
-                3. Selección de Carpeta de Plantillas
-              </h3>
-              {templateFolder.selected && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', fontWeight: 600, color: '#059669', background: '#ecfdf5', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                  Seleccionado
-                </span>
-              )}
-              {templateFolder.error && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', fontWeight: 600, color: '#dc2626', background: '#fef2f2', padding: '0.2rem 0.6rem', borderRadius: '1rem' }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-                  Error
-                </span>
-              )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: '0 0 0.6rem' }}>
+          <span style={{ width: 22, height: 22, borderRadius: 8, background: '#fef3c7', color: '#b45309', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem', fontWeight: 800 }}>▦</span>
+          <h3 style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a', letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0 }}>Plantillas Word</h3>
+          <span style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+          <span style={{ fontSize: '0.68rem', color: '#92400e', fontWeight: 600, background: '#fffbeb', padding: '0.15rem 0.5rem', borderRadius: 999, border: '1px solid #fde68a' }}>Carpeta</span>
+        </div>
+
+        <div className={`m2-card accent-folder ${templateFolder.error ? 'is-error' : templateFolder.selected ? 'is-success' : ''}`} style={{ padding: '1.1rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: templateFolder.selected ? '1rem' : '0.9rem' }}>
+            <div className="m2-icon-box m2-icon-folder">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
             </div>
-
-            <div
-              className={`drop-zone ${dragOverFolder ? 'hover' : ''}`}
-              onDragOver={(e) => { e.preventDefault(); setDragOverFolder(true); }}
-              onDragLeave={() => setDragOverFolder(false)}
-              onClick={() => folderInputRef.current?.click()}
-              style={{ minHeight: '200px' }}
-            >
-              <input
-                ref={folderInputRef}
-                type="file"
-                webkitdirectory=""
-                multiple
-                style={{ display: 'none' }}
-                onChange={handleFolderSelect}
-              />
-
-              {templateFolder.error ? (
-                <>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="12" />
-                      <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                  </div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#dc2626' }}>
-                    Error al seleccionar carpeta
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.125rem', maxWidth: '280px' }}>
-                    {templateFolder.error}
-                  </div>
-                  <button
-                    className="btn-primary"
-                    style={{ fontSize: '0.7rem', padding: '0.35rem 1rem', marginTop: '0.75rem' }}
-                    onClick={(e) => { e.stopPropagation(); setTemplateFolder({ selected: false, folderName: '', templates: [], error: '' }); folderInputRef.current?.click(); }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
-                    Intentar de nuevo
-                  </button>
-                </>
-              ) : templateFolder.selected ? (
-                <>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                    </svg>
-                  </div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#059669' }}>
-                    Carpeta seleccionada
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.125rem' }}>
-                    {templateFolder.folderName} — {templateFolder.templates.length} plantillas DOCX
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                    <button
-                      className="btn-secondary"
-                      style={{ fontSize: '0.7rem', padding: '0.3rem 0.75rem' }}
-                      onClick={(e) => { e.stopPropagation(); folderInputRef.current?.click(); }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
-                      Cambiar carpeta
-                    </button>
-                    <button
-                      className="btn-secondary"
-                      style={{ fontSize: '0.7rem', padding: '0.3rem 0.75rem', color: '#dc2626' }}
-                      onClick={(e) => { e.stopPropagation(); setTemplateFolder({ selected: false, folderName: '', templates: [], error: '' }); onTemplatesLoaded([]); }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                      Eliminar
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                  </svg>
-                  <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                    Selecciona la carpeta que contiene las plantillas Word (.docx)
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                    Haz clic para explorar carpetas
-                  </div>
-                </>
-              )}
+            <div style={{ flex: 1 }}>
+              <h3 style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>3. Carpeta de Plantillas</h3>
+              <p style={{ fontSize: '0.72rem', color: '#64748b', margin: 0 }}>Selecciona la carpeta que contiene los .docx</p>
             </div>
+            {templateFolder.selected && <span className="m2-badge" style={{ color: '#047857', background: '#ecfdf5', borderColor: '#a7f3d0' }}><span style={{ width: 6, height: 6, borderRadius: 999, background: '#10b981', display: 'inline-block' }} />{templateFolder.templates.length} plantillas</span>}
+            {templateFolder.error && <span className="m2-badge" style={{ color: '#b91c1c', background: '#fef2f2', borderColor: '#fecaca' }}>Error</span>}
+            {!templateFolder.selected && !templateFolder.error && <span className="m2-badge" style={{ color: '#92400e', background: '#fffbeb', borderColor: '#fde68a' }}>Carpeta</span>}
+          </div>
 
-            {/* Detected templates list */}
-            {templateFolder.selected && templateFolder.templates.length > 0 && (
+          <div
+            className={`m2-drop ${dragOverFolder ? 'dragover dragover-folder' : ''}`}
+            onDragOver={(e) => { e.preventDefault(); setDragOverFolder(true); }}
+            onDragLeave={() => setDragOverFolder(false)}
+            onClick={() => folderInputRef.current?.click()}
+            style={{ minHeight: templateFolder.selected ? '132px' : '148px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <input ref={folderInputRef} type="file" webkitdirectory="" multiple style={{ display: 'none' }} onChange={handleFolderSelect} />
+            {templateFolder.error ? (
+              <>
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8, border: '1px solid #fecaca' }}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg></div>
+                <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#991b1b' }}>No se pudo cargar la carpeta</div>
+                <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 2 }}>{templateFolder.error}</div>
+                <button className="btn-primary" style={{ fontSize: '0.7rem', padding: '0.32rem 0.9rem', marginTop: 10, borderRadius: 999 }} onClick={(e) => { e.stopPropagation(); setTemplateFolder({ selected: false, folderName: '', templates: [], error: '' }); folderInputRef.current?.click(); }}>Reintentar</button>
+              </>
+            ) : templateFolder.selected ? (
+              <>
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#fef3c7,#fde68a)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8, border: '1px solid #fde68a' }}><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="1.9"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg></div>
+                <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#92400e' }}>{templateFolder.folderName}</div>
+                <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 2 }}>{templateFolder.templates.length} plantillas DOCX detectadas</div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button className="btn-secondary" style={{ fontSize: '0.7rem', padding: '0.32rem 0.7rem', borderRadius: 999 }} onClick={(e) => { e.stopPropagation(); folderInputRef.current?.click(); }}>Cambiar</button>
+                  <button className="btn-secondary" style={{ fontSize: '0.7rem', padding: '0.32rem 0.7rem', borderRadius: 999, color: '#dc2626' }} onClick={(e) => { e.stopPropagation(); setTemplateFolder({ selected: false, folderName: '', templates: [], error: '' }); onTemplatesLoaded([]); }}>Quitar</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="1.6"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /><line x1="12" y1="12" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg></div>
+                <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#334155' }}>Arrastra la carpeta aquí o <span style={{ color: '#b45309', fontWeight: 800 }}>explora</span></div>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 2 }}>Debe contener archivos .docx</div>
+              </>
+            )}
+          </div>
+
+          {templateFolder.selected && templateFolder.templates.length > 0 && (
+          {templateFolder.selected && templateFolder.templates.length > 0 && (
               <div style={{ marginTop: '1rem' }}>
                 <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
                   Plantillas detectadas ({templateFolder.templates.length}):
@@ -5259,8 +5256,8 @@ const ReviewGenerateView = ({ template, records, profile, history, onAddHistory,
                           <img src={profile.signatureUrl} alt="Firma ESSA" style={{ height: '50px', objectFit: 'contain', marginBottom: '0.5rem', opacity: 0.9 }} />
                         )}
                         <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.5rem' }}>
-                          <div style={{ fontSize: '10px', fontWeight: 700, color: '#1e293b' }}>{profile?.name || 'Funcionario ESSA'}</div>
-                          <div style={{ fontSize: '9px', color: '#64748b' }}>{profile?.position || 'Gestor ESSA'}</div>
+                          <div style={{ fontSize: '10px', fontWeight: 700, color: '#1e293b' }}>{escapeXml(profile?.name) || 'Funcionario ESSA'}</div>
+                          <div style={{ fontSize: '9px', color: '#64748b' }}>{escapeXml(profile?.position) || 'Gestor ESSA'}</div>
                           <div style={{ fontSize: '9px', color: '#64748b' }}>Electrificadora de Santander S.A. E.S.P.</div>
                         </div>
                       </div>
