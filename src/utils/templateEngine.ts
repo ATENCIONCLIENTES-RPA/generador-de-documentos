@@ -1,6 +1,6 @@
 import PizZip from 'pizzip';
 import { TemplateHandler, MimeType } from 'easy-template-x';
-import type { Record } from '@/types/record';
+import type { Record as EssaRecord } from '@/types/record';
 import type { Profile } from '@/types/profile';
 import { extractFirstName, formatApplicantName } from './nameParser';
 
@@ -26,7 +26,7 @@ export interface TemplateData {
   [key: string]: string | number | boolean | Uint8Array | null | undefined | unknown;
 }
 
-export function buildTemplateData(record: Record, profile?: Profile | null): TemplateData {
+export function buildTemplateData(record: EssaRecord, profile?: Profile | null): TemplateData {
   const rawName = (record?.nombreSolicitante as string) || '';
   const primerNombre = extractFirstName(rawName) || '—';
   const nombreNormalizado = formatApplicantName(rawName) || '—';
@@ -75,7 +75,7 @@ export function buildTemplateData(record: Record, profile?: Profile | null): Tem
 
   // Spread dynamic record fields as fallback for any extra [VARIABLE] not in list
   // Only add upper snake keys that don't already exist
-  for (const [k, v] of Object.entries(record as Record<string, unknown>)) {
+  for (const [k, v] of Object.entries(record as globalThis.Record<string, unknown>)) {
     const upper = k.toUpperCase();
     if (data[upper] === undefined && v !== undefined && v !== null) {
       const str = String(v).trim();
@@ -92,7 +92,7 @@ export function buildTemplateData(record: Record, profile?: Profile | null): Tem
 
 export function replaceTemplateVariables(
   content: string | null | undefined,
-  record: Record,
+  record: EssaRecord,
   profile?: Profile | null,
 ): string {
   if (!content) return '';
@@ -181,7 +181,7 @@ function detectMimeType(blob: Blob, bytes: Uint8Array): MimeType {
 }
 
 function isProfileLike(v: unknown): v is Profile {
-  return !!v && typeof v === 'object' && 'name' in (v as Record<string, unknown>);
+  return !!v && typeof v === 'object' && 'name' in (v as globalThis.Record<string, unknown>);
 }
 
 // ---------------------------------------------------------------------------
@@ -190,7 +190,7 @@ function isProfileLike(v: unknown): v is Profile {
 
 export async function generateDocx(
   templateFile: File,
-  data: TemplateData | Record,
+  data: TemplateData | EssaRecord,
   opts?: { signatureBlob?: Blob } | Profile | null,
 ): Promise<Blob> {
   if (!templateFile) throw new Error('templateFile is required');
@@ -202,20 +202,20 @@ export async function generateDocx(
   let templateData: TemplateData;
   let signatureBlob: Blob | undefined;
 
-  if (opts && isProfileLike(opts) && !('signatureBlob' in (opts as Record<string, unknown>))) {
-    // second arg is Record, third is Profile
-    templateData = buildTemplateData(data as Record, opts as Profile);
+  if (opts && isProfileLike(opts) && !('signatureBlob' in (opts as unknown as globalThis.Record<string, unknown>))) {
+    // second arg is EssaRecord, third is Profile
+    templateData = buildTemplateData(data as EssaRecord, opts as Profile);
   } else {
-    // data is already TemplateData (or Record treated as TemplateData)
-    // If data looks like Record (has nombreSolicitante), convert via builder for safety,
+    // data is already TemplateData (or EssaRecord treated as TemplateData)
+    // If data looks like EssaRecord (has nombreSolicitante), convert via builder for safety,
     // unless it already contains upper keys like NOMBRE_SOLICITANTE
-    const hasUpperKey = Object.keys(data as Record<string, unknown>).some((k) => k === k.toUpperCase() && k.includes('_'));
-    if ((data as Record).nombreSolicitante !== undefined && !hasUpperKey) {
-      templateData = buildTemplateData(data as Record, null);
+    const hasUpperKey = Object.keys(data as globalThis.Record<string, unknown>).some((k) => k === k.toUpperCase() && k.includes('_'));
+    if ((data as EssaRecord).nombreSolicitante !== undefined && !hasUpperKey) {
+      templateData = buildTemplateData(data as EssaRecord, null);
     } else {
       templateData = { ...(data as TemplateData) };
     }
-    if (opts && typeof opts === 'object' && 'signatureBlob' in (opts as Record<string, unknown>)) {
+    if (opts && typeof opts === 'object' && 'signatureBlob' in (opts as unknown as globalThis.Record<string, unknown>)) {
       signatureBlob = (opts as { signatureBlob?: Blob }).signatureBlob ?? undefined;
       // allow profile inside opts? not needed
     }
@@ -232,7 +232,7 @@ export async function generateDocx(
       const widthPx = 190;
       const heightPx = 75;
       const source: ArrayBuffer = imageBuffer;
-      (templateData as Record<string, unknown>)['FIRMA_DOCUMENTO'] = {
+      (templateData as globalThis.Record<string, unknown>)['FIRMA_DOCUMENTO'] = {
         _type: 'image',
         source,
         format: mime,
@@ -242,7 +242,7 @@ export async function generateDocx(
       };
     } catch (e) {
       console.error('Failed to process signatureBlob, falling back to empty', e);
-      (templateData as Record<string, unknown>)['FIRMA_DOCUMENTO'] = '';
+      (templateData as globalThis.Record<string, unknown>)['FIRMA_DOCUMENTO'] = '';
     }
   } else {
     // Ensure FIRMA_DOCUMENTO is at least empty string if not image, to avoid leaving marker
@@ -255,16 +255,16 @@ export async function generateDocx(
   const handler = new TemplateHandler({
     delimiters: { tagStart: '[', tagEnd: ']' },
     scopeDataResolver: (args: unknown) => {
-      const a = args as { data: Record<string, unknown>; strPath: string[]; path: unknown[] };
+      const a = args as { data: globalThis.Record<string, unknown>; strPath: string[]; path: unknown[] };
       const lastKey = a.strPath[a.strPath.length - 1] ?? '';
       // try direct lookup in current scope data, then global templateData
       let val: unknown = undefined;
-      if (a.data && lastKey in a.data) val = (a.data as Record<string, unknown>)[lastKey];
-      if (val === undefined && lastKey in (templateData as Record<string, unknown>)) {
-        val = (templateData as Record<string, unknown>)[lastKey];
+      if (a.data && lastKey in a.data) val = (a.data as globalThis.Record<string, unknown>)[lastKey];
+      if (val === undefined && lastKey in (templateData as globalThis.Record<string, unknown>)) {
+        val = (templateData as globalThis.Record<string, unknown>)[lastKey];
       }
       // Preserve image objects, handle missing string values
-      if (val !== null && typeof val === 'object' && (val as Record<string, unknown>)._type) {
+      if (val !== null && typeof val === 'object' && (val as globalThis.Record<string, unknown>)._type) {
         return val as unknown as string;
       }
       if (val === null || val === undefined || val === '') return '—';
@@ -276,13 +276,13 @@ export async function generateDocx(
 
   let processedBuffer: ArrayBuffer;
   try {
-    const out = await handler.process(templateBuffer, templateData as unknown as Record<string, unknown>);
+    const out = await handler.process(templateBuffer, templateData as unknown as globalThis.Record<string, unknown> as unknown as Parameters<typeof handler.process>[1]);
     // handler.process exports same binary type as input (ArrayBuffer -> ArrayBuffer)
-    if (out instanceof ArrayBuffer) {
-      processedBuffer = out;
-    } else if (out instanceof Blob) {
+    if ((out as unknown) instanceof ArrayBuffer) {
+      processedBuffer = out as ArrayBuffer;
+    } else if ((out as unknown) instanceof Blob) {
       processedBuffer = await blobToArrayBuffer(out as unknown as Blob);
-    } else if (out instanceof Uint8Array) {
+    } else if ((out as unknown) instanceof Uint8Array) {
       // Fallback if handler unexpectedly returns Uint8Array (e.g., node Buffer is Uint8Array)
       const u8 = out as unknown as Uint8Array;
       processedBuffer = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) as ArrayBuffer;
@@ -319,11 +319,11 @@ export async function generateDocx(
         let replaced = combined;
         for (const marker of markers) {
           const key = marker.slice(1, -1);
-          const val = (templateData as Record<string, unknown>)[key];
+          const val = (templateData as globalThis.Record<string, unknown>)[key];
           let rep: string;
           if (val !== undefined && val !== null && val !== '' && typeof val !== 'object') {
             rep = escapeXml(String(val));
-          } else if (typeof val === 'object' && val !== null && (val as Record<string, unknown>)._type === 'image') {
+          } else if (typeof val === 'object' && val !== null && (val as globalThis.Record<string, unknown>)._type === 'image') {
             // image already handled by easy-template-x, this shouldn't happen in fallback
             rep = '';
           } else {

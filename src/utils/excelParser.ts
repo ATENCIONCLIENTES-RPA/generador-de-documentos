@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import type { Record, RawExcelRow } from '@/types/record';
+import type { Record as EssaRecord, RawExcelRow } from '@/types/record';
 
 export function getExcelCellValue(obj: RawExcelRow | null | undefined, keys: string[]): unknown {
   if (!obj || typeof obj !== 'object') return '';
@@ -56,7 +56,7 @@ export function formatExcelDate(val: unknown): string {
   return strVal;
 }
 
-export function buildRecord(row: RawExcelRow, index: number): Record {
+export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
   const timestamp = Date.now();
   const rowId = `row_${index}_${timestamp}`;
 
@@ -108,8 +108,8 @@ export function buildRecord(row: RawExcelRow, index: number): Record {
     'CUENTA CONTRATO', 'CONTRATO', 'NIU', 'CUENTA_ESSA', 'NUMERO DE CUENTA',
   ]);
 
-  const base: Record = {
-    ...(row as Record<string, unknown>) as unknown as Record,
+  const base: EssaRecord = {
+    ...(row as Record<string, unknown>) as unknown as EssaRecord,
     rowId,
     id: recordId,
     status: 'Pendiente',
@@ -164,7 +164,7 @@ async function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
   });
 }
 
-export async function parseExcelFile(file: File): Promise<Record[]> {
+export async function parseExcelFile(file: File): Promise<EssaRecord[]> {
   const buffer = await blobToArrayBuffer(file);
   const wb = XLSX.read(buffer, { type: 'array' });
   const wsname = wb.SheetNames[0];
@@ -178,7 +178,7 @@ export async function parseExcelFile(file: File): Promise<Record[]> {
   const validRows = rawRows.filter(isValidRow);
 
   const timestamp = Date.now();
-  const records: Record[] = validRows
+  const records: EssaRecord[] = validRows
     .map((item, index) => {
       // build with stable timestamp per file to avoid millisecond drift in same parse
       const rec = buildRecord(item, index);
@@ -193,7 +193,7 @@ export async function parseExcelFile(file: File): Promise<Record[]> {
 }
 
 // Legacy sync helper kept for compatibility with older callers that pass binary directly
-export function parseExcelBinary(dataBinary: string | ArrayBuffer): { records: Record[]; rawCount: number } {
+export function parseExcelBinary(dataBinary: string | ArrayBuffer): { records: EssaRecord[]; rawCount: number } {
   const wb = XLSX.read(dataBinary, { type: typeof dataBinary === 'string' ? 'binary' : 'array' });
   const wsname = wb.SheetNames[0];
   if (!wsname) return { records: [], rawCount: 0 };
