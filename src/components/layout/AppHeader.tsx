@@ -48,7 +48,7 @@ export function AppHeader({ activeKey, onNav }: Props) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-          <img src="/Logo 3.png" alt="ESSA Electrificadora de Santander" style={{ height: 34, width: 'auto' }} />
+          <img src={`${import.meta.env.BASE_URL}Logo 3.png`} alt="ESSA Electrificadora de Santander" style={{ height: 34, width: 'auto' }} />
           <div style={{ lineHeight: 1 }}>
             <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--essa-primary)', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
               ESSA · Generador Documental
