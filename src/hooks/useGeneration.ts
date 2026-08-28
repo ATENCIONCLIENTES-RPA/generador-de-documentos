@@ -48,14 +48,7 @@ function buildFileName(
 }
 
 function formatZipName(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  const mm = pad(d.getMonth() + 1);
-  const dd = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mi = pad(d.getMinutes());
-  return `ESSA_Documentos_${yyyy}-${mm}-${dd}_${hh}${mi}.zip`;
+  return 'Documentos.zip';
 }
 
 async function getSignatureBlob(signatureUrl: string | null): Promise<Blob | undefined> {

@@ -17,6 +17,17 @@ export interface Record {
   correoSolicitante: string;
   numeroCuenta: string;
   cuenta?: string;
+
+  // Nuevos campos de validación SAC / Mercurio y semáforo
+  procesoCreado?: 'Sí' | 'No' | string;
+  creadoEnSac?: 'Sí' | 'No' | string;
+  cantidadProcesos?: number;
+  observacionProceso?: string;
+  observacionRevision?: string;
+  diasPqr?: number;
+  diasPqrLabel?: string;
+  estadoSemaforo?: 'verde' | 'violeta' | 'rojo';
+
   // Index signature for the ~119 dynamic Excel columns (SAC_TRAMITE_GENERAL)
   [key: string]: unknown;
 }

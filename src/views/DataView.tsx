@@ -7,6 +7,8 @@ import RecordEditModal from '@/components/features/RecordEditModal';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import type { Record as EssaRecord } from '@/types/record';
+import { calculatePqrBusinessDays, parseDateOnly } from '@/utils/businessDays';
+import { getEstadoSemaforo } from '@/utils/excelParser';
 
 const PAGE_SIZE = 10;
 
@@ -18,6 +20,10 @@ const SEARCHABLE_FIELDS: (keyof EssaRecord)[] = [
   'numeroProceso',
   'cedulaSolicitante',
   'correoSolicitante',
+  'procesoCreado',
+  'observacionProceso',
+  'observacionRevision',
+  'diasPqrLabel',
 ];
 
 function formatCount(n: number): string {
@@ -116,11 +122,101 @@ export function DataView() {
       const q = filterState.fechaSolicitud.trim();
       out = out.filter((r) => String(r.fechaSolicitud ?? '').includes(q));
     }
+
+    // Rango de fechas: fechaDesde y fechaHasta
+    if (filterState.fechaDesde) {
+      const dDesde = parseDateOnly(filterState.fechaDesde);
+      if (dDesde) {
+        out = out.filter((r) => {
+          const rawDate =
+            r.fechaSolicitud ||
+            (r as Record<string, unknown>)['Fecha Radicación'] ||
+            (r as Record<string, unknown>)['FECHA_RADICACION'];
+          const rDate = parseDateOnly(rawDate);
+          return rDate ? rDate.getTime() >= dDesde.getTime() : false;
+        });
+      }
+    }
+
+    if (filterState.fechaHasta) {
+      const dHasta = parseDateOnly(filterState.fechaHasta);
+      if (dHasta) {
+        out = out.filter((r) => {
+          const rawDate =
+            r.fechaSolicitud ||
+            (r as Record<string, unknown>)['Fecha Radicación'] ||
+            (r as Record<string, unknown>)['FECHA_RADICACION'];
+          const rDate = parseDateOnly(rawDate);
+          return rDate ? rDate.getTime() <= dHasta.getTime() : false;
+        });
+      }
+    }
+
+    // Filtro Proceso Creado ('todos' | 'si' | 'no')
+    if (filterState.procesoCreado && filterState.procesoCreado !== 'todos') {
+      if (filterState.procesoCreado === 'si') {
+        out = out.filter(
+          (r) =>
+            r.procesoCreado === 'Sí' ||
+            r.creadoEnSac === 'Sí' ||
+            (r.numeroProceso &&
+              String(r.numeroProceso).trim() !== '' &&
+              String(r.numeroProceso).trim() !== '—')
+        );
+      } else if (filterState.procesoCreado === 'no') {
+        out = out.filter(
+          (r) =>
+            r.procesoCreado === 'No' ||
+            r.creadoEnSac === 'No' ||
+            !r.numeroProceso ||
+            String(r.numeroProceso).trim() === '' ||
+            String(r.numeroProceso).trim() === '—'
+        );
+      }
+    }
+
+    // Filtro Estado Semáforo ('todos' | 'verde' | 'violeta' | 'rojo')
+    if (filterState.estadoSemaforo && filterState.estadoSemaforo !== 'todos') {
+      out = out.filter((r) => {
+        const sem = r.estadoSemaforo || getEstadoSemaforo(r.numeroProceso, r.observacionRevision);
+        return sem === filterState.estadoSemaforo;
+      });
+    }
+
+    // Filtro Cantidad de Procesos ('todos' | '0' | '1' | '2+')
+    if (filterState.cantProcesos && filterState.cantProcesos !== 'todos') {
+      out = out.filter((r) => {
+        const cant =
+          r.cantidadProcesos ??
+          (r.numeroProceso && String(r.numeroProceso).trim() !== '' ? 1 : 0);
+        if (filterState.cantProcesos === '0') return cant === 0;
+        if (filterState.cantProcesos === '1') return cant === 1;
+        if (filterState.cantProcesos === '2+') return cant >= 2;
+        return true;
+      });
+    }
+
+    // Filtro Días PQR ('todos' | 'menor5' | 'urgente' | 'vence_hoy' | 'vencido')
+    if (filterState.diasPqrFiltro && filterState.diasPqrFiltro !== 'todos') {
+      out = out.filter((r) => {
+        const pqr =
+          r.diasPqr !== undefined
+            ? { remainingDays: r.diasPqr }
+            : calculatePqrBusinessDays(
+                r.fechaSolicitud || (r as Record<string, unknown>)['Fecha Radicación']
+              );
+        const rem = pqr.remainingDays;
+        if (filterState.diasPqrFiltro === 'menor5') return rem < 5;
+        if (filterState.diasPqrFiltro === 'urgente') return rem <= 3 && rem >= 0;
+        if (filterState.diasPqrFiltro === 'vence_hoy') return rem === 0;
+        if (filterState.diasPqrFiltro === 'vencido') return rem < 0;
+        return true;
+      });
+    }
+
     if (showOnlySelected) {
       out = out.filter((r) => selectedRows.has(r.rowId));
     }
-    // sort: keep stable order by rowId index? simple lexical
-    // no explicit sort spec — preserve insertion order (or sort by fechaSolicitud desc if present)
     return out;
   }, [
     records,
@@ -129,6 +225,12 @@ export function DataView() {
     filterState.proceso,
     filterState.radicado,
     filterState.fechaSolicitud,
+    filterState.fechaDesde,
+    filterState.fechaHasta,
+    filterState.procesoCreado,
+    filterState.estadoSemaforo,
+    filterState.cantProcesos,
+    filterState.diasPqrFiltro,
     showOnlySelected,
     selectedRows,
   ]);
@@ -160,13 +262,31 @@ export function DataView() {
     filterState.proceso.trim(),
     filterState.radicado.trim(),
     filterState.fechaSolicitud.trim(),
+    filterState.fechaDesde ? 'desde' : '',
+    filterState.fechaHasta ? 'hasta' : '',
+    filterState.procesoCreado && filterState.procesoCreado !== 'todos' ? 'procesoCreado' : '',
+    filterState.estadoSemaforo && filterState.estadoSemaforo !== 'todos' ? 'estadoSemaforo' : '',
+    filterState.cantProcesos && filterState.cantProcesos !== 'todos' ? 'cantProcesos' : '',
+    filterState.diasPqrFiltro && filterState.diasPqrFiltro !== 'todos' ? 'diasPqrFiltro' : '',
   ].filter(Boolean).length;
 
   const hasAnyFilter = activeFilterCount > 0 || showOnlySelected;
 
   const handleClearFilters = () => {
     setSearchInput('');
-    setFilter({ search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' });
+    setFilter({
+      search: '',
+      cuenta: '',
+      proceso: '',
+      radicado: '',
+      fechaSolicitud: '',
+      fechaDesde: '',
+      fechaHasta: '',
+      procesoCreado: 'todos',
+      estadoSemaforo: 'todos',
+      cantProcesos: 'todos',
+      diasPqrFiltro: 'todos',
+    });
     setShowOnlySelected(false);
     setPage(1);
   };
@@ -267,6 +387,30 @@ export function DataView() {
         .dv-pagination-btn { min-width:36px; height:36px; padding:0 10px; border-radius:10px; border:1px solid var(--border); background:#fff; color:var(--neutral-700); font-weight:700; font-size:0.8125rem; display:inline-flex; align-items:center; justify-content:center; }
         .dv-pagination-btn:disabled { opacity:0.45; cursor:not-allowed; }
         .dv-pagination-btn--active { border-color:var(--essa-primary) !important; background:var(--essa-primary) !important; color:#fff !important; }
+
+        /* semáforo styles */
+        .dv-semaforo { display:inline-flex; align-items:center; gap:6px; font-size:0.75rem; font-weight:800; padding:4px 9px; border-radius:999px; border:1px solid; white-space:nowrap; }
+        .dv-semaforo-dot { width:8px; height:8px; border-radius:999px; display:inline-block; }
+        .dv-semaforo--verde { background:#dcfce7; color:#15803d; border-color:#86efac; }
+        .dv-semaforo--verde .dv-semaforo-dot { background:#16a34a; box-shadow:0 0 6px rgba(22, 163, 74, 0.4); }
+        .dv-semaforo--violeta { background:#f3e8ff; color:#7e22ce; border-color:#d8b4fe; }
+        .dv-semaforo--violeta .dv-semaforo-dot { background:#9333ea; box-shadow:0 0 6px rgba(147, 51, 234, 0.4); }
+        .dv-semaforo--rojo { background:#fee2e2; color:#b91c1c; border-color:#fca5a5; }
+        .dv-semaforo--rojo .dv-semaforo-dot { background:#dc2626; box-shadow:0 0 6px rgba(220, 38, 38, 0.4); }
+
+        /* badges */
+        .dv-badge-si { display:inline-flex; align-items:center; justify-content:center; background:#dcfce7; color:#15803d; border:1px solid #86efac; font-weight:800; font-size:0.74rem; padding:2px 10px; border-radius:999px; }
+        .dv-badge-no { display:inline-flex; align-items:center; justify-content:center; background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; font-weight:700; font-size:0.74rem; padding:2px 10px; border-radius:999px; }
+        .dv-badge-cant { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:24px; padding:0 6px; border-radius:999px; background:#eff6ff; color:#004B93; border:1px solid #bfdbfe; font-weight:800; font-size:0.75rem; }
+
+        .dv-badge-pqr { display:inline-flex; align-items:center; gap:4px; font-size:0.74rem; font-weight:700; padding:3px 9px; border-radius:999px; border:1px solid; white-space:nowrap; }
+        .dv-badge-pqr--ok { background:#f0fdf4; color:#166534; border-color:#bbf7d0; }
+        .dv-badge-pqr--urgente { background:#fffbeb; color:#b45309; border-color:#fde68a; font-weight:800; }
+        .dv-badge-pqr--vencido { background:#fef2f2; color:#991b1b; border-color:#fecaca; font-weight:800; }
+
+        .dv-select { height:38px; border-radius:8px; border:1px solid var(--border-strong); padding:0 10px; font-size:0.8125rem; font-family:inherit; background:#fff; color:var(--neutral-800); outline:none; cursor:pointer; }
+        .dv-select:focus { border-color:var(--essa-primary); box-shadow:var(--ring); }
+        .dv-filters-row { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:10px; width:100%; }
       `}</style>
 
       {/* header title */}
@@ -346,9 +490,9 @@ export function DataView() {
 
       {/* toolbar */}
       <div className="dv-toolbar" data-testid="dv-toolbar">
-        {/* search + filter inputs */}
+        {/* search + basic filter inputs */}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ flex: '1 1 260px', minWidth: 220 }}>
+          <div style={{ flex: '2 1 280px', minWidth: 220 }}>
             <Input
               placeholder="Buscar por nombre, cuenta, radicado, proceso, cédula, correo…"
               value={searchInput}
@@ -357,7 +501,7 @@ export function DataView() {
               data-testid="dv-search"
             />
           </div>
-          <div className="dv-filters-grid" style={{ flex: '2 1 420px' }}>
+          <div style={{ flex: '1 1 140px', minWidth: 120 }}>
             <Input
               placeholder="Cuenta"
               value={filterState.cuenta}
@@ -365,6 +509,8 @@ export function DataView() {
               aria-label="Filtro cuenta"
               data-testid="dv-filter-cuenta"
             />
+          </div>
+          <div style={{ flex: '1 1 140px', minWidth: 120 }}>
             <Input
               placeholder="Proceso"
               value={filterState.proceso}
@@ -372,6 +518,8 @@ export function DataView() {
               aria-label="Filtro proceso"
               data-testid="dv-filter-proceso"
             />
+          </div>
+          <div style={{ flex: '1 1 140px', minWidth: 120 }}>
             <Input
               placeholder="Radicado"
               value={filterState.radicado}
@@ -379,33 +527,133 @@ export function DataView() {
               aria-label="Filtro radicado"
               data-testid="dv-filter-radicado"
             />
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearFilters}
+              data-testid="dv-limpiar-filtros"
+              title="Limpiar todos los filtros"
+            >
+              Limpiar filtros
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearSelection}
+              data-testid="dv-limpiar-seleccion"
+              title="Limpiar selección"
+            >
+              Limpiar selección
+            </Button>
+          </div>
+        </div>
+
+        {/* Date range & dropdown filters row */}
+        <div className="dv-filters-row">
+          {/* Fecha inicial */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--neutral-600)' }}>
+              Fecha inicial:
+            </label>
             <Input
-              placeholder="Fecha Solicitud"
-              value={filterState.fechaSolicitud}
-              onChange={(e) => setFilter({ fechaSolicitud: e.target.value })}
-              aria-label="Filtro fecha"
-              data-testid="dv-filter-fecha"
+              type="date"
+              value={filterState.fechaDesde}
+              onChange={(e) => setFilter({ fechaDesde: e.target.value })}
+              aria-label="Fecha inicial"
+              data-testid="dv-filter-fecha-desde"
             />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClearFilters}
-                data-testid="dv-limpiar-filtros"
-                title="Limpiar todos los filtros"
-              >
-                Limpiar filtros
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClearSelection}
-                data-testid="dv-limpiar-seleccion"
-                title="Limpiar selección"
-              >
-                Limpiar selección
-              </Button>
-            </div>
+          </div>
+
+          {/* Fecha final */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--neutral-600)' }}>
+              Fecha final:
+            </label>
+            <Input
+              type="date"
+              value={filterState.fechaHasta}
+              onChange={(e) => setFilter({ fechaHasta: e.target.value })}
+              aria-label="Fecha final"
+              data-testid="dv-filter-fecha-hasta"
+            />
+          </div>
+
+          {/* Proceso creado */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--neutral-600)' }}>
+              Proceso creado:
+            </label>
+            <select
+              className="dv-select"
+              value={filterState.procesoCreado || 'todos'}
+              onChange={(e) => setFilter({ procesoCreado: e.target.value })}
+              aria-label="Filtro Proceso Creado"
+              data-testid="dv-filter-proceso-creado"
+            >
+              <option value="todos">Todos</option>
+              <option value="si">Creado (Sí)</option>
+              <option value="no">Sin crear (No)</option>
+            </select>
+          </div>
+
+          {/* Estado (Semáforo) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--neutral-600)' }}>
+              Estado:
+            </label>
+            <select
+              className="dv-select"
+              value={filterState.estadoSemaforo || 'todos'}
+              onChange={(e) => setFilter({ estadoSemaforo: e.target.value })}
+              aria-label="Filtro Estado Semáforo"
+              data-testid="dv-filter-estado-semaforo"
+            >
+              <option value="todos">Todos</option>
+              <option value="verde">🟢 Verde (Completo)</option>
+              <option value="violeta">🟣 Violeta (En revisión)</option>
+              <option value="rojo">🔴 Rojo (Sin proceso)</option>
+            </select>
+          </div>
+
+          {/* Cant. Procesos */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--neutral-600)' }}>
+              Cant. Procesos:
+            </label>
+            <select
+              className="dv-select"
+              value={filterState.cantProcesos || 'todos'}
+              onChange={(e) => setFilter({ cantProcesos: e.target.value })}
+              aria-label="Filtro Cantidad Procesos"
+              data-testid="dv-filter-cant-procesos"
+            >
+              <option value="todos">Todas</option>
+              <option value="0">0 procesos</option>
+              <option value="1">1 proceso</option>
+              <option value="2+">2 o más procesos</option>
+            </select>
+          </div>
+
+          {/* Días PQR */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--neutral-600)' }}>
+              Días PQR:
+            </label>
+            <select
+              className="dv-select"
+              value={filterState.diasPqrFiltro || 'todos'}
+              onChange={(e) => setFilter({ diasPqrFiltro: e.target.value })}
+              aria-label="Filtro Días PQR"
+              data-testid="dv-filter-dias-pqr"
+            >
+              <option value="todos">Todos</option>
+              <option value="menor5">&lt; 5 días hábiles</option>
+              <option value="urgente">Urgente (≤ 3 días)</option>
+              <option value="vence_hoy">Vence hoy</option>
+              <option value="vencido">Vencidos (&lt; 0 días)</option>
+            </select>
           </div>
         </div>
 
@@ -467,10 +715,50 @@ export function DataView() {
                 </button>
               </span>
             )}
-            {filterState.fechaSolicitud.trim() && (
-              <span className="dv-tag" data-testid="dv-tag-fecha">
-                Fecha: {filterState.fechaSolicitud.trim()}{' '}
-                <button onClick={() => setFilter({ fechaSolicitud: '' })} aria-label="Quitar fecha">
+            {filterState.fechaDesde && (
+              <span className="dv-tag" data-testid="dv-tag-fecha-desde">
+                Desde: {filterState.fechaDesde}{' '}
+                <button onClick={() => setFilter({ fechaDesde: '' })} aria-label="Quitar fecha inicial">
+                  ×
+                </button>
+              </span>
+            )}
+            {filterState.fechaHasta && (
+              <span className="dv-tag" data-testid="dv-tag-fecha-hasta">
+                Hasta: {filterState.fechaHasta}{' '}
+                <button onClick={() => setFilter({ fechaHasta: '' })} aria-label="Quitar fecha final">
+                  ×
+                </button>
+              </span>
+            )}
+            {filterState.procesoCreado && filterState.procesoCreado !== 'todos' && (
+              <span className="dv-tag" data-testid="dv-tag-proceso-creado">
+                Creado en SAC: {filterState.procesoCreado === 'si' ? 'Sí' : 'No'}{' '}
+                <button onClick={() => setFilter({ procesoCreado: 'todos' })} aria-label="Quitar filtro creado">
+                  ×
+                </button>
+              </span>
+            )}
+            {filterState.estadoSemaforo && filterState.estadoSemaforo !== 'todos' && (
+              <span className="dv-tag" data-testid="dv-tag-estado-semaforo">
+                Estado: {filterState.estadoSemaforo}{' '}
+                <button onClick={() => setFilter({ estadoSemaforo: 'todos' })} aria-label="Quitar filtro estado">
+                  ×
+                </button>
+              </span>
+            )}
+            {filterState.cantProcesos && filterState.cantProcesos !== 'todos' && (
+              <span className="dv-tag" data-testid="dv-tag-cant-procesos">
+                Procesos: {filterState.cantProcesos}{' '}
+                <button onClick={() => setFilter({ cantProcesos: 'todos' })} aria-label="Quitar filtro cant procesos">
+                  ×
+                </button>
+              </span>
+            )}
+            {filterState.diasPqrFiltro && filterState.diasPqrFiltro !== 'todos' && (
+              <span className="dv-tag" data-testid="dv-tag-dias-pqr">
+                Días PQR: {filterState.diasPqrFiltro}{' '}
+                <button onClick={() => setFilter({ diasPqrFiltro: 'todos' })} aria-label="Quitar filtro días pqr">
                   ×
                 </button>
               </span>
@@ -518,6 +806,10 @@ export function DataView() {
                     data-testid="dv-header-checkbox"
                   />
                 </th>
+                <th>Estado</th>
+                <th>Proceso creado</th>
+                <th style={{ textAlign: 'center' }}>Cant. procesos</th>
+                <th>Días PQR</th>
                 <th>Cuenta</th>
                 <th>Nombre</th>
                 <th>Radicado</th>
@@ -530,7 +822,7 @@ export function DataView() {
               {pageRecords.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={11}
                     style={{ textAlign: 'center', padding: 28, color: 'var(--neutral-500)' }}
                   >
                     Sin resultados — ajusta los filtros
@@ -541,6 +833,24 @@ export function DataView() {
                   const isSelected = selectedRows.has(r.rowId);
                   // also track via helper to prove useSelection usage
                   void selection.isSelected(r.rowId);
+
+                  const semaforo =
+                    r.estadoSemaforo ||
+                    getEstadoSemaforo(r.numeroProceso, r.observacionRevision);
+
+                  const pqr =
+                    r.diasPqrLabel && r.diasPqr !== undefined
+                      ? { remainingDays: r.diasPqr, label: r.diasPqrLabel, isExpired: r.diasPqr < 0, dueDateStr: '' }
+                      : calculatePqrBusinessDays(
+                          r.fechaSolicitud ||
+                            (r as Record<string, unknown>)['Fecha Radicación'] ||
+                            (r as Record<string, unknown>)['FECHA_RADICACION']
+                        );
+
+                  const creadoLabel = r.procesoCreado || r.creadoEnSac || (r.numeroProceso ? 'Sí' : 'No');
+                  const isCreado = creadoLabel === 'Sí';
+                  const cantProcesos = r.cantidadProcesos ?? (r.numeroProceso ? 1 : 0);
+
                   return (
                     <tr
                       key={r.rowId}
@@ -561,6 +871,78 @@ export function DataView() {
                           data-testid={`dv-row-checkbox-${r.rowId}`}
                         />
                       </td>
+
+                      {/* 1. Estado tipo semáforo */}
+                      <td>
+                        {semaforo === 'verde' && (
+                          <span
+                            className="dv-semaforo dv-semaforo--verde"
+                            data-testid={`dv-semaforo-${r.rowId}`}
+                            title="🟢 Completo: Con número de proceso y observación de revisión"
+                          >
+                            <span className="dv-semaforo-dot" aria-hidden />
+                            Completo
+                          </span>
+                        )}
+                        {semaforo === 'violeta' && (
+                          <span
+                            className="dv-semaforo dv-semaforo--violeta"
+                            data-testid={`dv-semaforo-${r.rowId}`}
+                            title="🟣 En revisión: Con número de proceso, sin observación de revisión"
+                          >
+                            <span className="dv-semaforo-dot" aria-hidden />
+                            En revisión
+                          </span>
+                        )}
+                        {semaforo === 'rojo' && (
+                          <span
+                            className="dv-semaforo dv-semaforo--rojo"
+                            data-testid={`dv-semaforo-${r.rowId}`}
+                            title="🔴 Sin proceso: No tiene número de proceso ni observación"
+                          >
+                            <span className="dv-semaforo-dot" aria-hidden />
+                            Sin proceso
+                          </span>
+                        )}
+                      </td>
+
+                      {/* 2. Proceso creado */}
+                      <td>
+                        <span
+                          className={isCreado ? 'dv-badge-si' : 'dv-badge-no'}
+                          data-testid={`dv-creado-${r.rowId}`}
+                        >
+                          {creadoLabel}
+                        </span>
+                      </td>
+
+                      {/* 3. Cantidad de procesos */}
+                      <td style={{ textAlign: 'center' }}>
+                        <span
+                          className="dv-badge-cant"
+                          data-testid={`dv-cant-${r.rowId}`}
+                        >
+                          {cantProcesos}
+                        </span>
+                      </td>
+
+                      {/* 4. Días PQR */}
+                      <td>
+                        <span
+                          className={`dv-badge-pqr ${
+                            pqr.isExpired
+                              ? 'dv-badge-pqr--vencido'
+                              : pqr.remainingDays <= 3
+                                ? 'dv-badge-pqr--urgente'
+                                : 'dv-badge-pqr--ok'
+                          }`}
+                          data-testid={`dv-pqr-${r.rowId}`}
+                          title={pqr.dueDateStr ? `Vence: ${pqr.dueDateStr}` : undefined}
+                        >
+                          {pqr.label}
+                        </span>
+                      </td>
+
                       <td
                         style={{
                           fontFamily: 'var(--font-mono)',
@@ -740,17 +1122,6 @@ export function DataView() {
           >
             {selectedRows.size} seleccionados
           </span>
-          <Button
-            variant="secondary"
-            disabled={selectedRows.size === 0}
-            onClick={() => {
-              // validación simple: log
-              console.log('[DataView] Validar seleccionados', selectedRows.size);
-            }}
-            data-testid="dv-validar"
-          >
-            Validar Seleccionados
-          </Button>
           <Button
             variant="primary"
             disabled={selectedRows.size === 0}

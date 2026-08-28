@@ -31,7 +31,7 @@ function resetStores() {
   useDataStore.setState({
     records: [],
     selectedRows: new Set<string>(),
-    filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+    filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
     currentPage: 1,
     pageSize: 10,
     editingRecord: null,
@@ -282,12 +282,77 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     render(<DataView />);
     const continuar = screen.getByTestId('dv-continuar') as HTMLButtonElement;
     expect(continuar).toBeDisabled();
-    expect(screen.getByTestId('dv-validar')).toBeDisabled();
+    expect(screen.queryByTestId('dv-validar')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('dv-row-checkbox-row_0_test'));
     expect(continuar).toBeEnabled();
     fireEvent.click(continuar);
     expect(useNavigationStore.getState().completed.has('datos')).toBe(true);
     expect(useNavigationStore.getState().currentStep).toBe('plantillas');
+  });
+
+  it('filtra registros por rango de fechas (Fecha inicial y Fecha final) y combinables', async () => {
+    const recs = [
+      makeRecord({
+        rowId: 'row_1',
+        fechaSolicitud: '01/08/2026',
+        procesoCreado: 'Sí',
+        estadoSemaforo: 'verde',
+        numeroProceso: 'PROC-1',
+        cantidadProcesos: 1,
+      }),
+      makeRecord({
+        rowId: 'row_2',
+        fechaSolicitud: '15/08/2026',
+        procesoCreado: 'No',
+        estadoSemaforo: 'rojo',
+        numeroProceso: '',
+        cantidadProcesos: 0,
+      }),
+      makeRecord({
+        rowId: 'row_3',
+        fechaSolicitud: '28/08/2026',
+        procesoCreado: 'Sí',
+        estadoSemaforo: 'violeta',
+        numeroProceso: 'PROC-3',
+        cantidadProcesos: 2,
+      }),
+      makeRecord({
+        rowId: 'row_4',
+        fechaSolicitud: '05/09/2026',
+        procesoCreado: 'Sí',
+        estadoSemaforo: 'verde',
+        numeroProceso: 'PROC-4',
+        cantidadProcesos: 1,
+      }),
+    ];
+    useDataStore.getState().setRecords(recs);
+    render(<DataView />);
+
+    // Rango de fechas 01/08/2026 al 28/08/2026
+    const fechaDesde = screen.getByTestId('dv-filter-fecha-desde');
+    const fechaHasta = screen.getByTestId('dv-filter-fecha-hasta');
+
+    fireEvent.change(fechaDesde, { target: { value: '2026-08-01' } });
+    fireEvent.change(fechaHasta, { target: { value: '2026-08-28' } });
+
+    // rows 1, 2, 3 should match; row 4 (September) excluded
+    expect(screen.getByTestId('dv-row-row_1')).toBeInTheDocument();
+    expect(screen.getByTestId('dv-row-row_2')).toBeInTheDocument();
+    expect(screen.getByTestId('dv-row-row_3')).toBeInTheDocument();
+    expect(screen.queryByTestId('dv-row-row_4')).not.toBeInTheDocument();
+
+    // Combinar con filtro Proceso creado = 'si'
+    const selectCreado = screen.getByTestId('dv-filter-proceso-creado');
+    fireEvent.change(selectCreado, { target: { value: 'si' } });
+    expect(screen.getByTestId('dv-row-row_1')).toBeInTheDocument();
+    expect(screen.queryByTestId('dv-row-row_2')).not.toBeInTheDocument();
+    expect(screen.getByTestId('dv-row-row_3')).toBeInTheDocument();
+
+    // Combinar con Estado Semáforo = 'verde'
+    const selectEstado = screen.getByTestId('dv-filter-estado-semaforo');
+    fireEvent.change(selectEstado, { target: { value: 'verde' } });
+    expect(screen.getByTestId('dv-row-row_1')).toBeInTheDocument();
+    expect(screen.queryByTestId('dv-row-row_3')).not.toBeInTheDocument();
   });
 
   it('useSelection hook: toggleRow, togglePage, clearSelection usan Set<string>', async () => {
@@ -304,5 +369,97 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     expect(useDataStore.getState().selectedRows.size).toBe(10);
     fireEvent.click(screen.getByTestId('dv-limpiar-seleccion'));
     expect(useDataStore.getState().selectedRows.size).toBe(0);
+  });
+
+  it('renderiza las nuevas columnas: Estado (semáforo), Proceso creado, Cant. procesos y Días PQR', async () => {
+    const recs = [
+      makeRecord({
+        rowId: 'row_test_verde',
+        id: 1,
+        numeroProceso: 'PRC-001',
+        observacionRevision: 'Revisado OK',
+        observacionProceso: 'Solicitud formal',
+        radicadoEntrada: 'RAD-001',
+        fechaSolicitud: '07/05/2026 16:18:56.53',
+        procesoCreado: 'Sí',
+        cantidadProcesos: 2,
+      }),
+      makeRecord({
+        rowId: 'row_test_violeta',
+        id: 2,
+        numeroProceso: 'PRC-002',
+        observacionRevision: '',
+        radicadoEntrada: 'RAD-002',
+        fechaSolicitud: '10/05/2026',
+        procesoCreado: 'Sí',
+        cantidadProcesos: 1,
+      }),
+      makeRecord({
+        rowId: 'row_test_rojo',
+        id: 3,
+        numeroProceso: '',
+        observacionRevision: '',
+        radicadoEntrada: 'RAD-003',
+        fechaSolicitud: '15/05/2026',
+        procesoCreado: 'No',
+        cantidadProcesos: 0,
+      }),
+    ];
+    useDataStore.getState().setRecords(recs);
+    render(<DataView />);
+
+    // Headers
+    expect(screen.getByText('Estado')).toBeInTheDocument();
+    expect(screen.getByText('Proceso creado')).toBeInTheDocument();
+    expect(screen.getByText('Cant. procesos')).toBeInTheDocument();
+    expect(screen.getByText('Días PQR')).toBeInTheDocument();
+
+    // Semáforos
+    expect(screen.getByTestId('dv-semaforo-row_test_verde')).toHaveTextContent('Completo');
+    expect(screen.getByTestId('dv-semaforo-row_test_violeta')).toHaveTextContent('En revisión');
+    expect(screen.getByTestId('dv-semaforo-row_test_rojo')).toHaveTextContent('Sin proceso');
+
+    // Proceso creado
+    expect(screen.getByTestId('dv-creado-row_test_verde')).toHaveTextContent('Sí');
+    expect(screen.getByTestId('dv-creado-row_test_rojo')).toHaveTextContent('No');
+
+    // Cant. procesos
+    expect(screen.getByTestId('dv-cant-row_test_verde')).toHaveTextContent('2');
+    expect(screen.getByTestId('dv-cant-row_test_rojo')).toHaveTextContent('0');
+
+    // Días PQR
+    expect(screen.getByTestId('dv-pqr-row_test_verde')).toBeInTheDocument();
+  });
+
+  it('modal de edición edita "Descripción de la solicitud" y "Observaciones"', async () => {
+    const recs = [
+      makeRecord({
+        rowId: 'row_test_modal',
+        id: 1,
+        observacionProceso: 'Hechos iniciales',
+        observacionRevision: 'Revision inicial',
+      }),
+    ];
+    useDataStore.getState().setRecords(recs);
+    render(<DataView />);
+
+    fireEvent.click(screen.getByTestId('dv-edit-row_test_modal'));
+    expect(await screen.findByText('Descripción de la solicitud')).toBeInTheDocument();
+    expect(screen.getByText('Observaciones')).toBeInTheDocument();
+
+    const descTextarea = screen.getByTestId('rem-textarea-descripcion') as HTMLTextAreaElement;
+    const obsTextarea = screen.getByTestId('rem-textarea-observaciones') as HTMLTextAreaElement;
+    expect(descTextarea.value).toBe('Hechos iniciales');
+    expect(obsTextarea.value).toBe('Revision inicial');
+
+    fireEvent.change(descTextarea, { target: { value: 'Nueva descripción de la solicitud' } });
+    fireEvent.change(obsTextarea, { target: { value: 'Nuevas observaciones de revisión' } });
+
+    fireEvent.click(screen.getByTestId('rem-save'));
+    await waitFor(() => {
+      const updated = useDataStore.getState().records.find((r) => r.rowId === 'row_test_modal');
+      expect(updated?.observacionProceso).toBe('Nueva descripción de la solicitud');
+      expect(updated?.observacionRevision).toBe('Nuevas observaciones de revisión');
+    });
   });
 });

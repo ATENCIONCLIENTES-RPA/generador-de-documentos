@@ -5,10 +5,40 @@ import { useDataStore } from '@/store/dataStore';
 import { useTemplateStore } from '@/store/templateStore';
 import { useProfileStore } from '@/store/profileStore';
 import { useGenerationStore } from '@/store/generationStore';
-import { replaceTemplateVariables } from '@/utils/templateEngine';
+import { generateDocx, buildTemplateData, replaceTemplateVariables } from '@/utils/templateEngine';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import type { Record as EssaRecord } from '@/types/record';
+
+// ---------------------------------------------------------------------------
+// Helper: same logic used by useGeneration to retrieve signature blob
+// ---------------------------------------------------------------------------
+async function getSignatureBlob(signatureUrl: string | null): Promise<Blob | undefined> {
+  if (!signatureUrl) return undefined;
+  try {
+    if (signatureUrl.startsWith('data:')) {
+      const res = await fetch(signatureUrl);
+      if (res.ok) return await res.blob();
+      // manual base64 decode fallback
+      const base64 = signatureUrl.split(',')[1];
+      if (base64) {
+        const bin = atob(base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const mimeMatch = signatureUrl.match(/^data:([^;]+);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+        return new Blob([bytes], { type: mime });
+      }
+      return undefined;
+    }
+    const res = await fetch(signatureUrl);
+    if (res.ok) return await res.blob();
+    return undefined;
+  } catch (e) {
+    console.error('[GenerateView] getSignatureBlob failed', e);
+    return undefined;
+  }
+}
 
 interface GenerateViewProps {
   onAddHistory?: (entry: {
@@ -48,45 +78,41 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
     downloadAll,
   } = useGeneration({ onAddHistory });
 
-  // sync stage to store for indicator; stage already from store
   const profile = useProfileStore((s) => s.profile);
-
   const [activeIdx, setActiveIdx] = useState(0);
   const [sidebarSearch, setSidebarSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<
-    'all' | 'pending' | 'success' | 'error' | 'generating'
-  >('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isGenerating, setIsGenerating] = useState(false);
+
   const previewRef = useRef<HTMLDivElement>(null);
   const docxContainerRef = useRef<HTMLDivElement>(null);
 
-  // derived combined list: selectedRecords + docResults status
+  // items combined with status
   const combined = useMemo(() => {
     return selectedRecords.map((rec, i) => {
       const rid = (rec as unknown as { rowId: string }).rowId ?? `rec-${i}`;
-      const res = docResults.find((r) => r.id === rid || r.recordId === rid);
-      let status: DocStatus = 'pending';
-      if (res) {
-        if (res.status === 'success') status = 'success';
-        else if (res.status === 'error') status = 'error';
-        else status = stage === 'generando' ? 'generating' : 'pending';
-      } else {
-        status = stage === 'generando' ? 'generating' : 'pending';
-      }
-      return { rec, rid, status, res, idx: i };
+      const found = docResults.find((r) => r.id === rid || r.recordId === rid);
+      const st: DocStatus = found ? (found.status as DocStatus) : 'pending';
+      return { rec, rid, status: st };
     });
-  }, [selectedRecords, docResults, stage]);
+  }, [selectedRecords, docResults]);
 
+  // counts
   const counts = useMemo(() => {
-    const total = combined.length;
-    const pending = combined.filter((c) => c.status === 'pending').length;
-    const generating = combined.filter((c) => c.status === 'generating').length;
-    const completed = combined.filter((c) => c.status === 'success').length;
-    const errores = combined.filter((c) => c.status === 'error').length;
-    // if no docResults yet and stage revision, treat all as pendientes
-    return { total, pending, generating, completed, errores };
+    let pending = 0;
+    let completed = 0;
+    let errores = 0;
+    let generating = 0;
+    for (const c of combined) {
+      if (c.status === 'pending') pending++;
+      else if (c.status === 'success') completed++;
+      else if (c.status === 'error') errores++;
+      else if (c.status === 'generating') generating++;
+    }
+    return { total: combined.length, pending, completed, errores, generating };
   }, [combined]);
 
+  // filtered list
   const filtered = useMemo(() => {
     let out = combined;
     const q = sidebarSearch.trim().toLowerCase();
@@ -117,28 +143,35 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
 
   const activeItem = filtered[activeIdx] ?? combined[activeIdx] ?? combined[0] ?? null;
   const activeRecord: EssaRecord | null = activeItem ? (activeItem.rec as EssaRecord) : null;
-  // compute Documento X de Y indicator based on overall combined (not filtered) or filtered?
+  // compute Documento X de Y indicator based on overall combined
   const documentoIndicator = useMemo(() => {
     if (combined.length === 0) return '0 de 0';
-    // if filtered, show position within filtered, else overall
     const list = filtered.length > 0 ? filtered : combined;
     const currentPos = activeIdx + 1;
     return `${currentPos} de ${list.length}`;
   }, [activeIdx, filtered.length, combined.length]);
 
-  const totalForBar = counts.total;
+  const isSingle = selectedRecords.length === 1;
 
   const handleGenerate = useCallback(async () => {
     if (!canGenerate) return;
     setIsGenerating(true);
     try {
       await generate();
+      // Auto-download behavior
+      if (selectedRecords.length === 1) {
+        const rec = selectedRecords[0];
+        const singleId = (rec as unknown as { rowId: string }).rowId ?? 'rec-0';
+        downloadSingle(singleId);
+      } else if (selectedRecords.length > 1) {
+        await downloadAll();
+      }
     } catch (e) {
       console.error('[GenerateView] generate failed', e);
     } finally {
       setIsGenerating(false);
     }
-  }, [canGenerate, generate]);
+  }, [canGenerate, generate, selectedRecords, downloadSingle, downloadAll]);
 
   const handleRetry = useCallback(async () => {
     setIsGenerating(true);
@@ -151,7 +184,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
     }
   }, [retryFailed]);
 
-  // preview rendering
+  // fallback preview rendering text
   const previewContent = useMemo(() => {
     if (!selectedTemplate) return '';
     const raw = selectedTemplate.sampleContent ?? '';
@@ -171,7 +204,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
     return raw;
   }, [selectedTemplate, activeRecord, profile.name, profile.position, profile.email]);
 
-  // docx-preview attempt if file exists
+  // docx-preview rendering with data fused to preserve original Word formatting + signature image
   useEffect(() => {
     let cancelled = false;
     const container = docxContainerRef.current;
@@ -179,15 +212,27 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
     container.innerHTML = '';
     if (!selectedTemplate?.file || !activeRecord) return;
     const file = selectedTemplate.file as File;
+
     const run = async () => {
       try {
-        const mod = await import('docx-preview');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const renderAsync: (buf: ArrayBuffer, el: HTMLElement) => Promise<void> =
-          (mod as any).renderAsync ?? (mod as any).default?.renderAsync ?? (mod as any).default;
-        if (!renderAsync) throw new Error('renderAsync not found');
+        // Resolve profile signature blob (same logic as useGeneration.ts)
+        const signatureBlob = await getSignatureBlob(profile.signatureUrl ?? null);
+
+        let generatedBlob: Blob;
+        if (signatureBlob) {
+          const templateData = buildTemplateData(activeRecord, {
+            name: profile.name,
+            position: profile.position,
+            email: profile.email,
+          });
+          generatedBlob = await generateDocx(file, templateData, { signatureBlob });
+        } else {
+          const templateData = buildTemplateData(activeRecord, profile);
+          generatedBlob = await generateDocx(file, templateData);
+        }
+
         let buf: ArrayBuffer;
-        const maybe = file as unknown as { arrayBuffer?: () => Promise<ArrayBuffer> };
+        const maybe = generatedBlob as unknown as { arrayBuffer?: () => Promise<ArrayBuffer> };
         if (typeof maybe.arrayBuffer === 'function') {
           buf = await maybe.arrayBuffer();
         } else {
@@ -195,22 +240,26 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as ArrayBuffer);
             reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'));
-            reader.readAsArrayBuffer(file as unknown as Blob);
+            reader.readAsArrayBuffer(generatedBlob as unknown as Blob);
           });
         }
         if (cancelled || !docxContainerRef.current) return;
+        const mod = await import('docx-preview');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const renderAsync: (buf: ArrayBuffer, el: HTMLElement) => Promise<void> =
+          (mod as any).renderAsync ?? (mod as any).default?.renderAsync ?? (mod as any).default;
+        if (!renderAsync) throw new Error('renderAsync not found');
         docxContainerRef.current.innerHTML = '';
         await renderAsync(buf, docxContainerRef.current);
       } catch (e) {
         console.error('docx-preview render failed, fallback to text', e);
-        // fallback already via previewContent
       }
     };
     void run();
     return () => {
       cancelled = true;
     };
-  }, [selectedTemplate?.file, activeRecord]);
+  }, [selectedTemplate?.file, activeRecord, profile]);
 
   const hasError = counts.errores > 0;
   const hasSuccess = counts.completed > 0;
@@ -231,12 +280,9 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         .gv-progress-track { width:100%; height:10px; background:#e2e8f0; border-radius:999px; overflow:hidden; border:1px solid #e2e8f0; padding:2px; }
         .gv-progress-fill { height:100%; border-radius:999px; transition: width 0.3s ease; background: linear-gradient(90deg, #3b82f6, #004B93); }
         .gv-progress-fill.done { background: linear-gradient(90deg, #10b981, #059669); }
-        .gv-status-bar { background:#fff; border:1px solid var(--border); border-radius:12px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; box-shadow:var(--shadow-xs); }
-        .gv-status-segment { cursor:pointer; font-size:0.78rem; font-weight:700; padding:4px 8px; border-radius:999px; border:1px solid transparent; transition: background 120ms var(--ease); }
-        .gv-status-segment:hover { background:#f1f5f9; }
-        .gv-status-segment.active { background:#EEF6DF; border-color:#c5e8a3; color:#1e3a5f; }
-        .gv-preview { background:#F5F5F7; overflow-y:auto; padding:18px; flex:1; }
-        .gv-preview-doc { margin:0 auto; max-width:560px; background:#fff; padding:28px; box-shadow:0 1px 10px rgba(15,23,42,0.08); border-radius:2px; min-height:360px; font-family: Georgia, "Times New Roman", serif; font-size:11px; line-height:1.7; color:#1e293b; white-space:pre-wrap; word-break:break-word; }
+        .gv-preview { background:#f1f5f9; overflow-y:auto; overflow-x:hidden; padding:20px 16px; flex:1; display:flex; justify-content:center; }
+        .gv-preview .docx-wrapper { background:transparent !important; padding:0 !important; }
+        .gv-preview .docx-wrapper > section.docx { margin:0 auto !important; box-shadow:0 4px 20px rgba(0,0,0,0.08) !important; border-radius:4px !important; background:#ffffff !important; }
       `}</style>
 
       {/* header */}
@@ -288,7 +334,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
                 lineHeight: 1.1,
               }}
             >
-              Módulo 5-6: Generación Documental
+              Módulo 5: Generación Documental
             </h2>
             <p style={{ fontSize: '0.8rem', color: 'var(--neutral-500)', margin: 0 }}>
               Revisa, genera y descarga documentos ESSA
@@ -368,103 +414,22 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
               alignItems: 'center',
               flexWrap: 'wrap',
             }}
-            data-testid="gv-variable-groups"
           >
-            <span style={{ fontWeight: 800 }}>Plantilla:</span>
+            <span style={{ fontWeight: 800 }}>Plantilla seleccionada:</span>
             <span
               style={{
                 background: '#eff6ff',
                 border: '1px solid #bfdbfe',
                 borderRadius: 999,
-                padding: '3px 8px',
+                padding: '3px 10px',
                 fontWeight: 700,
                 color: '#1e40af',
               }}
             >
               {selectedTemplate.title}
             </span>
-            <span
-              style={{
-                background: '#f8fafc',
-                border: '1px solid var(--border)',
-                borderRadius: 999,
-                padding: '3px 8px',
-              }}
-            >
-              {selectedTemplate.variables?.length ?? 0} variables
-            </span>
-            {selectedTemplate.variables?.length ? (
-              <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {selectedTemplate.variables.slice(0, 4).map((v) => (
-                  <span
-                    key={v.key}
-                    style={{
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: 999,
-                      padding: '2px 7px',
-                    }}
-                  >
-                    [{v.key}]
-                  </span>
-                ))}
-                {(selectedTemplate.variables.length ?? 0) > 4 && (
-                  <span style={{ fontSize: '0.7rem', color: 'var(--neutral-500)' }}>
-                    +{selectedTemplate.variables.length - 4} más
-                  </span>
-                )}
-              </span>
-            ) : null}
           </div>
         )}
-      </div>
-
-      {/* status bar compacta clicable */}
-      <div data-testid="gv-status-bar" className="gv-status-bar">
-        <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--neutral-700)' }}>
-          {totalForBar} documentos: {counts.pending} pendientes · {counts.generating} generando ·{' '}
-          {counts.completed} completados · {counts.errores} con error
-        </span>
-        <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button
-            className={`gv-status-segment ${statusFilter === 'all' ? 'active' : ''}`}
-            onClick={() => setStatusFilter('all')}
-            data-testid="gv-filter-all"
-            aria-label="Filtrar todos"
-          >
-            Todos
-          </button>
-          <button
-            className={`gv-status-segment ${statusFilter === 'pending' ? 'active' : ''}`}
-            onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}
-            data-testid="gv-filter-pending"
-          >
-            {counts.pending} pendientes
-          </button>
-          <button
-            className={`gv-status-segment ${statusFilter === 'generating' ? 'active' : ''}`}
-            onClick={() => setStatusFilter(statusFilter === 'generating' ? 'all' : 'generating')}
-            data-testid="gv-filter-generating"
-          >
-            {counts.generating} generando
-          </button>
-          <button
-            className={`gv-status-segment ${statusFilter === 'success' ? 'active' : ''}`}
-            onClick={() => setStatusFilter(statusFilter === 'success' ? 'all' : 'success')}
-            data-testid="gv-filter-success"
-          >
-            {counts.completed} completados
-          </button>
-          <button
-            className={`gv-status-segment ${statusFilter === 'error' ? 'active' : ''}`}
-            onClick={() => setStatusFilter(statusFilter === 'error' ? 'all' : 'error')}
-            data-testid="gv-filter-error"
-          >
-            {counts.errores} con error
-          </button>
-        </span>
       </div>
 
       {/* 3 areas layout */}
@@ -483,7 +448,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             }}
           >
             <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--neutral-700)' }}>
-              Documentos
+              Documentos a generar
             </span>
             <span
               style={{
@@ -499,17 +464,6 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             >
               {filtered.length} / {combined.length}
             </span>
-          </div>
-
-          {/* sidebar search small */}
-          <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
-            <Input
-              placeholder="Buscar por cuenta, radicado o nombre"
-              value={sidebarSearch}
-              onChange={(e) => setSidebarSearch(e.target.value)}
-              aria-label="Buscar en lista"
-              data-testid="gv-sidebar-search"
-            />
           </div>
 
           <div
@@ -717,7 +671,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             }}
           >
             <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--neutral-700)' }}>
-              Vista previa
+              Vista previa del documento generado
             </span>
             {activeRecord && (
               <span
@@ -770,66 +724,52 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             </div>
           ) : (
             <div className="gv-preview" data-testid="gv-preview" ref={previewRef}>
-              <div className="gv-preview-doc" data-testid="gv-preview-doc">
-                {/* docx-preview mount */}
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: selectedTemplate.file ? '820px' : '560px',
+                  margin: '0 auto',
+                }}
+              >
+                {/* docx-preview mount point directly */}
                 <div
                   ref={docxContainerRef}
                   data-testid="gv-docx-container"
                   style={{
                     display: selectedTemplate?.file ? 'block' : 'none',
-                    minHeight: selectedTemplate?.file ? 120 : 0,
+                    minHeight: selectedTemplate?.file ? 200 : 0,
                   }}
                 />
-                {/* fallback text */}
-                <div data-testid="gv-fallback-content" style={{ display: 'block' }}>
-                  {previewContent || (
-                    <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
-                      Sin contenido disponible
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* variable groups if needed already in toolbar, duplicate small tags here for extra spec coverage */}
-          {selectedTemplate?.variables && selectedTemplate.variables.length > 0 && (
-            <div
-              style={{
-                padding: '12px 14px',
-                borderTop: '1px solid var(--border)',
-                background: '#fff',
-              }}
-              data-testid="gv-variable-tags"
-            >
-              <div
-                style={{
-                  fontSize: '0.74rem',
-                  fontWeight: 800,
-                  color: 'var(--neutral-600)',
-                  marginBottom: 6,
-                }}
-              >
-                Variables ({selectedTemplate.variables.length})
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {selectedTemplate.variables.map((v) => (
-                  <span
-                    key={v.key}
-                    data-testid={`gv-var-${v.key}`}
+                {/* fallback text if no file */}
+                {!selectedTemplate?.file && (
+                  <div
                     style={{
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: 999,
-                      padding: '3px 8px',
-                      color: 'var(--neutral-600)',
+                      background: '#ffffff',
+                      padding: '28px 32px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                      borderRadius: 4,
+                      minHeight: 320,
                     }}
                   >
-                    [{v.key}]
-                  </span>
-                ))}
+                    <div
+                      data-testid="gv-fallback-content"
+                      style={{
+                        fontFamily: 'Georgia, "Times New Roman", serif',
+                        fontSize: '11px',
+                        lineHeight: 1.7,
+                        color: '#1e293b',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {previewContent || (
+                        <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                          Sin contenido disponible
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -925,29 +865,25 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
                   data-testid="gv-progress-fill"
                 />
               </div>
-              <div
-                style={{ fontSize: '0.74rem', color: 'var(--neutral-500)' }}
-                data-testid="gv-progress-label"
-              >
-                {stage === 'finalizado'
-                  ? `${counts.completed} documentos generados`
-                  : stage === 'con_errores'
-                    ? `${counts.completed} completados · ${counts.errores} con error`
-                    : `Procesando ${counts.total} documentos...`}
-              </div>
             </div>
           )}
 
-          {/* main action button */}
+          {/* dynamic main action button */}
           <Button
             variant="primary"
             disabled={!canGenerate || isGenerating || stage === 'generando'}
             onClick={handleGenerate}
             data-testid="gv-generate-btn"
-            title={!canGenerate ? 'Selecciona registros y plantilla' : 'Generar documentos'}
+            title={!canGenerate ? 'Selecciona registros y plantilla' : isSingle ? 'Generar documento' : 'Generar todos'}
             style={{ width: '100%', height: 44, fontSize: '0.9rem' }}
           >
-            {isGenerating || stage === 'generando' ? 'Generando…' : 'Generar documentos'}
+            {isGenerating || stage === 'generando'
+              ? isSingle
+                ? 'Generando documento…'
+                : 'Generando todos…'
+              : isSingle
+                ? 'Generar documento'
+                : 'Generar todos'}
           </Button>
 
           {hasError && (stage === 'con_errores' || stage === 'finalizado') && (
@@ -962,78 +898,40 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             </Button>
           )}
 
-          {/* per-doc download + download all */}
+          {/* download section */}
           {hasSuccess && (
             <div
               style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
               data-testid="gv-download-section"
             >
               <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--neutral-700)' }}>
-                Descargas
+                Descarga de Documentos
               </div>
-              {/* active doc download */}
-              {activeItem && activeItem.status === 'success' && (
+              {isSingle ? (
                 <Button
-                  variant="secondary"
-                  onClick={() => downloadSingle(activeItem.rid)}
-                  data-testid={`gv-download-${activeItem.rid}`}
-                  style={{ width: '100%' }}
+                  variant="primary"
+                  onClick={() => {
+                    const rec = selectedRecords[0];
+                    const singleId = (rec as unknown as { rowId: string }).rowId ?? 'rec-0';
+                    downloadSingle(singleId);
+                  }}
+                  data-testid="gv-download-single"
+                  style={{ width: '100%', height: 42 }}
                 >
-                  Descargar {String(activeItem.rec.numeroCuenta ?? '') || 'documento'}
+                  Descargar documento (.docx)
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  onClick={() => void downloadAll()}
+                  data-testid="gv-download-all"
+                  style={{ width: '100%', height: 42 }}
+                >
+                  Descargar todos (ZIP)
                 </Button>
               )}
-              {/* list all success download buttons for test visibility */}
-              <div
-                style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
-                data-testid="gv-download-list"
-              >
-                {combined
-                  .filter((c) => c.status === 'success')
-                  .map((c) => (
-                    <Button
-                      key={c.rid}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => downloadSingle(c.rid)}
-                      data-testid={`gv-download-item-${c.rid}`}
-                      style={{ justifyContent: 'flex-start' }}
-                    >
-                      Descargar {String(c.rec.numeroCuenta ?? c.rid)}
-                    </Button>
-                  ))}
-              </div>
-              <Button
-                variant="primary"
-                onClick={() => void downloadAll()}
-                data-testid="gv-download-all"
-                style={{ width: '100%' }}
-              >
-                Descargar todos{' '}
-                {combined.filter((c) => c.status === 'success').length > 1 ? 'como ZIP' : ''}
-              </Button>
-              <div
-                style={{ fontSize: '0.72rem', color: 'var(--neutral-500)', textAlign: 'center' }}
-                data-testid="gv-zip-hint"
-              >
-                ZIP: ESSA_Documentos_Generados / ESSA_Documentos_YYYY-MM-DD_HHMM.zip
-              </div>
             </div>
           )}
-
-          {/* template/registros gate info */}
-          <div
-            style={{
-              marginTop: 'auto',
-              fontSize: '0.72rem',
-              color: 'var(--neutral-500)',
-              borderTop: '1px solid var(--border)',
-              paddingTop: 10,
-            }}
-            data-testid="gv-footer-info"
-          >
-            {selectedTemplate ? `Plantilla: ${selectedTemplate.fileName}` : 'Sin plantilla'} ·{' '}
-            {selectedRecords.length} seleccionados
-          </div>
         </div>
       </div>
     </div>

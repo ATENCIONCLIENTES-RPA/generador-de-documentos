@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as XLSX from 'xlsx';
-import { parseExcelFile, buildRecord } from '../excelParser';
+import {
+  parseExcelFile,
+  buildRecord,
+  getEstadoSemaforo,
+  crossReferenceSacAndMercurio,
+} from '../excelParser';
 
 function makeFile(rows: Record<string, unknown>[], fileName = 'test.xlsx'): File {
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -76,5 +81,63 @@ describe('excelParser', () => {
     expect(progressReports.length).toBeGreaterThan(0);
     expect(progressReports[0]!.stage).toContain('Iniciando lectura');
     expect(progressReports[progressReports.length - 1]!.progress).toBe(100);
+  });
+
+  it('getEstadoSemaforo calcula correctamente los tres estados', () => {
+    // Verde: tiene proceso y observacion de revision
+    expect(getEstadoSemaforo('PRC-100', 'Revision completa')).toBe('verde');
+    // Violeta: tiene proceso pero NO tiene observacion de revision
+    expect(getEstadoSemaforo('PRC-100', '')).toBe('violeta');
+    expect(getEstadoSemaforo('PRC-100', undefined)).toBe('violeta');
+    // Rojo: no tiene proceso y tampoco observacion
+    expect(getEstadoSemaforo('', '')).toBe('rojo');
+    expect(getEstadoSemaforo(undefined, undefined)).toBe('rojo');
+  });
+
+  it('crossReferenceSacAndMercurio cruza No. Radicado con RADICADO_ENTRADA', () => {
+    const sacRecord1 = buildRecord(
+      {
+        RADICADO_ENTRADA: '2026-RAD-001',
+        NUMERO_PROCESO: 'PRC-2026-99',
+        OBSERVACION_PROCESO: 'Solicitud de revision de medidor',
+        OBSERVACION_REVISION: 'Inspeccion realizada con exito',
+        NUMERO_CUENTA: '10001',
+      },
+      0
+    );
+
+    const mercurio1 = buildRecord(
+      {
+        'No. Radicado': '2026-RAD-001',
+        'Fecha Radicación': '07/05/2026 16:18:56.53',
+        'NUMERO_CUENTA': '10001',
+      },
+      0
+    );
+
+    const mercurio2 = buildRecord(
+      {
+        'No. Radicado': '2026-RAD-999',
+        'Fecha Radicación': '10/05/2026 10:00:00',
+        'NUMERO_CUENTA': '10002',
+      },
+      1
+    );
+
+    const result = crossReferenceSacAndMercurio([mercurio1, mercurio2], [sacRecord1]);
+    expect(result).toHaveLength(2);
+
+    // Registro 1: cruce exitoso
+    expect(result[0]!.procesoCreado).toBe('Sí');
+    expect(result[0]!.cantidadProcesos).toBe(1);
+    expect(result[0]!.numeroProceso).toBe('PRC-2026-99');
+    expect(result[0]!.observacionProceso).toBe('Solicitud de revision de medidor');
+    expect(result[0]!.observacionRevision).toBe('Inspeccion realizada con exito');
+    expect(result[0]!.estadoSemaforo).toBe('verde');
+
+    // Registro 2: sin cruce en SAC
+    expect(result[1]!.procesoCreado).toBe('No');
+    expect(result[1]!.cantidadProcesos).toBe(0);
+    expect(result[1]!.estadoSemaforo).toBe('rojo');
   });
 });

@@ -55,7 +55,7 @@ function resetStores() {
   useDataStore.setState({
     records: [],
     selectedRows: new Set<string>(),
-    filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+    filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
     currentPage: 1,
     pageSize: 10,
     editingRecord: null,
@@ -131,7 +131,7 @@ describe('TemplatesView — M4 preview fixes', () => {
     useDataStore.setState({
       records: [rec] as unknown as EssaRecord[],
       selectedRows: new Set(['row_0_1']),
-      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
       currentPage: 1,
       pageSize: 10,
       editingRecord: null,
@@ -160,7 +160,22 @@ describe('TemplatesView — M4 preview fixes', () => {
     expect(screen.queryByTestId('tv-preview-empty')).not.toBeInTheDocument();
   });
 
-  it('preview centrado: margin 0 auto, max-width 560px, background #F5F5F7, scroll vertical interno', async () => {
+  it('filtra plantillas por buscador de nombre', async () => {
+    const t1 = makeTemplate({ id: 'tpl-1', title: 'Carta Bloqueo' });
+    const t2 = makeTemplate({ id: 'tpl-2', title: 'Contrato Comercial' });
+    useTemplateStore.setState({ templates: [t1, t2], selectedTemplate: null });
+    render(<TemplatesView />);
+
+    const searchInput = screen.getByTestId('tv-search-input');
+    fireEvent.change(searchInput, { target: { value: 'Bloqueo' } });
+    expect(screen.getByTestId('tv-card-tpl-1')).toBeInTheDocument();
+    expect(screen.queryByTestId('tv-card-tpl-2')).not.toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: 'Inexistente' } });
+    expect(screen.getByTestId('tv-empty-search')).toBeInTheDocument();
+  });
+
+  it('preview centrado: margin 0 auto, scroll vertical interno', async () => {
     const t1 = makeTemplate({ id: 'tpl-1', title: 'Tpl A' });
     useTemplateStore.setState({ templates: [t1], selectedTemplate: t1 });
     render(<TemplatesView />);
@@ -168,35 +183,18 @@ describe('TemplatesView — M4 preview fixes', () => {
     const viewer = screen.getByTestId('tv-preview-viewer');
     const doc = screen.getByTestId('tv-preview-document');
 
-    // viewer scroll vertical only, background #F5F5F7
     expect(viewer).toBeInTheDocument();
     const viewerStyle = viewer.style;
-    // background must be #F5F5F7 (either hex or rgb)
-    const viewerBg = viewerStyle.background || viewerStyle.backgroundColor;
-    expect(viewerBg.toLowerCase()).toContain('245'); // 245 from #F5
-    // overflowY auto
     expect(viewerStyle.overflowY).toBe('auto');
     expect(viewerStyle.overflowX).toBe('hidden');
 
     // document centered
     const docStyle = doc.style;
     expect(docStyle.margin).toBe('0px auto');
-    // maxWidth 560px
-    expect(docStyle.maxWidth).toBe('560px');
-    // background #F5F5F7 on document wrapper (per spec)
-    const docBg = docStyle.background || docStyle.backgroundColor;
-    // allow either #F5F5F7 rgb 245,245,247
-    expect(docBg.replace(/\s/g, '').toLowerCase()).toMatch(/245,245,247|#f5f5f7|rgb\(245/);
-    // verify centered attribute
     expect(doc.getAttribute('data-centered')).toBe('true');
 
     // sin toolbar gris — ensure no element with gray toolbar text in preview
     expect(screen.queryByText(/toolbar/i)).not.toBeInTheDocument();
-    // ensure no gray header bar element (we removed)
-    const grayHeaders = viewer.querySelectorAll(
-      '[style*="background: #e5e7eb"], [style*="background:#e5e7eb"]'
-    );
-    expect(grayHeaders.length).toBe(0);
   });
 
   it('usa datos reales seleccionados para vista previa (selectedRecords)', async () => {
@@ -218,7 +216,7 @@ describe('TemplatesView — M4 preview fixes', () => {
     useDataStore.setState({
       records: [rec1, rec2] as unknown as EssaRecord[],
       selectedRows: new Set(['row_1_1']),
-      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
       currentPage: 1,
       pageSize: 10,
       editingRecord: null,

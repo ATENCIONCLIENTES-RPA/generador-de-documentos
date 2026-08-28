@@ -261,18 +261,27 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
                 <span
                   style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--neutral-700)' }}
                 >
-                  Descripción / Hechos
+                  Descripción de la solicitud
                 </span>
                 <textarea
                   className="rem-textarea"
                   value={String(
-                    (draft as Record<string, unknown>)['descripcion'] ??
-                      (draft as Record<string, unknown>)['DESCRIPCION'] ??
-                      (draft as Record<string, unknown>)['hechos'] ??
+                    draft.observacionProceso ??
+                      (draft as Record<string, unknown>)['OBSERVACION_PROCESO'] ??
+                      (draft as Record<string, unknown>)['descripcion'] ??
                       ''
                   )}
-                  onChange={(e) => set('descripcion', e.target.value)}
-                  placeholder="Descripción detallada…"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!draft) return;
+                    setDraft({
+                      ...draft,
+                      observacionProceso: val,
+                      OBSERVACION_PROCESO: val,
+                      descripcion: val,
+                    } as EssaRecord);
+                  }}
+                  placeholder="Descripción de la solicitud (OBSERVACION_PROCESO)…"
                   rows={4}
                   data-testid="rem-textarea-descripcion"
                 />
@@ -286,12 +295,22 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
                 <textarea
                   className="rem-textarea"
                   value={String(
-                    (draft as Record<string, unknown>)['observaciones'] ??
-                      (draft as Record<string, unknown>)['OBSERVACIONES'] ??
+                    draft.observacionRevision ??
+                      (draft as Record<string, unknown>)['OBSERVACION_REVISION'] ??
+                      (draft as Record<string, unknown>)['observaciones'] ??
                       ''
                   )}
-                  onChange={(e) => set('observaciones', e.target.value)}
-                  placeholder="Observaciones adicionales…"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!draft) return;
+                    setDraft({
+                      ...draft,
+                      observacionRevision: val,
+                      OBSERVACION_REVISION: val,
+                      observaciones: val,
+                    } as EssaRecord);
+                  }}
+                  placeholder="Observaciones de revisión (OBSERVACION_REVISION)…"
                   rows={3}
                   data-testid="rem-textarea-observaciones"
                 />

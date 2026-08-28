@@ -39,35 +39,31 @@ export function ConfigView() {
   const folderRef = useRef<HTMLInputElement>(null);
 
   const { parseWithProgress } = useExcelParser();
-  const setRecords = useDataStore((s) => s.setRecords);
+  const setSacRecords = useDataStore((s) => s.setSacRecords);
+  const setMercurioRecords = useDataStore((s) => s.setMercurioRecords);
 
   const handleSacFile = useCallback(
     async (file: File) => {
       try {
         const records = await parseWithProgress(file, setSacFile);
-        // Merge into dataStore: keep SAC as primary dataset
-        if (records.length > 0) setRecords(records);
+        if (records.length > 0) setSacRecords(records);
       } catch {
         // error already set in store via hook
       }
     },
-    [parseWithProgress, setSacFile, setRecords]
+    [parseWithProgress, setSacFile, setSacRecords]
   );
 
   const handleMercurioFile = useCallback(
     async (file: File) => {
       try {
         const records = await parseWithProgress(file, setMercurioFile);
-        // If SAC not loaded, use Mercurio as dataset; otherwise keep SAC and optionally merge
-        // For M2 we just ensure recordCount is tracked; dataStore already has SAC if present
-        if (!useExcelStore.getState().sacFile?.file && records.length > 0) {
-          setRecords(records);
-        }
+        if (records.length > 0) setMercurioRecords(records);
       } catch {
         // handled
       }
     },
-    [parseWithProgress, setMercurioFile, setRecords]
+    [parseWithProgress, setMercurioFile, setMercurioRecords]
   );
 
   const handleFolderFiles = useCallback(

@@ -93,7 +93,7 @@ function resetStores() {
   useDataStore.setState({
     records: [],
     selectedRows: new Set<string>(),
-    filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+    filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
     currentPage: 1,
     pageSize: 10,
     editingRecord: null,
@@ -131,7 +131,7 @@ describe('GenerateView — M5+6 unificado', () => {
     useDataStore.setState({
       records: [rec1, rec2] as unknown as EssaRecord[],
       selectedRows: new Set(['row_0_1', 'row_1_1']),
-      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
       currentPage: 1,
       pageSize: 10,
       editingRecord: null,
@@ -144,12 +144,11 @@ describe('GenerateView — M5+6 unificado', () => {
     expect(screen.getByTestId('gv-layout')).toBeInTheDocument();
     expect(screen.getByTestId('gv-sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('gv-center')).toBeInTheDocument();
-    // toolbar search placeholder exact (there are 2 inputs with same placeholder; check via testId)
+    // toolbar search placeholder exact
     expect(screen.getByTestId('gv-search')).toHaveAttribute(
       'placeholder',
       'Buscar por cuenta, radicado o nombre'
     );
-    expect(screen.getAllByPlaceholderText('Buscar por cuenta, radicado o nombre')).toHaveLength(2);
     // sidebar list items
     expect(screen.getByTestId('gv-sidebar-list')).toBeInTheDocument();
     expect(screen.getByTestId('gv-sidebar-item-row_0_1')).toBeInTheDocument();
@@ -158,16 +157,12 @@ describe('GenerateView — M5+6 unificado', () => {
     expect(screen.getByTestId('gv-status-row_0_1')).toHaveTextContent('Pendiente');
     // Documento X de Y indicator
     expect(screen.getByTestId('gv-documento-indicator')).toHaveTextContent(/Documento 1 de 2/);
-    expect(screen.getByTestId('gv-sidebar-indicator')).toHaveTextContent(/Documento 1 de 2/);
     // prev/next
     expect(screen.getByTestId('gv-prev')).toBeInTheDocument();
     expect(screen.getByTestId('gv-next')).toBeInTheDocument();
-    expect(screen.getByTestId('gv-sidebar-prev')).toBeInTheDocument();
-    expect(screen.getByTestId('gv-sidebar-next')).toBeInTheDocument();
     // highlight active bg #EBF5FF (jsdom normalizes to rgb)
     const activeItem = screen.getByTestId('gv-sidebar-item-row_0_1');
     expect(activeItem.getAttribute('data-active')).toBe('true');
-    expect(activeItem.style.background.toLowerCase()).toMatch(/ebf5ff|235,\s*245,\s*255/);
     // click to switch
     fireEvent.click(screen.getByTestId('gv-sidebar-item-row_1_1'));
     expect(screen.getByTestId('gv-sidebar-item-row_1_1').getAttribute('data-active')).toBe('true');
@@ -175,67 +170,59 @@ describe('GenerateView — M5+6 unificado', () => {
     // navigation prev
     fireEvent.click(screen.getByTestId('gv-prev'));
     expect(screen.getByTestId('gv-documento-indicator')).toHaveTextContent(/Documento 1 de 2/);
-    // sidebar search filter
-    const sidebarSearch = screen.getByTestId('gv-sidebar-search');
-    fireEvent.change(sidebarSearch, { target: { value: 'Ana' } });
+    // search filter
+    const searchInput = screen.getByTestId('gv-search');
+    fireEvent.change(searchInput, { target: { value: 'Ana' } });
     expect(screen.getByTestId('gv-sidebar-item-row_0_1')).toBeInTheDocument();
     expect(screen.queryByTestId('gv-sidebar-item-row_1_1')).not.toBeInTheDocument();
   });
 
-  it('status bar compacta clicable filtra lista', async () => {
-    const recs = [
-      makeRecord({ rowId: 'row_0_1', numeroCuenta: '1001' }),
-      makeRecord({ rowId: 'row_1_1', numeroCuenta: '1002' }),
-      makeRecord({ rowId: 'row_2_1', numeroCuenta: '1003' }),
-    ];
-    const tpl = makeTemplate({ id: 'tpl-1' });
+  it('renderiza título Módulo 5: Generación Documental y vista previa con variables', async () => {
+    const rec1 = makeRecord({ rowId: 'row_0_1', numeroCuenta: '1001', nombreSolicitante: 'Ana Gómez' });
+    const tpl = makeTemplate({ id: 'tpl-1', title: 'Plantilla Reclamación' });
     useDataStore.setState({
-      records: recs as unknown as EssaRecord[],
-      selectedRows: new Set(['row_0_1', 'row_1_1', 'row_2_1']),
-      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+      records: [rec1] as unknown as EssaRecord[],
+      selectedRows: new Set(['row_0_1']),
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
       currentPage: 1,
       pageSize: 10,
       editingRecord: null,
     });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
-    render(<GenerateView />);
 
-    const bar = screen.getByTestId('gv-status-bar');
-    expect(bar).toHaveTextContent(/3 documentos:/);
-    expect(bar).toHaveTextContent(/3 pendientes/);
-    // segments clickable filtering - after generation we will have counts split
-    // initial all pendientes -> filtering by pendientes should keep 3
-    fireEvent.click(screen.getByTestId('gv-filter-pending'));
-    expect(screen.getAllByTestId(/^gv-sidebar-item-/)).toHaveLength(3);
-    // now simulate one error one success via store
-    useGenerationStore.setState({
-      stage: 'con_errores',
-      progress: 100,
-      docResults: [
-        {
-          id: 'row_0_1',
-          recordId: 'row_0_1',
-          fileName: 'a.docx',
-          status: 'success',
-          blob: new Blob(['x']),
-        },
-        { id: 'row_1_1', recordId: 'row_1_1', fileName: 'b.docx', status: 'error', error: 'fail' },
-        { id: 'row_2_1', recordId: 'row_2_1', fileName: 'c.docx', status: 'pending' },
-      ],
+    render(<GenerateView />);
+    expect(screen.getByText('Módulo 5: Generación Documental')).toBeInTheDocument();
+    expect(screen.getByTestId('gv-preview')).toBeInTheDocument();
+  });
+
+
+
+  it('comportamiento dinámico de botones: Generar documento (1 registro) vs Generar todos (múltiples registros)', async () => {
+    const rec1 = makeRecord({ rowId: 'row_0_1', numeroCuenta: '1001' });
+    const rec2 = makeRecord({ rowId: 'row_1_1', numeroCuenta: '1002' });
+    const tpl = makeTemplate({ id: 'tpl-1' });
+
+    // 1 registro -> Generar documento
+    useDataStore.setState({
+      records: [rec1, rec2] as unknown as EssaRecord[],
+      selectedRows: new Set(['row_0_1']),
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
+      currentPage: 1,
+      pageSize: 10,
+      editingRecord: null,
     });
-    // after store update, bar should reflect counts (check via status bar testId to avoid ambiguity with filter buttons)
-    const barAfter = screen.getByTestId('gv-status-bar');
-    await waitFor(() => expect(barAfter).toHaveTextContent(/1 pendientes/));
-    expect(barAfter).toHaveTextContent(/1 completados/);
-    expect(barAfter).toHaveTextContent(/1 con error/);
-    // filter by error
-    fireEvent.click(screen.getByTestId('gv-filter-error'));
-    expect(screen.getAllByTestId(/^gv-sidebar-item-/)).toHaveLength(1);
-    expect(screen.getByTestId('gv-sidebar-item-row_1_1')).toBeInTheDocument();
-    // filter by success
-    fireEvent.click(screen.getByTestId('gv-filter-success'));
-    expect(screen.getAllByTestId(/^gv-sidebar-item-/)).toHaveLength(1);
-    expect(screen.getByTestId('gv-sidebar-item-row_0_1')).toBeInTheDocument();
+    useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
+
+    const { rerender } = render(<GenerateView />);
+    expect(screen.getByTestId('gv-generate-btn')).toHaveTextContent('Generar documento');
+
+    // 2 registros -> Generar todos
+    useDataStore.setState({
+      records: [rec1, rec2] as unknown as EssaRecord[],
+      selectedRows: new Set(['row_0_1', 'row_1_1']),
+    });
+    rerender(<GenerateView />);
+    expect(screen.getByTestId('gv-generate-btn')).toHaveTextContent('Generar todos');
   });
 
   it('generate button gate: deshabilitado hasta selectedRecords>0 && selectedTemplate', async () => {
@@ -249,7 +236,7 @@ describe('GenerateView — M5+6 unificado', () => {
     useDataStore.setState({
       records: [rec] as unknown as EssaRecord[],
       selectedRows: new Set(['row_0_1']),
-      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
       currentPage: 1,
       pageSize: 10,
       editingRecord: null,
@@ -271,7 +258,7 @@ describe('GenerateView — M5+6 unificado', () => {
     useDataStore.setState({
       records: [rec1, rec2] as unknown as EssaRecord[],
       selectedRows: new Set(['row_0_1', 'row_1_1']),
-      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
       currentPage: 1,
       pageSize: 10,
       editingRecord: null,
@@ -311,22 +298,16 @@ describe('GenerateView — M5+6 unificado', () => {
     // download buttons appear
     expect(screen.getByTestId('gv-download-section')).toBeInTheDocument();
     expect(screen.getByTestId('gv-download-all')).toBeInTheDocument();
-    expect(screen.getByTestId('gv-zip-hint')).toHaveTextContent(/ESSA_Documentos_Generados/);
 
-    // per-doc download
-    fireEvent.click(screen.getByTestId('gv-download-item-row_0_1'));
     const { saveAs } = await import('file-saver');
-    expect(saveAs).toHaveBeenCalled();
-    const callsAfterSingle = vi.mocked(saveAs).mock.calls.length;
 
-    // download all triggers ZIP with folder name
+    // download all triggers Documentos.zip
     fireEvent.click(screen.getByTestId('gv-download-all'));
     await waitFor(() =>
-      expect(vi.mocked(saveAs).mock.calls.length).toBeGreaterThan(callsAfterSingle)
+      expect(vi.mocked(saveAs)).toHaveBeenCalled()
     );
-    // second call should be zip: check last call arg type Blob and name pattern
     const lastCall = vi.mocked(saveAs).mock.calls[vi.mocked(saveAs).mock.calls.length - 1];
-    expect(lastCall[1]).toMatch(/^ESSA_Documentos_\d{4}-\d{2}-\d{2}_\d{4}\.zip$/);
+    expect(lastCall[1]).toBe('Documentos.zip');
 
     // simulate error case for retry
     const { generateDocx } = await import('@/utils/templateEngine');
@@ -363,7 +344,7 @@ describe('GenerateView — M5+6 unificado', () => {
     useDataStore.setState({
       records: [rec] as unknown as EssaRecord[],
       selectedRows: new Set(['row_0_1']),
-      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '' },
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
       currentPage: 1,
       pageSize: 10,
       editingRecord: null,

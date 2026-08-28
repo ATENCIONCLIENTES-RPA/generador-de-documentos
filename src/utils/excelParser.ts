@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { Record as EssaRecord, RawExcelRow } from '@/types/record';
+import { calculatePqrBusinessDays } from './businessDays';
 
 export function getExcelCellValue(obj: RawExcelRow | null | undefined, keys: string[]): unknown {
   if (!obj || typeof obj !== 'object') return '';
@@ -64,6 +65,33 @@ export function formatExcelDate(val: unknown): string {
     return `${day}/${month}/${year}`;
   }
   return strVal;
+}
+
+export function getEstadoSemaforo(
+  numeroProceso?: unknown,
+  observacionRevision?: unknown
+): 'verde' | 'violeta' | 'rojo' {
+  const p = String(numeroProceso ?? '').trim();
+  const r = String(observacionRevision ?? '').trim();
+  const hasProceso = p !== '' && p !== '—' && p !== 'null' && p !== 'undefined';
+  const hasObsRevision = r !== '' && r !== '—' && r !== 'null' && r !== 'undefined';
+
+  if (hasProceso && hasObsRevision) {
+    return 'verde';
+  }
+  if (hasProceso && !hasObsRevision) {
+    return 'violeta';
+  }
+  return 'rojo';
+}
+
+export function normalizeRadicadoKey(val: unknown): string {
+  if (val === undefined || val === null) return '';
+  return String(val)
+    .trim()
+    .toUpperCase()
+    .replace(/^RAD[:-]?/i, '')
+    .replace(/[^A-Z0-9]/gi, '');
 }
 
 export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
@@ -185,15 +213,45 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     'NUMERO DE CUENTA',
   ]);
 
+  const observacionProcRaw = getExcelCellValue(row, [
+    'OBSERVACION_PROCESO',
+    'OBSERVACION PROCESO',
+    'OBSERVACION_DEL_PROCESO',
+    'DESCRIPCION_SOLICITUD',
+    'DESCRIPCION SOLICITUD',
+    'DESCRIPCION',
+    'HECHOS',
+    'DESCRIPCION_HECHOS',
+    'DESCRIPCION / HECHOS',
+    'OBSERVACION',
+  ]);
+
+  const observacionRevRaw = getExcelCellValue(row, [
+    'OBSERVACION_REVISION',
+    'OBSERVACION REVISION',
+    'OBSERVACION_DE_REVISION',
+    'OBSERVACIONES_REVISION',
+    'OBSERVACIONES',
+  ]);
+
+  const fechaSolicitud = formatExcelDate(fechaSolRaw);
+  const fechaVencimiento = formatExcelDate(fechaVencRaw);
+  const numeroProceso = String(numeroProcRaw ?? '').trim();
+  const observacionProceso = String(observacionProcRaw ?? '').trim();
+  const observacionRevision = String(observacionRevRaw ?? '').trim();
+
+  const semaforo = getEstadoSemaforo(numeroProceso, observacionRevision);
+  const pqrInfo = calculatePqrBusinessDays(fechaSolRaw || fechaSolicitud);
+
   const base: EssaRecord = {
     ...(row as Record<string, unknown> as unknown as EssaRecord),
     rowId,
     id: recordId,
     status: 'Pendiente',
     selected: false,
-    fechaSolicitud: formatExcelDate(fechaSolRaw),
-    fechaVencimiento: formatExcelDate(fechaVencRaw),
-    numeroProceso: String(numeroProcRaw ?? ''),
+    fechaSolicitud,
+    fechaVencimiento,
+    numeroProceso,
     radicadoEntrada: String(radicadoRaw ?? ''),
     nombreSolicitante: String(nombreSolRaw ?? ''),
     cedulaSolicitante: String(cedulaSolRaw ?? ''),
@@ -202,6 +260,14 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     municipioSolicitante: String(municipioSolRaw ?? ''),
     correoSolicitante: String(correoSolRaw ?? ''),
     numeroCuenta: String(cuentaRaw ?? ''),
+    observacionProceso,
+    observacionRevision,
+    procesoCreado: numeroProceso ? 'Sí' : 'No',
+    creadoEnSac: numeroProceso ? 'Sí' : 'No',
+    cantidadProcesos: numeroProceso ? 1 : 0,
+    estadoSemaforo: semaforo,
+    diasPqr: pqrInfo.remainingDays,
+    diasPqrLabel: pqrInfo.label,
   };
 
   // Sync alias cuenta for legacy compat
@@ -210,6 +276,88 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
   }
 
   return base;
+}
+
+export function crossReferenceSacAndMercurio(
+  mercurioRecords: EssaRecord[],
+  sacRecords: EssaRecord[]
+): EssaRecord[] {
+  if (!sacRecords || sacRecords.length === 0) {
+    return mercurioRecords.map((merc) => {
+      const semaforo = getEstadoSemaforo(merc.numeroProceso, merc.observacionRevision);
+      const pqrInfo = calculatePqrBusinessDays(merc.fechaSolicitud || (merc as Record<string, unknown>)['Fecha Radicación']);
+      return {
+        ...merc,
+        procesoCreado: 'No',
+        creadoEnSac: 'No',
+        cantidadProcesos: 0,
+        estadoSemaforo: semaforo,
+        diasPqr: pqrInfo.remainingDays,
+        diasPqrLabel: pqrInfo.label,
+      };
+    });
+  }
+
+  const sacByRadicado = new Map<string, EssaRecord[]>();
+
+  for (const sac of sacRecords) {
+    const rawRad =
+      sac.radicadoEntrada ||
+      (sac as Record<string, unknown>)['RADICADO_ENTRADA'] ||
+      (sac as Record<string, unknown>)['No. Radicado'] ||
+      (sac as Record<string, unknown>)['NO_RADICADO'];
+    const key = normalizeRadicadoKey(rawRad);
+    if (key) {
+      if (!sacByRadicado.has(key)) {
+        sacByRadicado.set(key, []);
+      }
+      sacByRadicado.get(key)!.push(sac);
+    }
+  }
+
+  return mercurioRecords.map((merc) => {
+    const rawRad =
+      merc.radicadoEntrada ||
+      (merc as Record<string, unknown>)['No. Radicado'] ||
+      (merc as Record<string, unknown>)['NO_RADICADO'] ||
+      (merc as Record<string, unknown>)['RADICADO'] ||
+      (merc as Record<string, unknown>)['RADICADO_ENTRADA'];
+    const key = normalizeRadicadoKey(rawRad);
+    const matches = key ? sacByRadicado.get(key) || [] : [];
+    const count = matches.length;
+    const hasMatch = count > 0;
+    const bestSac = matches[0];
+
+    const numeroProceso = (bestSac?.numeroProceso || merc.numeroProceso || '').trim();
+    const observacionProceso =
+      bestSac?.observacionProceso !== undefined && bestSac.observacionProceso !== ''
+        ? bestSac.observacionProceso
+        : merc.observacionProceso || '';
+    const observacionRevision =
+      bestSac?.observacionRevision !== undefined && bestSac.observacionRevision !== ''
+        ? bestSac.observacionRevision
+        : merc.observacionRevision || '';
+
+    const semaforo = getEstadoSemaforo(numeroProceso, observacionRevision);
+    const pqrInfo = calculatePqrBusinessDays(
+      merc.fechaSolicitud ||
+        (merc as Record<string, unknown>)['Fecha Radicación'] ||
+        (merc as Record<string, unknown>)['FECHA_RADICACION']
+    );
+
+    return {
+      ...merc,
+      numeroProceso,
+      observacionProceso,
+      observacionRevision,
+      procesoCreado: hasMatch ? 'Sí' : 'No',
+      creadoEnSac: hasMatch ? 'Sí' : 'No',
+      cantidadProcesos: count,
+      estadoSemaforo: semaforo,
+      diasPqr: pqrInfo.remainingDays,
+      diasPqrLabel: pqrInfo.label,
+    };
+  });
 }
 
 function isValidRow(item: unknown): boolean {

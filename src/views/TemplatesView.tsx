@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTemplateStore } from '@/store/templateStore';
 import { useDataStore } from '@/store/dataStore';
 import { useNavigationStore } from '@/store/navigationStore';
 import { replaceTemplateVariables } from '@/utils/templateEngine';
 import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import type { Template } from '@/types/template';
@@ -73,6 +74,19 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
   const previewRecord: EssaRecord | null = useMemo(() => {
     return selectedRecords.length > 0 ? (selectedRecords[0] as EssaRecord) : null;
   }, [selectedRecords]);
+
+  const [templateSearch, setTemplateSearch] = useState('');
+
+  const filteredTemplates = useMemo(() => {
+    if (!templateSearch.trim()) return templates;
+    const q = templateSearch.toLowerCase().trim();
+    return templates.filter(
+      (t) =>
+        t.title.toLowerCase().includes(q) ||
+        (t.category && t.category.toLowerCase().includes(q)) ||
+        (t.fileName && t.fileName.toLowerCase().includes(q))
+    );
+  }, [templates, templateSearch]);
 
   const handleContinue = () => {
     if (!selectedTemplate) return;
@@ -157,7 +171,7 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
     return raw;
   }, [selectedTemplate, previewRecord]);
 
-  const showFallback = !selectedTemplate?.file || !!fallbackContent;
+  const showFallback = !selectedTemplate?.file;
 
   if (loading) {
     return (
@@ -261,12 +275,14 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
   return (
     <div data-testid="templates-view" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <style>{`
-        .tv-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 18px; }
+        .tv-grid { display: grid; grid-template-columns: 360px 1fr; gap: 18px; }
         @media (max-width: 960px) { .tv-grid { grid-template-columns: 1fr; } }
         .tv-card { transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease, transform 150ms ease; }
         .tv-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
         .tv-preview-viewer::-webkit-scrollbar { width: 8px; }
         .tv-preview-viewer::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+        .tv-preview-viewer .docx-wrapper { background: transparent !important; padding: 0 !important; }
+        .tv-preview-viewer .docx-wrapper > section.docx { margin: 0 auto !important; box-shadow: 0 4px 20px rgba(0,0,0,0.08) !important; border-radius: 4px !important; background: #ffffff !important; }
         .docx-preview { background: #fff; }
       `}</style>
 
@@ -347,8 +363,19 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
               Plantillas
             </span>
             <Badge variant="info" style={{ fontSize: '0.68rem' }} data-testid="tv-count">
-              {templates.length} plantilla{templates.length !== 1 ? 's' : ''}
+              {filteredTemplates.length} plantilla{filteredTemplates.length !== 1 ? 's' : ''}
             </Badge>
+          </div>
+
+          {/* Search template input */}
+          <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+            <Input
+              placeholder="Buscar plantilla por nombre..."
+              value={templateSearch}
+              onChange={(e) => setTemplateSearch(e.target.value)}
+              aria-label="Buscar plantilla por nombre"
+              data-testid="tv-search-input"
+            />
           </div>
 
           <div
@@ -360,10 +387,23 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
               display: 'flex',
               flexDirection: 'column',
               gap: 8,
-              maxHeight: 520,
+              maxHeight: 460,
             }}
           >
-            {templates.map((tpl: Template) => {
+            {filteredTemplates.length === 0 ? (
+              <div
+                data-testid="tv-empty-search"
+                style={{
+                  textAlign: 'center',
+                  padding: '24px 12px',
+                  color: 'var(--neutral-400)',
+                  fontSize: '0.84rem',
+                }}
+              >
+                No se encontraron plantillas
+              </div>
+            ) : (
+              filteredTemplates.map((tpl: Template) => {
               const isActive = selectedTemplate?.id === tpl.id;
               const catStyle = getCategoryStyle(tpl.category);
               const varCount = tpl.variables?.length ?? 0;
@@ -549,7 +589,7 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
                   )}
                 </button>
               );
-            })}
+            }))}
           </div>
         </div>
 
@@ -624,75 +664,77 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
             </div>
           ) : (
             <>
-              {/* Preview viewer — clean, no gray header/toolbar, centered doc, scroll vertical only */}
+              {/* Preview viewer — clean, direct Word document preview without extra background boxes */}
               <div
                 data-testid="tv-preview-viewer"
                 className="tv-preview-viewer"
                 style={{
                   flex: 1,
-                  background: '#F5F5F7',
+                  background: '#f1f5f9',
                   overflowY: 'auto',
                   overflowX: 'hidden',
-                  padding: '18px',
-                  maxHeight: 520,
-                  minHeight: 360,
+                  padding: '20px 16px',
+                  maxHeight: 560,
+                  minHeight: 380,
                 }}
               >
-                {/* Centered document container — the spec requires margin 0 auto; max-width 560px; background #F5F5F7; padding; vertical scroll on viewer */}
                 <div
                   data-testid="tv-preview-document"
                   data-centered="true"
                   style={{
                     margin: '0 auto',
-                    maxWidth: '560px',
-                    background: '#F5F5F7',
-                    padding: '0',
+                    maxWidth: '820px',
+                    width: '100%',
                   }}
                 >
+                  {/* docx-preview mount point directly */}
                   <div
+                    data-testid="tv-docx-container"
+                    ref={previewContainerRef}
                     style={{
-                      background: '#ffffff',
-                      padding: '24px 28px',
-                      boxShadow: '0 1px 10px rgba(15,23,42,0.08)',
-                      borderRadius: 2,
-                      minHeight: 320,
+                      minHeight: selectedTemplate.file ? 200 : 0,
+                      display: selectedTemplate.file ? 'block' : 'none',
                     }}
-                  >
-                    {/* docx-preview mount point */}
+                  />
+                  {/* fallback sampleContent with data fused */}
+                  {showFallback && (
                     <div
-                      data-testid="tv-docx-container"
-                      ref={previewContainerRef}
                       style={{
-                        minHeight: selectedTemplate.file ? 200 : 0,
-                        display: selectedTemplate.file ? 'block' : 'none',
-                      }}
-                    />
-                    {/* fallback sampleContent with data fused */}
-                    <div
-                      data-testid="tv-fallback-content"
-                      ref={fallbackRef}
-                      style={{
-                        display: showFallback ? 'block' : 'none',
-                        fontSize: '11px',
-                        lineHeight: '1.75',
-                        color: '#1e293b',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
+                        background: '#ffffff',
+                        padding: '28px 32px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        borderRadius: 4,
+                        minHeight: 320,
+                        maxWidth: '560px',
+                        margin: '0 auto',
                       }}
                     >
-                      {fallbackContent || (
-                        <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
-                          Sin contenido de vista previa
-                        </span>
-                      )}
-                    </div>
-                    {/* if both failed, at least show title */}
-                    {!fallbackContent && !selectedTemplate.file && (
-                      <div style={{ fontSize: '0.84rem', color: '#64748b' }}>
-                        {selectedTemplate.title}
+                      <div
+                        data-testid="tv-fallback-content"
+                        ref={fallbackRef}
+                        style={{
+                          fontSize: '11px',
+                          lineHeight: '1.75',
+                          color: '#1e293b',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          fontFamily: 'Georgia, "Times New Roman", serif',
+                        }}
+                      >
+                        {fallbackContent || (
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                            Sin contenido de vista previa
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+                  {/* if both failed, at least show title */}
+                  {!fallbackContent && !selectedTemplate.file && (
+                    <div style={{ fontSize: '0.84rem', color: '#64748b', textAlign: 'center' }}>
+                      {selectedTemplate.title}
+                    </div>
+                  )}
                 </div>
               </div>
 

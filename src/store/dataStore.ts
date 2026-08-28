@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import type { Record } from '@/types/record';
+import { crossReferenceSacAndMercurio, getEstadoSemaforo } from '@/utils/excelParser';
+import { calculatePqrBusinessDays, parseDateOnly } from '@/utils/businessDays';
 
 export interface FilterState {
   search: string;
@@ -7,10 +9,18 @@ export interface FilterState {
   proceso: string;
   radicado: string;
   fechaSolicitud: string;
+  fechaDesde: string;
+  fechaHasta: string;
+  procesoCreado: string; // 'todos' | 'si' | 'no'
+  estadoSemaforo: string; // 'todos' | 'verde' | 'violeta' | 'rojo'
+  cantProcesos: string; // 'todos' | '0' | '1' | '2+'
+  diasPqrFiltro: string; // 'todos' | 'menor5' | 'urgente' | 'vence_hoy' | 'vencido'
 }
 
 interface DataStore {
   records: Record[];
+  sacRecords: Record[];
+  mercurioRecords: Record[];
   selectedRows: Set<string>;
   filterState: FilterState;
   currentPage: number;
@@ -19,6 +29,8 @@ interface DataStore {
 
   // setters / helpers
   setRecords: (records: Record[]) => void;
+  setSacRecords: (records: Record[]) => void;
+  setMercurioRecords: (records: Record[]) => void;
   toggleRow: (id: string) => void;
   togglePage: () => void;
   clearSelection: () => void;
@@ -40,6 +52,12 @@ const defaultFilter: FilterState = {
   proceso: '',
   radicado: '',
   fechaSolicitud: '',
+  fechaDesde: '',
+  fechaHasta: '',
+  procesoCreado: 'todos',
+  estadoSemaforo: 'todos',
+  cantProcesos: 'todos',
+  diasPqrFiltro: 'todos',
 };
 
 // NOTE: C2 — DataView local pipeline is canonical for rendering (includes showOnlySelected + SEARCHABLE_FIELDS);
@@ -59,6 +77,10 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
         r.radicadoEntrada,
         r.correoSolicitante,
         r.municipioSolicitante,
+        r.procesoCreado,
+        r.observacionProceso,
+        r.observacionRevision,
+        r.diasPqrLabel,
       ]
         .filter(Boolean)
         .join(' ')
@@ -93,11 +115,93 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
     const q = filter.fechaSolicitud.trim();
     out = out.filter((r) => String(r.fechaSolicitud ?? '').includes(q));
   }
+
+  // Rango de fechas: fechaDesde y fechaHasta
+  if (filter.fechaDesde) {
+    const dDesde = parseDateOnly(filter.fechaDesde);
+    if (dDesde) {
+      out = out.filter((r) => {
+        const rawDate = r.fechaSolicitud || (r as globalThis.Record<string, unknown>)['Fecha Radicación'] || (r as globalThis.Record<string, unknown>)['FECHA_RADICACION'];
+        const rDate = parseDateOnly(rawDate);
+        return rDate ? rDate.getTime() >= dDesde.getTime() : false;
+      });
+    }
+  }
+
+  if (filter.fechaHasta) {
+    const dHasta = parseDateOnly(filter.fechaHasta);
+    if (dHasta) {
+      out = out.filter((r) => {
+        const rawDate = r.fechaSolicitud || (r as globalThis.Record<string, unknown>)['Fecha Radicación'] || (r as globalThis.Record<string, unknown>)['FECHA_RADICACION'];
+        const rDate = parseDateOnly(rawDate);
+        return rDate ? rDate.getTime() <= dHasta.getTime() : false;
+      });
+    }
+  }
+
+  // Filtro Proceso Creado ('todos' | 'si' | 'no')
+  if (filter.procesoCreado && filter.procesoCreado !== 'todos') {
+    if (filter.procesoCreado === 'si') {
+      out = out.filter(
+        (r) =>
+          r.procesoCreado === 'Sí' ||
+          r.creadoEnSac === 'Sí' ||
+          (r.numeroProceso && String(r.numeroProceso).trim() !== '' && String(r.numeroProceso).trim() !== '—')
+      );
+    } else if (filter.procesoCreado === 'no') {
+      out = out.filter(
+        (r) =>
+          r.procesoCreado === 'No' ||
+          r.creadoEnSac === 'No' ||
+          !r.numeroProceso ||
+          String(r.numeroProceso).trim() === '' ||
+          String(r.numeroProceso).trim() === '—'
+      );
+    }
+  }
+
+  // Filtro Estado Semáforo ('todos' | 'verde' | 'violeta' | 'rojo')
+  if (filter.estadoSemaforo && filter.estadoSemaforo !== 'todos') {
+    out = out.filter((r) => {
+      const sem = r.estadoSemaforo || getEstadoSemaforo(r.numeroProceso, r.observacionRevision);
+      return sem === filter.estadoSemaforo;
+    });
+  }
+
+  // Filtro Cantidad de Procesos ('todos' | '0' | '1' | '2+')
+  if (filter.cantProcesos && filter.cantProcesos !== 'todos') {
+    out = out.filter((r) => {
+      const cant = r.cantidadProcesos ?? (r.numeroProceso && String(r.numeroProceso).trim() !== '' ? 1 : 0);
+      if (filter.cantProcesos === '0') return cant === 0;
+      if (filter.cantProcesos === '1') return cant === 1;
+      if (filter.cantProcesos === '2+') return cant >= 2;
+      return true;
+    });
+  }
+
+  // Filtro Días PQR ('todos' | 'menor5' | 'urgente' | 'vence_hoy' | 'vencido')
+  if (filter.diasPqrFiltro && filter.diasPqrFiltro !== 'todos') {
+    out = out.filter((r) => {
+      const pqr =
+        r.diasPqr !== undefined
+          ? { remainingDays: r.diasPqr }
+          : calculatePqrBusinessDays(r.fechaSolicitud || (r as globalThis.Record<string, unknown>)['Fecha Radicación']);
+      const rem = pqr.remainingDays;
+      if (filter.diasPqrFiltro === 'menor5') return rem < 5;
+      if (filter.diasPqrFiltro === 'urgente') return rem <= 3 && rem >= 0;
+      if (filter.diasPqrFiltro === 'vence_hoy') return rem === 0;
+      if (filter.diasPqrFiltro === 'vencido') return rem < 0;
+      return true;
+    });
+  }
+
   return out;
 }
 
 export const useDataStore = create<DataStore>((set, get) => ({
   records: [],
+  sacRecords: [],
+  mercurioRecords: [],
   selectedRows: new Set<string>(),
   filterState: { ...defaultFilter },
   currentPage: 1,
@@ -108,7 +212,31 @@ export const useDataStore = create<DataStore>((set, get) => ({
     set({
       records,
       currentPage: 1,
-      // keep selectedRows as is (persistence across reloads if needed)
+    }),
+
+  setSacRecords: (sacRecords) =>
+    set((s) => {
+      let combined: Record[] = [];
+      if (s.mercurioRecords.length > 0) {
+        combined = crossReferenceSacAndMercurio(s.mercurioRecords, sacRecords);
+      } else {
+        combined = sacRecords;
+      }
+      return {
+        sacRecords,
+        records: combined,
+        currentPage: 1,
+      };
+    }),
+
+  setMercurioRecords: (mercurioRecords) =>
+    set((s) => {
+      const combined = crossReferenceSacAndMercurio(mercurioRecords, s.sacRecords);
+      return {
+        mercurioRecords,
+        records: combined,
+        currentPage: 1,
+      };
     }),
 
   toggleRow: (id) =>
@@ -159,7 +287,17 @@ export const useDataStore = create<DataStore>((set, get) => ({
     set((s) => {
       const idx = s.records.findIndex((r) => r.rowId === id);
       if (idx === -1) return {};
-      const updated = { ...s.records[idx], ...patch } as Record;
+      const base = s.records[idx]!;
+      const updated = { ...base, ...patch } as Record;
+      // Recalculate semáforo if numeroProceso or observacionRevision updated
+      updated.estadoSemaforo = getEstadoSemaforo(updated.numeroProceso, updated.observacionRevision);
+      if (patch.observacionProceso !== undefined) {
+        (updated as globalThis.Record<string, unknown>)['OBSERVACION_PROCESO'] = patch.observacionProceso;
+      }
+      if (patch.observacionRevision !== undefined) {
+        (updated as globalThis.Record<string, unknown>)['OBSERVACION_REVISION'] = patch.observacionRevision;
+      }
+
       const nextRecords = [...s.records];
       nextRecords[idx] = updated;
       const editingRecord =
