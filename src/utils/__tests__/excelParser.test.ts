@@ -65,4 +65,16 @@ describe('excelParser', () => {
     expect(records[0]!.numeroCuenta).toBe('999');
     expect(records[0]!.nombreSolicitante).toBe('Ana');
   });
+
+  it('parseExcelFile invoca el callback de progreso con etapas y bytes', async () => {
+    const progressReports: Array<{ stage: string; progress: number }> = [];
+    const file = makeFile([{ 'NOMBRE_SOLICITANTE': 'Carlos', 'NUMERO_CUENTA': '101' }]);
+    const records = await parseExcelFile(file, (info) => {
+      progressReports.push({ stage: info.stage, progress: info.progress });
+    });
+    expect(records).toHaveLength(1);
+    expect(progressReports.length).toBeGreaterThan(0);
+    expect(progressReports[0]!.stage).toContain('Iniciando lectura');
+    expect(progressReports[progressReports.length - 1]!.progress).toBe(100);
+  });
 });

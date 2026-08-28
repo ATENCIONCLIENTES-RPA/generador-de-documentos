@@ -151,43 +151,142 @@ function isFilteredCuenta(value: unknown): boolean {
   return false;
 }
 
-async function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
-  const anyBlob = blob as unknown as { arrayBuffer?: () => Promise<ArrayBuffer> };
-  if (typeof anyBlob.arrayBuffer === 'function') {
-    return await anyBlob.arrayBuffer();
-  }
+export interface ParseProgressInfo {
+  stage: string;
+  progress: number;
+  loadedBytes?: number;
+  totalBytes?: number;
+  processedRows?: number;
+  totalRows?: number;
+}
+
+export function formatBytes(bytes?: number): string {
+  if (!bytes || isNaN(bytes) || bytes <= 0) return '0 KB';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.min(sizes.length - 1, Math.floor(Math.log(bytes) / Math.log(k)));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+async function blobToArrayBuffer(
+  blob: Blob,
+  onProgress?: (info: ParseProgressInfo) => void,
+): Promise<ArrayBuffer> {
+  const total = blob.size || 0;
   return await new Promise<ArrayBuffer>((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onprogress = (e) => {
+      if (e.lengthComputable && total > 0) {
+        const frac = e.loaded / e.total;
+        onProgress?.({
+          stage: `Lectura binaria (${formatBytes(e.loaded)} / ${formatBytes(e.total)})`,
+          progress: Math.min(35, Math.max(5, Math.round(frac * 35))),
+          loadedBytes: e.loaded,
+          totalBytes: e.total,
+        });
+      }
+    };
+    reader.onload = () => {
+      onProgress?.({
+        stage: 'Lectura binaria completada',
+        progress: 35,
+        loadedBytes: total,
+        totalBytes: total,
+      });
+      resolve(reader.result as ArrayBuffer);
+    };
     reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'));
     reader.readAsArrayBuffer(blob);
   });
 }
 
-export async function parseExcelFile(file: File): Promise<EssaRecord[]> {
-  const buffer = await blobToArrayBuffer(file);
+export async function parseExcelFile(
+  file: File,
+  onProgress?: (info: ParseProgressInfo) => void,
+): Promise<EssaRecord[]> {
+  onProgress?.({
+    stage: 'Iniciando lectura del archivo...',
+    progress: 5,
+    loadedBytes: 0,
+    totalBytes: file.size,
+  });
+
+  const buffer = await blobToArrayBuffer(file, onProgress);
+
+  onProgress?.({
+    stage: 'Decodificando estructura XLSX...',
+    progress: 45,
+    loadedBytes: file.size,
+    totalBytes: file.size,
+  });
+
+  // Yield to browser to permit UI update
+  await new Promise((r) => setTimeout(r, 0));
+
   const wb = XLSX.read(buffer, { type: 'array' });
   const wsname = wb.SheetNames[0];
-  if (!wsname) return [];
+  if (!wsname) {
+    onProgress?.({ stage: 'Archivo sin hojas válidas', progress: 100 });
+    return [];
+  }
   const ws = wb.Sheets[wsname];
-  if (!ws) return [];
-  const rawRows = XLSX.utils.sheet_to_json<RawExcelRow>(ws);
+  if (!ws) {
+    onProgress?.({ stage: 'Hoja vacía', progress: 100 });
+    return [];
+  }
 
-  if (!rawRows || rawRows.length === 0) return [];
+  onProgress?.({
+    stage: 'Extrayendo filas y validando estructura...',
+    progress: 55,
+    loadedBytes: file.size,
+    totalBytes: file.size,
+  });
+
+  const rawRows = XLSX.utils.sheet_to_json<RawExcelRow>(ws);
+  if (!rawRows || rawRows.length === 0) {
+    onProgress?.({ stage: 'Sin registros detectados', progress: 100 });
+    return [];
+  }
 
   const validRows = rawRows.filter(isValidRow);
+  const total = validRows.length;
+  const records: EssaRecord[] = [];
+  const batchSize = Math.max(25, Math.floor(total / 15));
 
-  const timestamp = Date.now();
-  const records: EssaRecord[] = validRows
-    .map((item, index) => {
-      // build with stable timestamp per file to avoid millisecond drift in same parse
-      const rec = buildRecord(item, index);
-      // override rowId to use shared timestamp for determinism in tests where needed
-      // keep original rowId if not testing; we ensure pattern row_${index}_<ts>
-      void timestamp;
-      return rec;
-    })
-    .filter((rec) => !isFilteredCuenta(rec.numeroCuenta));
+  for (let i = 0; i < total; i++) {
+    const item = validRows[i];
+    if (item) {
+      const rec = buildRecord(item, i);
+      if (!isFilteredCuenta(rec.numeroCuenta)) {
+        records.push(rec);
+      }
+    }
+
+    if (i % batchSize === 0 || i === total - 1) {
+      const pct = 55 + Math.round(((i + 1) / total) * 40);
+      onProgress?.({
+        stage: `Procesando registros: ${i + 1} de ${total}`,
+        progress: Math.min(96, pct),
+        loadedBytes: file.size,
+        totalBytes: file.size,
+        processedRows: i + 1,
+        totalRows: total,
+      });
+
+      if (total > 500 && i % (batchSize * 3) === 0) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    }
+  }
+
+  onProgress?.({
+    stage: 'Validación completada',
+    progress: 100,
+    loadedBytes: file.size,
+    totalBytes: file.size,
+    processedRows: records.length,
+    totalRows: records.length,
+  });
 
   return records;
 }

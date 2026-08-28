@@ -1,5 +1,6 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { parseExcelFile } from '@/utils/excelParser';
+import type { ParseProgressInfo } from '@/utils/excelParser';
 import type { Record as EssaRecord } from '@/types/record';
 import type { ExcelFileState } from '@/store/excelStore';
 
@@ -27,80 +28,26 @@ export interface UseExcelParserReturn {
 
 export function useExcelParser(options?: UseExcelParserOptions): UseExcelParserReturn {
   const [state, setInternal] = useState<ExcelFileState | null>(null);
-  const intervalRef = useRef<number | null>(null);
+  const activeTimers = useRef<Set<number>>(new Set());
 
-  const clearTimer = useCallback(() => {
-    if (intervalRef.current !== null) {
-      window.clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+  const clearAllTimers = useCallback(() => {
+    activeTimers.current.forEach((t) => {
+      window.clearInterval(t);
+      window.clearTimeout(t);
+    });
+    activeTimers.current.clear();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      clearAllTimers();
+    };
+  }, [clearAllTimers]);
+
   const reset = useCallback(() => {
-    clearTimer();
+    clearAllTimers();
     setInternal(null);
-  }, [clearTimer]);
-
-  const simulateProgress = useCallback(
-    (setter: (s: ExcelFileState | null) => void, file: File) => {
-      let p = 0;
-      // shimmer-like interval: 150ms
-      intervalRef.current = window.setInterval(() => {
-        p += Math.random() * 16 + 6;
-        if (p >= 92) {
-          p = 92;
-          clearTimer();
-        }
-        options?.onProgress?.(Math.min(p, 92));
-        const base: ExcelFileState = {
-          file,
-          loading: true,
-          progress: Math.round(Math.min(p, 92)),
-          error: null,
-          recordCount: 0,
-        };
-        setter(base);
-      }, 150);
-    },
-    [clearTimer, options],
-  );
-
-  const parse = useCallback(
-    async (file: File): Promise<EssaRecord[]> => {
-      setInternal({ file, loading: true, progress: 0, error: null, recordCount: 0 });
-      simulateProgress(setInternal as unknown as (s: ExcelFileState | null) => void, file);
-      try {
-        const records = await parseExcelFile(file);
-        clearTimer();
-        const done: ExcelFileState = {
-          file,
-          loading: false,
-          progress: 100,
-          error: null,
-          recordCount: records.length,
-        };
-        setInternal(done);
-        options?.onProgress?.(100);
-        options?.onSuccess?.(records, file);
-        return records;
-      } catch (err) {
-        clearTimer();
-        const msg = err instanceof Error ? err.message : 'Error al procesar el archivo';
-        console.error('[useExcelParser] parse failed', { fileName: file.name, error: msg });
-        const failed: ExcelFileState = {
-          file,
-          loading: false,
-          progress: 0,
-          error: msg,
-          recordCount: 0,
-        };
-        setInternal(failed);
-        options?.onError?.(msg);
-        throw err;
-      }
-    },
-    [clearTimer, options, simulateProgress],
-  );
+  }, [clearAllTimers]);
 
   const parseWithProgress = useCallback(
     async (
@@ -108,58 +55,132 @@ export function useExcelParser(options?: UseExcelParserOptions): UseExcelParserR
       setState: (s: ExcelFileState | null) => void,
       onRecords?: (records: EssaRecord[]) => void,
     ): Promise<EssaRecord[]> => {
-      setState({ file, loading: true, progress: 0, error: null, recordCount: 0 });
-      // isolated timer for external state
-      let p = 0;
-      let extTimer: number | null = window.setInterval(() => {
-        p += Math.random() * 16 + 6;
-        if (p >= 92) {
-          p = 92;
-          if (extTimer !== null) window.clearInterval(extTimer);
-        }
-        options?.onProgress?.(Math.min(p, 92));
-        setState({ file, loading: true, progress: Math.round(Math.min(p, 92)), error: null, recordCount: 0 });
-      }, 150);
+      let currentProgress = 0;
+      let targetProgress = 8;
+      let currentStage = 'Iniciando lectura del archivo...';
+      let currentBytes = 0;
+      const totalBytes = file.size || 0;
+      let processedRows = 0;
+      let totalRows = 0;
+      let isDone = false;
 
-      const clearExt = () => {
-        if (extTimer !== null) {
-          window.clearInterval(extTimer);
-          extTimer = null;
+      const updateState = (overrideProgress?: number) => {
+        const p = overrideProgress !== undefined ? overrideProgress : currentProgress;
+        const boundedProgress = Math.min(100, Math.max(0, Math.round(p)));
+        options?.onProgress?.(boundedProgress);
+        setState({
+          file,
+          loading: !isDone,
+          progress: boundedProgress,
+          stage: currentStage,
+          bytesProcessed: currentBytes,
+          totalBytes,
+          processedRows,
+          totalRows,
+          error: null,
+          recordCount: isDone ? processedRows : 0,
+        });
+      };
+
+      // Set initial loading state
+      updateState(0);
+
+      // Smooth progress stepper ticker (runs at ~40ms for fluid visual motion)
+      const ticker = window.setInterval(() => {
+        if (isDone) {
+          window.clearInterval(ticker);
+          activeTimers.current.delete(ticker);
+          return;
+        }
+
+        if (currentProgress < targetProgress) {
+          // Ease toward target
+          const diff = targetProgress - currentProgress;
+          const step = Math.max(0.5, Math.min(diff * 0.35, 6));
+          currentProgress = Math.min(targetProgress, currentProgress + step);
+          updateState();
+        } else if (currentProgress < 94) {
+          // Slow continuous crawl while waiting for parsing
+          currentProgress = Math.min(94, currentProgress + 0.3);
+          updateState();
+        }
+      }, 40);
+
+      activeTimers.current.add(ticker);
+
+      const progressCallback = (info: ParseProgressInfo) => {
+        currentStage = info.stage || currentStage;
+        if (info.loadedBytes !== undefined) currentBytes = info.loadedBytes;
+        if (info.processedRows !== undefined) processedRows = info.processedRows;
+        if (info.totalRows !== undefined) totalRows = info.totalRows;
+        if (info.progress !== undefined) {
+          targetProgress = Math.max(targetProgress, info.progress);
         }
       };
 
       try {
-        const records = await parseExcelFile(file);
-        clearExt();
-        const done: ExcelFileState = {
+        const records = await parseExcelFile(file, progressCallback);
+
+        isDone = true;
+        window.clearInterval(ticker);
+        activeTimers.current.delete(ticker);
+
+        processedRows = records.length;
+        currentStage = 'Archivo procesado correctamente';
+        currentProgress = 100;
+        targetProgress = 100;
+        currentBytes = totalBytes;
+
+        const doneState: ExcelFileState = {
           file,
           loading: false,
           progress: 100,
+          stage: currentStage,
+          bytesProcessed: totalBytes,
+          totalBytes,
+          processedRows: records.length,
+          totalRows: records.length,
           error: null,
           recordCount: records.length,
         };
-        setState(done);
+
+        setState(doneState);
         options?.onProgress?.(100);
         options?.onSuccess?.(records, file);
         onRecords?.(records);
         return records;
       } catch (err) {
-        clearExt();
+        isDone = true;
+        window.clearInterval(ticker);
+        activeTimers.current.delete(ticker);
+
         const msg = err instanceof Error ? err.message : 'Error al procesar el archivo';
         console.error('[useExcelParser] parseWithProgress failed', { fileName: file.name, error: msg });
-        const failed: ExcelFileState = {
+
+        const failedState: ExcelFileState = {
           file,
           loading: false,
           progress: 0,
+          stage: 'Error en el procesamiento',
+          bytesProcessed: 0,
+          totalBytes,
           error: msg,
           recordCount: 0,
         };
-        setState(failed);
+
+        setState(failedState);
         options?.onError?.(msg);
         throw err;
       }
     },
     [options],
+  );
+
+  const parse = useCallback(
+    async (file: File): Promise<EssaRecord[]> => {
+      return parseWithProgress(file, setInternal as (s: ExcelFileState | null) => void);
+    },
+    [parseWithProgress],
   );
 
   return {

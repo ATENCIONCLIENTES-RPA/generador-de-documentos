@@ -6,6 +6,11 @@ export interface ExcelFileState {
   progress: number;
   error: string | null;
   recordCount: number;
+  stage?: string;
+  bytesProcessed?: number;
+  totalBytes?: number;
+  processedRows?: number;
+  totalRows?: number;
 }
 
 interface ExcelStore {

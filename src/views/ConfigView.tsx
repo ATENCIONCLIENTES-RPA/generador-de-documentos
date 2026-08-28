@@ -82,6 +82,7 @@ export function ConfigView() {
           file: null,
           loading: false,
           progress: 0,
+          stage: 'Sin plantillas válidas',
           error: 'No se encontraron plantillas .docx en la carpeta',
           recordCount: 0,
         });
@@ -90,24 +91,62 @@ export function ConfigView() {
       }
       // create pseudo file for store — use first docx or synthetic
       const pseudo = docx[0] ?? arr[0] ?? null;
-      // Use pseudo file but override recordCount to docx length for allReady check
-      // and keep file.name as folder name for display
       const folderFile = pseudo ? new File([pseudo as unknown as BlobPart], name, { type: pseudo.type }) : null;
-      // Preserve original pseudo name workaround: override via Object.defineProperty if needed, but simple File with folder name suffices
+      
+      const totalBytes = docx.reduce((acc, f) => acc + (f.size || 0), 0);
       setTemplateFolder({
         file: folderFile as unknown as File,
-        loading: false,
-        progress: 100,
+        loading: true,
+        progress: 15,
+        stage: `Analizando ${docx.length} plantillas DOCX...`,
         error: null,
-        recordCount: docx.length,
+        recordCount: 0,
+        bytesProcessed: 0,
+        totalBytes,
       });
-      // Hydrate templateStore so TemplatesView (M4) sees real templates
+
       try {
-        const templates = await Promise.all(docx.map((f, i) => fileToTemplate(f, i)));
+        const templates = [];
+        for (let i = 0; i < docx.length; i++) {
+          const f = docx[i];
+          const pct = Math.min(95, 15 + Math.round(((i + 1) / docx.length) * 80));
+          setTemplateFolder({
+            file: folderFile as unknown as File,
+            loading: true,
+            progress: pct,
+            stage: `Extrayendo variables: ${f.name} (${i + 1}/${docx.length})`,
+            error: null,
+            recordCount: i + 1,
+            totalBytes,
+          });
+          const tpl = await fileToTemplate(f, i);
+          templates.push(tpl);
+          await new Promise((r) => setTimeout(r, 0));
+        }
+
         useTemplateStore.getState().setTemplates(templates);
         if (templates.length > 0) useTemplateStore.getState().selectTemplate(templates[0].id);
+
+        setTemplateFolder({
+          file: folderFile as unknown as File,
+          loading: false,
+          progress: 100,
+          stage: `${docx.length} plantillas procesadas correctamente`,
+          error: null,
+          recordCount: docx.length,
+          bytesProcessed: totalBytes,
+          totalBytes,
+        });
       } catch (e) {
         console.error('ConfigView: fileToTemplate failed', e);
+        setTemplateFolder({
+          file: folderFile as unknown as File,
+          loading: false,
+          progress: 0,
+          stage: 'Error al procesar plantillas',
+          error: 'Error al procesar las plantillas DOCX',
+          recordCount: 0,
+        });
       }
     },
     [setTemplateFolder],

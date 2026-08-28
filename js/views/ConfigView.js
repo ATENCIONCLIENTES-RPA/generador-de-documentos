@@ -18,37 +18,39 @@ const ConfigView = ({ config, onSaveConfig, onNavigate, onExcelDataLoaded, onTem
   const folderInputRef = React.useRef(null);
 
   const stages = [
-    { key: 'read', label: 'Lectura del archivo' },
-    { key: 'sheets', label: 'Análisis de hojas' },
-    { key: 'data', label: 'Extracción de datos' },
-    { key: 'ready', label: 'Listo' },
+    { threshold: 25, label: 'Lectura binaria del archivo' },
+    { threshold: 50, label: 'Análisis de estructura y hojas' },
+    { threshold: 85, label: 'Extracción y validación de datos' },
+    { threshold: 100, label: 'Finalizando procesamiento' },
   ];
 
   const simulateProgress = (onComplete) => {
     let progress = 0;
     const interval = setInterval(() => {
-      progress += Math.random() * 18 + 5;
-      if (progress >= 100) {
-        progress = 100;
+      progress += Math.random() * 4 + 2;
+      if (progress >= 96) {
+        progress = 96;
         clearInterval(interval);
         if (onComplete) onComplete();
       }
-      const stageIdx = progress < 25 ? 0 : progress < 50 ? 1 : progress < 80 ? 2 : 3;
+      const stageObj = stages.find((s) => progress <= s.threshold) || stages[stages.length - 1];
       setExcelState((prev) => ({
         ...prev,
-        progress: Math.min(progress, 100),
-        stage: stages[stageIdx].label,
+        progress: Math.min(progress, 96),
+        stage: stageObj.label,
       }));
-    }, 250);
+    }, 50);
+    return interval;
   };
 
   const handleExcelFile = (file) => {
     if (!file) return;
-    setExcelState({ loading: true, progress: 0, stage: 'Lectura del archivo', loaded: false, fileName: file.name, recordCount: 0 });
-    simulateProgress(() => {
+    setExcelState({ loading: true, progress: 0, stage: 'Iniciando lectura...', loaded: false, fileName: file.name, recordCount: 0 });
+    const timer = simulateProgress(() => {
       try {
         const reader = new FileReader();
         reader.onload = (e) => {
+          clearInterval(timer);
           const result = parseExcelFile(new Uint8Array(e.target.result));
           setExcelState({
             loading: false,
@@ -62,6 +64,7 @@ const ConfigView = ({ config, onSaveConfig, onNavigate, onExcelDataLoaded, onTem
         };
         reader.readAsArrayBuffer(file);
       } catch (err) {
+        clearInterval(timer);
         setExcelState({ loading: false, progress: 0, stage: '', loaded: false, fileName: '', recordCount: 0 });
       }
     });
@@ -152,20 +155,21 @@ const ConfigView = ({ config, onSaveConfig, onNavigate, onExcelDataLoaded, onTem
 
               {excelState.loading ? (
                 <>
-                  <div style={{ width: '48px', height: '48px', marginBottom: '0.5rem' }}>
-                    <svg width="48" height="48" viewBox="0 0 48 48" className="animate-spin">
-                      <circle cx="24" cy="24" r="20" stroke="#e2e8f0" strokeWidth="4" fill="none" />
-                      <path d="M24 4 A20 20 0 0 1 44 24" stroke="#10b981" strokeWidth="4" fill="none" strokeLinecap="round" />
+                  <div style={{ position: 'relative', width: '48px', height: '48px', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="48" height="48" viewBox="0 0 48 48" style={{ position: 'absolute', inset: 0 }}>
+                      <circle cx="24" cy="24" r="20" stroke="#f1f5f9" strokeWidth="4" fill="none" />
+                      <circle cx="24" cy="24" r="20" stroke="#004b93" strokeWidth="4" strokeDasharray="60 120" strokeLinecap="round" fill="none" className="animate-spin" />
                     </svg>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#004b93' }}>{Math.round(excelState.progress)}%</span>
                   </div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>
-                    Procesando: {excelState.stage}
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#004b93', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '3px 10px', borderRadius: 999, marginBottom: '0.4rem' }}>
+                    {excelState.stage}
                   </div>
-                  <div className="progress-bar" style={{ width: '200px', marginTop: '0.5rem' }}>
-                    <div className="progress-bar-fill" style={{ width: `${excelState.progress}%` }} />
+                  <div className="progress-bar" style={{ width: '220px', height: '8px', background: '#e2e8f0', borderRadius: 999, overflow: 'hidden' }}>
+                    <div className="progress-bar-fill" style={{ width: `${excelState.progress}%`, height: '100%', background: 'linear-gradient(90deg, #004b93 0%, #0284c7 50%, #38bdf8 100%)', borderRadius: 999, transition: 'width 80ms linear' }} />
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem' }}>
-                    {Math.round(excelState.progress)}%
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.35rem', fontWeight: 600 }}>
+                    {excelState.fileName} — {Math.round(excelState.progress)}%
                   </div>
                 </>
               ) : excelState.loaded ? (
