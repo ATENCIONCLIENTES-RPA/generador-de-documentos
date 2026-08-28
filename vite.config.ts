@@ -7,5 +7,5 @@ export default defineConfig({
   plugins: [react()],
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   build: { chunkSizeWarningLimit: 1200 },
-  test: { globals: true, environment: 'jsdom' },
+  test: { globals: true, environment: 'jsdom', exclude: ['node_modules', 'tests/e2e/**', 'e2e/**'] },
 });

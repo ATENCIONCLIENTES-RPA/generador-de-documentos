@@ -1,18 +1,29 @@
 import { Badge } from '@/components/ui/Badge';
+import { useNavigationStore, type StepId } from '@/store/navigationStore';
 
-interface Props {
-  onNav?: (key: string) => void;
-  activeKey?: string;
-}
-
-const NAV = [
+const NAV: { key: StepId; label: string; short?: string }[] = [
+  { key: 'inicio', label: 'Inicio' },
+  { key: 'perfil', label: 'Perfil' },
+  { key: 'configuracion', label: 'Configuración' },
+  { key: 'datos', label: 'Datos' },
   { key: 'plantillas', label: 'Plantillas' },
-  { key: 'cargar', label: 'Cargar datos' },
-  { key: 'generar', label: 'Generar' },
-  { key: 'perfiles', label: 'Perfiles' },
+  { key: 'generacion', label: 'Generación' },
 ];
 
-export function AppHeader({ onNav, activeKey = 'plantillas' }: Props) {
+interface Props {
+  activeKey?: string;
+  onNav?: (key: string) => void;
+}
+
+export function AppHeader({ activeKey, onNav }: Props) {
+  const storeCurrent = useNavigationStore((s) => s.currentStep);
+  const storeGoTo = useNavigationStore((s) => s.goTo);
+  const active = (activeKey ?? storeCurrent) as StepId;
+  const handleNav = (key: StepId) => {
+    if (onNav) onNav(key);
+    else storeGoTo(key);
+  };
+
   return (
     <header
       style={{
@@ -36,9 +47,8 @@ export function AppHeader({ onNav, activeKey = 'plantillas' }: Props) {
           gap: 18,
         }}
       >
-        {/* brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-          <img src="/Logo 3.png" alt="ESSA" style={{ height: 34, width: 'auto' }} />
+          <img src="/Logo 3.png" alt="ESSA Electrificadora de Santander" style={{ height: 34, width: 'auto' }} />
           <div style={{ lineHeight: 1 }}>
             <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--essa-primary)', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
               ESSA · Generador Documental
@@ -52,24 +62,26 @@ export function AppHeader({ onNav, activeKey = 'plantillas' }: Props) {
           </Badge>
         </div>
 
-        {/* nav - desktop-first */}
         <nav aria-label="Principal" style={{ display: 'flex', gap: 6, marginLeft: 12 }}>
           {NAV.map((n) => {
-            const active = n.key === activeKey;
+            const isActive = n.key === active;
             return (
               <button
                 key={n.key}
-                onClick={() => onNav?.(n.key)}
-                aria-current={active ? 'page' : undefined}
+                onClick={() => handleNav(n.key)}
+                aria-current={isActive ? 'page' : undefined}
+                aria-label={`Ir a ${n.label}`}
+                data-testid={`header-nav-${n.key}`}
                 style={{
                   height: 34,
                   padding: '0 14px',
                   borderRadius: 999,
-                  border: `1px solid ${active ? 'var(--essa-primary)' : 'transparent'}`,
-                  background: active ? 'var(--essa-primary-50)' : 'transparent',
-                  color: active ? 'var(--essa-primary)' : 'var(--neutral-600)',
-                  fontWeight: active ? 800 : 600,
+                  border: `1px solid ${isActive ? 'var(--essa-primary)' : 'transparent'}`,
+                  background: isActive ? 'var(--essa-primary-50)' : 'transparent',
+                  color: isActive ? 'var(--essa-primary)' : 'var(--neutral-600)',
+                  fontWeight: isActive ? 800 : 600,
                   fontSize: '0.8125rem',
+                  cursor: 'pointer',
                 }}
               >
                 {n.label}
@@ -78,10 +90,8 @@ export function AppHeader({ onNav, activeKey = 'plantillas' }: Props) {
           })}
         </nav>
 
-        {/* spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* right */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span
             title="Entorno local"
@@ -100,7 +110,8 @@ export function AppHeader({ onNav, activeKey = 'plantillas' }: Props) {
             Local
           </span>
           <div
-            aria-label="Usuario"
+            aria-label="Usuario: Administrador"
+            title="Administrador"
             style={{
               width: 36,
               height: 36,

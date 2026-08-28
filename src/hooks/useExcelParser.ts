@@ -52,20 +52,14 @@ export function useExcelParser(options?: UseExcelParserOptions): UseExcelParserR
           clearTimer();
         }
         options?.onProgress?.(Math.min(p, 92));
-        setter((prev) => {
-          // if setter is internal, prev is state; if external, we merge
-          const base: ExcelFileState = {
-            file,
-            loading: true,
-            progress: Math.round(Math.min(p, 92)),
-            error: null,
-            recordCount: 0,
-          };
-          // For external setter, we don't have prev; just return base with progress
-          // For internal, we also return base
-          void prev;
-          return base;
-        });
+        const base: ExcelFileState = {
+          file,
+          loading: true,
+          progress: Math.round(Math.min(p, 92)),
+          error: null,
+          recordCount: 0,
+        };
+        setter(base);
       }, 150);
     },
     [clearTimer, options],
