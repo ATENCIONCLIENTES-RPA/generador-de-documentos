@@ -4,6 +4,8 @@ import { useExcelStore } from '@/store/excelStore';
 import { useNavigationStore } from '@/store/navigationStore';
 import { useExcelParser } from '@/hooks/useExcelParser';
 import { useDataStore } from '@/store/dataStore';
+import { useTemplateStore } from '@/store/templateStore';
+import { fileToTemplate } from '@/utils/docxHelpers';
 import ExcelUploadCard from '@/components/features/ExcelUploadCard';
 import Button from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -69,15 +71,13 @@ export function ConfigView() {
   );
 
   const handleFolderFiles = useCallback(
-    (files: FileList | File[]) => {
+    async (files: FileList | File[]) => {
       const arr = Array.from(files);
       const docx = arr.filter((f) => f.name.toLowerCase().endsWith('.docx'));
       const name = (arr[0] as unknown as { webkitRelativePath?: string })?.webkitRelativePath?.split('/')[0] || 'Plantillas';
       setFolderName(name);
       setFolderTemplates(docx.map((f) => ({ name: f.name, size: f.size })));
-      // create pseudo file for store — use first docx or synthetic
-      const pseudo = docx[0] ?? arr[0] ?? null;
-      if (!pseudo && docx.length === 0) {
+      if (docx.length === 0) {
         setTemplateFolder({
           file: null,
           loading: false,
@@ -85,8 +85,11 @@ export function ConfigView() {
           error: 'No se encontraron plantillas .docx en la carpeta',
           recordCount: 0,
         });
+        useTemplateStore.getState().clearTemplates();
         return;
       }
+      // create pseudo file for store — use first docx or synthetic
+      const pseudo = docx[0] ?? arr[0] ?? null;
       // Use pseudo file but override recordCount to docx length for allReady check
       // and keep file.name as folder name for display
       const folderFile = pseudo ? new File([pseudo as unknown as BlobPart], name, { type: pseudo.type }) : null;
@@ -98,6 +101,14 @@ export function ConfigView() {
         error: null,
         recordCount: docx.length,
       });
+      // Hydrate templateStore so TemplatesView (M4) sees real templates
+      try {
+        const templates = await Promise.all(docx.map((f, i) => fileToTemplate(f, i)));
+        useTemplateStore.getState().setTemplates(templates);
+        if (templates.length > 0) useTemplateStore.getState().selectTemplate(templates[0].id);
+      } catch (e) {
+        console.error('ConfigView: fileToTemplate failed', e);
+      }
     },
     [setTemplateFolder],
   );
@@ -139,6 +150,7 @@ export function ConfigView() {
 
   const handleCancelar = () => {
     clearAll();
+    useTemplateStore.getState().clearTemplates();
     setFolderTemplates([]);
     setFolderName('');
     if (sacRef.current) sacRef.current.value = '';
@@ -263,6 +275,7 @@ export function ConfigView() {
               if (!s) {
                 setFolderTemplates([]);
                 setFolderName('');
+                useTemplateStore.getState().clearTemplates();
                 if (folderRef.current) folderRef.current.value = '';
               }
             }}

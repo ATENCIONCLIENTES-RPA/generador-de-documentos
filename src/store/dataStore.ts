@@ -42,6 +42,9 @@ const defaultFilter: FilterState = {
   fechaSolicitud: '',
 };
 
+// NOTE: C2 — DataView local pipeline is canonical for rendering (includes showOnlySelected + SEARCHABLE_FIELDS);
+// dataStore.applyFilters is the programmatic source for getFilteredRecords/getPaginatedRecords.
+// Keep both in sync when changing filter semantics — same fields, same case/trim logic.
 function applyFilters(records: Record[], filter: FilterState): Record[] {
   let out = records;
   const search = filter.search.trim().toLowerCase();

@@ -73,6 +73,8 @@ export function DataView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterState.search]);
 
+  // NOTE: C2 — DataView local pipeline is canonical for rendering (adds showOnlySelected + SEARCHABLE_FIELDS on top of store filters).
+  // Keep in sync with src/store/dataStore.ts applyFilters; dataStore.applyFilters is programmatic source for getFilteredRecords/getPaginatedRecords.
   // pipeline: data → search (debounced, stored) → cuenta → proceso → radicado → fechaSolicitud → selected toggle → sort → count → paginate
   const filteredRecords = useMemo(() => {
     let out = [...records];
