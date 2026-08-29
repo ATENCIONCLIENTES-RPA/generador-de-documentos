@@ -18,6 +18,7 @@ export interface UseGenerationOptions {
     recordsCount: number;
     templateName: string;
   }) => void;
+  excludedIds?: Set<string>;
 }
 
 export interface UseGenerationReturn {
@@ -25,6 +26,7 @@ export interface UseGenerationReturn {
   progress: number;
   docResults: DocxGenerationResult[];
   selectedRecords: EssaRecord[];
+  visibleRecords: EssaRecord[];
   selectedTemplate: ReturnType<typeof useTemplateStore.getState>['selectedTemplate'];
   canGenerate: boolean;
   generate: () => Promise<void>;
@@ -103,14 +105,24 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
     return out;
   }, [records, selectedRows]);
 
-  const canGenerate = selectedRecords.length > 0 && !!selectedTemplate;
+  // Records to actually generate (excludes removed docs from sidebar)
+  const visibleRecords: EssaRecord[] = useMemo(() => {
+    const excluded = options?.excludedIds;
+    if (!excluded || excluded.size === 0) return selectedRecords;
+    return selectedRecords.filter((r) => {
+      const rowId = (r as unknown as { rowId: string }).rowId;
+      return !excluded.has(rowId);
+    });
+  }, [selectedRecords, options?.excludedIds]);
+
+  const canGenerate = visibleRecords.length > 0 && !!selectedTemplate;
 
   const processSequential = useCallback(
     async (
       indices: number[],
       existingResults: DocxGenerationResult[]
     ): Promise<DocxGenerationResult[]> => {
-      const len = selectedRecords.length;
+      const len = visibleRecords.length;
       if (len === 0 || !selectedTemplate) return existingResults;
 
       const templateFile = selectedTemplate.file as File | undefined;
@@ -125,7 +137,7 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
       // ensure all entries exist and are pending
       for (let i = 0; i < len; i++) {
         if (!next[i]) {
-          const rec = selectedRecords[i];
+          const rec = visibleRecords[i];
           const rid = (rec as unknown as { rowId: string }).rowId ?? `rec-${i}`;
           next[i] = {
             id: rid,
@@ -139,7 +151,7 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
 
       // sets to trigger store updates per iteration
       for (const idx of indices) {
-        const rec = selectedRecords[idx];
+        const rec = visibleRecords[idx];
         const rid = (rec as unknown as { rowId: string }).rowId ?? `rec-${idx}`;
         // mark generating
         next[idx] = { ...next[idx], status: 'pending' as const, error: undefined };
@@ -229,16 +241,15 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
 
       return next;
     },
-    [selectedRecords, selectedTemplate, profile, setStage, setProgress, setDocResults, options]
+    [visibleRecords, selectedTemplate, profile, setStage, setProgress, setDocResults, options]
   );
 
   const generate = useCallback(async () => {
     if (!canGenerate) return;
-    const len = selectedRecords.length;
     setStage('generando');
     setProgress(0);
-    // init pending results
-    const initial: DocxGenerationResult[] = selectedRecords.map((rec, i) => {
+    // init pending results for visible records only
+    const initial: DocxGenerationResult[] = visibleRecords.map((rec, i) => {
       const rid = (rec as unknown as { rowId: string }).rowId ?? `rec-${i}`;
       return {
         id: rid,
@@ -253,7 +264,7 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
     await processSequential(indices, initial);
   }, [
     canGenerate,
-    selectedRecords,
+    visibleRecords,
     selectedTemplate,
     setStage,
     setProgress,
@@ -349,6 +360,7 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
     progress,
     docResults,
     selectedRecords,
+    visibleRecords,
     selectedTemplate,
     canGenerate,
     generate,
