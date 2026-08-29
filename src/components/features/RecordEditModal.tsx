@@ -54,9 +54,13 @@ function isDirty(a: EssaRecord | null, b: EssaRecord | null): boolean {
   return false;
 }
 
+import { improveText } from '@/utils/textEnhancer';
+
 export function RecordEditModal({ open, record, onClose, onSave }: Props) {
   const [draft, setDraft] = useState<EssaRecord | null>(null);
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+  const [isImproving, setIsImproving] = useState(false);
+  const [improvedSuccess, setImprovedSuccess] = useState(false);
   const originalRef = useRef<EssaRecord | null>(null);
 
   useEffect(() => {
@@ -65,12 +69,16 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
       setDraft(copy);
       originalRef.current = { ...record } as EssaRecord;
       setShowUnsavedWarning(false);
+      setIsImproving(false);
+      setImprovedSuccess(false);
     } else if (!open) {
       // reset after close animation
       const t = window.setTimeout(() => {
         setDraft(null);
         originalRef.current = null;
         setShowUnsavedWarning(false);
+        setIsImproving(false);
+        setImprovedSuccess(false);
       }, 180);
       return () => window.clearTimeout(t);
     }
@@ -114,6 +122,29 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
     setDraft({ ...draft, [key]: value } as EssaRecord);
   };
 
+  const handleImproveText = () => {
+    if (!draft) return;
+    const currentText = String(
+      draft.observacionProceso ??
+        (draft as Record<string, unknown>)['OBSERVACION_PROCESO'] ??
+        (draft as Record<string, unknown>)['descripcion'] ??
+        ''
+    );
+
+    if (!currentText.trim()) return;
+
+    const improved = improveText(currentText);
+    setDraft({
+      ...draft,
+      observacionProceso: improved,
+      OBSERVACION_PROCESO: improved,
+      descripcion: improved,
+    } as EssaRecord);
+
+    setImprovedSuccess(true);
+    setTimeout(() => setImprovedSuccess(false), 2500);
+  };
+
   if (!open) return null;
 
   return (
@@ -132,6 +163,9 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
         @media (max-width:720px){ .rem-grid{ grid-template-columns:1fr; } }
         .rem-textarea { width:100%; min-height:84px; border-radius:8px; border:1px solid var(--border-strong); padding:10px 12px; font-size:0.875rem; font-family:inherit; resize:vertical; outline:none; transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease); }
         .rem-textarea:focus { border-color:var(--essa-primary); box-shadow: var(--ring); }
+        .rem-btn-improve { display:inline-flex; align-items:center; gap:6px; background:#f0fdf4; border:1px solid #86efac; color:#15803d; font-size:0.75rem; font-weight:700; padding:3px 9px; border-radius:6px; cursor:pointer; transition: all 150ms ease; }
+        .rem-btn-improve:hover:not(:disabled) { background:#dcfce7; border-color:#4ade80; color:#166534; }
+        .rem-btn-improve:disabled { opacity:0.6; cursor:not-allowed; }
       `}</style>
 
       {!draft ? (
@@ -257,12 +291,36 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
               Descripciones
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span
-                  style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--neutral-700)' }}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                  }}
                 >
-                  Descripción de la solicitud
-                </span>
+                  <span
+                    style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--neutral-700)' }}
+                  >
+                    Descripción de la solicitud
+                  </span>
+                  <button
+                    type="button"
+                    className="rem-btn-improve"
+                    onClick={handleImproveText}
+                    disabled={isImproving}
+                    data-testid="rem-btn-mejorar-texto"
+                    title="Revisar y mejorar redacción, ortografía y formato"
+                  >
+                    <span aria-hidden>✨</span>
+                    {isImproving
+                      ? 'Mejorando…'
+                      : improvedSuccess
+                        ? '¡Texto mejorado!'
+                        : 'Mejorar texto'}
+                  </button>
+                </div>
                 <textarea
                   className="rem-textarea"
                   value={String(
@@ -285,7 +343,7 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
                   rows={4}
                   data-testid="rem-textarea-descripcion"
                 />
-              </label>
+              </div>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span
                   style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--neutral-700)' }}

@@ -6,6 +6,7 @@ import { useExcelParser } from '@/hooks/useExcelParser';
 import { useDataStore } from '@/store/dataStore';
 import { useTemplateStore } from '@/store/templateStore';
 import { fileToTemplate } from '@/utils/docxHelpers';
+import { parseMercurioFile } from '@/utils/excelParser';
 import ExcelUploadCard from '@/components/features/ExcelUploadCard';
 import Button from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -57,7 +58,7 @@ export function ConfigView() {
   const handleMercurioFile = useCallback(
     async (file: File) => {
       try {
-        const records = await parseWithProgress(file, setMercurioFile);
+        const records = await parseWithProgress(file, setMercurioFile, undefined, parseMercurioFile);
         if (records.length > 0) setMercurioRecords(records);
       } catch {
         // handled

@@ -26,7 +26,13 @@ export interface Record {
   observacionRevision?: string;
   diasPqr?: number;
   diasPqrLabel?: string;
-  estadoSemaforo?: 'verde' | 'violeta' | 'rojo';
+  estadoSemaforo?: 'verde' | 'violeta' | 'rojo' | 'tiene_insumos' | 'no_tiene_insumos' | string;
+
+  // Nuevas columnas requeridas SAC / Mercurio
+  tipoProceso?: string;
+  descripcionTipoProceso?: string;
+  usuarioResponsableInsumo?: string;
+  responsableInsumo?: string;
 
   // Index signature for the ~119 dynamic Excel columns (SAC_TRAMITE_GENERAL)
   [key: string]: unknown;

@@ -31,7 +31,19 @@ function resetStores() {
   useDataStore.setState({
     records: [],
     selectedRows: new Set<string>(),
-    filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
+    filterState: {
+      search: '',
+      cuenta: '',
+      proceso: '',
+      radicado: '',
+      fechaSolicitud: '',
+      fechaDesde: '',
+      fechaHasta: '',
+      procesoCreado: 'todos',
+      estadoSemaforo: 'todos',
+      cantProcesos: 'todos',
+      diasPqrFiltro: 'todos',
+    },
     currentPage: 1,
     pageSize: 10,
     editingRecord: null,
@@ -341,13 +353,6 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     expect(screen.getByTestId('dv-row-row_3')).toBeInTheDocument();
     expect(screen.queryByTestId('dv-row-row_4')).not.toBeInTheDocument();
 
-    // Combinar con filtro Proceso creado = 'si'
-    const selectCreado = screen.getByTestId('dv-filter-proceso-creado');
-    fireEvent.change(selectCreado, { target: { value: 'si' } });
-    expect(screen.getByTestId('dv-row-row_1')).toBeInTheDocument();
-    expect(screen.queryByTestId('dv-row-row_2')).not.toBeInTheDocument();
-    expect(screen.getByTestId('dv-row-row_3')).toBeInTheDocument();
-
     // Combinar con Estado Semáforo = 'verde'
     const selectEstado = screen.getByTestId('dv-filter-estado-semaforo');
     fireEvent.change(selectEstado, { target: { value: 'verde' } });
@@ -371,7 +376,7 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     expect(useDataStore.getState().selectedRows.size).toBe(0);
   });
 
-  it('renderiza las nuevas columnas: Estado (semáforo), Proceso creado, Cant. procesos y Días PQR', async () => {
+  it('renderiza las nuevas columnas: Estado, TIPO PROCESO (con tooltip), RESPONSABLE DEL INSUMO y Días PQR', async () => {
     const recs = [
       makeRecord({
         rowId: 'row_test_verde',
@@ -380,9 +385,10 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
         observacionRevision: 'Revisado OK',
         observacionProceso: 'Solicitud formal',
         radicadoEntrada: 'RAD-001',
+        tipoProceso: 'RECLAMO FACTURACION',
+        descripcionTipoProceso: 'Reclamación sobre cobro de consumo elevado',
+        usuarioResponsableInsumo: 'ANA.PEREZ',
         fechaSolicitud: '07/05/2026 16:18:56.53',
-        procesoCreado: 'Sí',
-        cantidadProcesos: 2,
       }),
       makeRecord({
         rowId: 'row_test_violeta',
@@ -390,19 +396,32 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
         numeroProceso: 'PRC-002',
         observacionRevision: '',
         radicadoEntrada: 'RAD-002',
+        tipoProceso: 'REVISION MEDIDOR',
+        descripcionTipoProceso: 'Revisión técnica de equipo de medida',
+        usuarioResponsableInsumo: '',
         fechaSolicitud: '10/05/2026',
-        procesoCreado: 'Sí',
-        cantidadProcesos: 1,
       }),
       makeRecord({
-        rowId: 'row_test_rojo',
+        rowId: 'row_test_insumo',
         id: 3,
         numeroProceso: '',
         observacionRevision: '',
         radicadoEntrada: 'RAD-003',
+        tipoProceso: 'DANOS Y PERJUICIOS',
+        descripcionTipoProceso: 'Indemnización por daños',
+        usuarioResponsableInsumo: 'CARLOS.GOMEZ',
+        fechaSolicitud: '12/05/2026',
+      }),
+      makeRecord({
+        rowId: 'row_test_rojo',
+        id: 4,
+        numeroProceso: '',
+        observacionRevision: '',
+        radicadoEntrada: 'RAD-004',
+        tipoProceso: '',
+        descripcionTipoProceso: '',
+        usuarioResponsableInsumo: '',
         fechaSolicitud: '15/05/2026',
-        procesoCreado: 'No',
-        cantidadProcesos: 0,
       }),
     ];
     useDataStore.getState().setRecords(recs);
@@ -410,33 +429,35 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
 
     // Headers
     expect(screen.getByText('Estado')).toBeInTheDocument();
-    expect(screen.getByText('Proceso creado')).toBeInTheDocument();
-    expect(screen.getByText('Cant. procesos')).toBeInTheDocument();
+    expect(screen.getByText('TIPO PROCESO')).toBeInTheDocument();
+    expect(screen.getByText('RESPONSABLE DEL INSUMO')).toBeInTheDocument();
     expect(screen.getByText('Días PQR')).toBeInTheDocument();
 
-    // Semáforos
+    // Estados
     expect(screen.getByTestId('dv-semaforo-row_test_verde')).toHaveTextContent('Completo');
-    expect(screen.getByTestId('dv-semaforo-row_test_violeta')).toHaveTextContent('En revisión');
-    expect(screen.getByTestId('dv-semaforo-row_test_rojo')).toHaveTextContent('Sin proceso');
+    expect(screen.getByTestId('dv-semaforo-row_test_violeta')).toHaveTextContent('Tiene revisión');
+    expect(screen.getByTestId('dv-semaforo-row_test_insumo')).toHaveTextContent('Tiene Insumos');
+    expect(screen.getByTestId('dv-semaforo-row_test_rojo')).toHaveTextContent('No tiene insumos');
 
-    // Proceso creado
-    expect(screen.getByTestId('dv-creado-row_test_verde')).toHaveTextContent('Sí');
-    expect(screen.getByTestId('dv-creado-row_test_rojo')).toHaveTextContent('No');
+    // TIPO PROCESO con tooltips
+    const tipoCell1 = screen.getByTestId('dv-tipo-proceso-row_test_verde');
+    expect(tipoCell1).toHaveTextContent('RECLAMO FACTURACION');
+    expect(tipoCell1).toHaveAttribute('title', 'Reclamación sobre cobro de consumo elevado');
 
-    // Cant. procesos
-    expect(screen.getByTestId('dv-cant-row_test_verde')).toHaveTextContent('2');
-    expect(screen.getByTestId('dv-cant-row_test_rojo')).toHaveTextContent('0');
+    // RESPONSABLE DEL INSUMO
+    expect(screen.getByTestId('dv-responsable-insumo-row_test_verde')).toHaveTextContent('ANA.PEREZ');
+    expect(screen.getByTestId('dv-responsable-insumo-row_test_violeta')).toHaveTextContent('—');
 
     // Días PQR
     expect(screen.getByTestId('dv-pqr-row_test_verde')).toBeInTheDocument();
   });
 
-  it('modal de edición edita "Descripción de la solicitud" y "Observaciones"', async () => {
+  it('modal de edición: botón "Mejorar texto" mejora la redacción y guarda cambios', async () => {
     const recs = [
       makeRecord({
         rowId: 'row_test_modal',
         id: 1,
-        observacionProceso: 'Hechos iniciales',
+        observacionProceso: 'el cliente solicita revision del medidor , no esta de acuerdo con el cobro .',
         observacionRevision: 'Revision inicial',
       }),
     ];
@@ -448,18 +469,24 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     expect(screen.getByText('Observaciones')).toBeInTheDocument();
 
     const descTextarea = screen.getByTestId('rem-textarea-descripcion') as HTMLTextAreaElement;
-    const obsTextarea = screen.getByTestId('rem-textarea-observaciones') as HTMLTextAreaElement;
-    expect(descTextarea.value).toBe('Hechos iniciales');
-    expect(obsTextarea.value).toBe('Revision inicial');
+    expect(descTextarea.value).toBe('el cliente solicita revision del medidor , no esta de acuerdo con el cobro .');
 
-    fireEvent.change(descTextarea, { target: { value: 'Nueva descripción de la solicitud' } });
-    fireEvent.change(obsTextarea, { target: { value: 'Nuevas observaciones de revisión' } });
+    // Clic en botón "Mejorar texto"
+    const btnMejorar = screen.getByTestId('rem-btn-mejorar-texto');
+    expect(btnMejorar).toBeInTheDocument();
+    fireEvent.click(btnMejorar);
+
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    // El texto mejorado debe haber capitalizado, acentuado y corregido puntuación
+    expect(descTextarea.value).toBe('El cliente solicita revisión del medidor, no está de acuerdo con el cobro.');
 
     fireEvent.click(screen.getByTestId('rem-save'));
     await waitFor(() => {
       const updated = useDataStore.getState().records.find((r) => r.rowId === 'row_test_modal');
-      expect(updated?.observacionProceso).toBe('Nueva descripción de la solicitud');
-      expect(updated?.observacionRevision).toBe('Nuevas observaciones de revisión');
+      expect(updated?.observacionProceso).toBe('El cliente solicita revisión del medidor, no está de acuerdo con el cobro.');
     });
   });
 });

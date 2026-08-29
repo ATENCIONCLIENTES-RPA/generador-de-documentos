@@ -234,11 +234,40 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     'OBSERVACIONES',
   ]);
 
+  const tipoProcRaw = getExcelCellValue(row, [
+    'PROCESO',
+    'TIPO_PROCESO',
+    'TIPO PROCESO',
+    'TIPO DE PROCESO',
+    'CODIGO_PROCESO',
+  ]);
+
+  const descTipoProcRaw = getExcelCellValue(row, [
+    'DESCRIPCION_TIPO_PROCESO',
+    'DESCRIPCION TIPO PROCESO',
+    'DESCRIPCION_PROCESO',
+    'DESCRIPCION PROCESO',
+    'DESC_TIPO_PROCESO',
+    'DETALLE_TIPO_PROCESO',
+  ]);
+
+  const usuarioRespInsumoRaw = getExcelCellValue(row, [
+    'USUARIO_RESPONSABLE_INSUMO',
+    'USUARIO RESPONSABLE INSUMO',
+    'RESPONSABLE_INSUMO',
+    'RESPONSABLE INSUMO',
+    'USUARIO_INSUMO',
+    'RESPONSABLE DEL INSUMO',
+  ]);
+
   const fechaSolicitud = formatExcelDate(fechaSolRaw);
   const fechaVencimiento = formatExcelDate(fechaVencRaw);
   const numeroProceso = String(numeroProcRaw ?? '').trim();
   const observacionProceso = String(observacionProcRaw ?? '').trim();
   const observacionRevision = String(observacionRevRaw ?? '').trim();
+  const tipoProceso = String(tipoProcRaw ?? '').trim();
+  const descripcionTipoProceso = String(descTipoProcRaw ?? '').trim();
+  const usuarioResponsableInsumo = String(usuarioRespInsumoRaw ?? '').trim();
 
   const semaforo = getEstadoSemaforo(numeroProceso, observacionRevision);
   const pqrInfo = calculatePqrBusinessDays(fechaSolRaw || fechaSolicitud);
@@ -262,6 +291,10 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     numeroCuenta: String(cuentaRaw ?? ''),
     observacionProceso,
     observacionRevision,
+    tipoProceso,
+    descripcionTipoProceso,
+    usuarioResponsableInsumo,
+    responsableInsumo: usuarioResponsableInsumo,
     procesoCreado: numeroProceso ? 'Sí' : 'No',
     creadoEnSac: numeroProceso ? 'Sí' : 'No',
     cantidadProcesos: numeroProceso ? 1 : 0,
@@ -285,7 +318,7 @@ export function crossReferenceSacAndMercurio(
   if (!sacRecords || sacRecords.length === 0) {
     return mercurioRecords.map((merc) => {
       const semaforo = getEstadoSemaforo(merc.numeroProceso, merc.observacionRevision);
-      const pqrInfo = calculatePqrBusinessDays(merc.fechaSolicitud || (merc as Record<string, unknown>)['Fecha Radicación']);
+      const pqrInfo = calculatePqrBusinessDays(merc.fechaSolicitud || (merc as Record<string, unknown>)['Fecha Radicación'] || (merc as Record<string, unknown>)['Fecha  Radicacion']);
       return {
         ...merc,
         procesoCreado: 'No',
@@ -338,10 +371,88 @@ export function crossReferenceSacAndMercurio(
         ? bestSac.observacionRevision
         : merc.observacionRevision || '';
 
+    const tipoProceso =
+      bestSac?.tipoProceso ||
+      (bestSac as Record<string, unknown> | undefined)?.['PROCESO'] as string ||
+      (bestSac as Record<string, unknown> | undefined)?.['TIPO_PROCESO'] as string ||
+      merc.tipoProceso ||
+      '';
+
+    const descripcionTipoProceso =
+      bestSac?.descripcionTipoProceso ||
+      (bestSac as Record<string, unknown> | undefined)?.['DESCRIPCION_TIPO_PROCESO'] as string ||
+      merc.descripcionTipoProceso ||
+      '';
+
+    const usuarioResponsableInsumo =
+      bestSac?.usuarioResponsableInsumo ||
+      (bestSac as Record<string, unknown> | undefined)?.['USUARIO_RESPONSABLE_INSUMO'] as string ||
+      merc.usuarioResponsableInsumo ||
+      '';
+
+    // Campos del solicitante: tomar del SAC cuando hay match, con fallback a Mercurio
+    const nombreSolicitante =
+      (bestSac?.nombreSolicitante && bestSac.nombreSolicitante.trim() !== ''
+        ? bestSac.nombreSolicitante
+        : undefined) ||
+      (bestSac as Record<string, unknown> | undefined)?.['NOMBRE_SOLICITANTE'] as string ||
+      merc.nombreSolicitante ||
+      '';
+
+    const direccionSolicitante =
+      (bestSac?.direccionSolicitante && bestSac.direccionSolicitante.trim() !== ''
+        ? bestSac.direccionSolicitante
+        : undefined) ||
+      (bestSac as Record<string, unknown> | undefined)?.['DIRECCION_SOLICITANTE'] as string ||
+      merc.direccionSolicitante ||
+      '';
+
+    const departamentoSolicitante =
+      (bestSac?.departamentoSolicitante && bestSac.departamentoSolicitante.trim() !== ''
+        ? bestSac.departamentoSolicitante
+        : undefined) ||
+      (bestSac as Record<string, unknown> | undefined)?.['DEPTO_SOLICITANTE'] as string ||
+      (bestSac as Record<string, unknown> | undefined)?.['DEPARTAMENTO_SOLICITANTE'] as string ||
+      merc.departamentoSolicitante ||
+      '';
+
+    const municipioSolicitante =
+      (bestSac?.municipioSolicitante && bestSac.municipioSolicitante.trim() !== ''
+        ? bestSac.municipioSolicitante
+        : undefined) ||
+      (bestSac as Record<string, unknown> | undefined)?.['MUNICIPIO_SOLICITANTE'] as string ||
+      merc.municipioSolicitante ||
+      '';
+
+    const correoSolicitante =
+      (bestSac?.correoSolicitante && bestSac.correoSolicitante.trim() !== ''
+        ? bestSac.correoSolicitante
+        : undefined) ||
+      (bestSac as Record<string, unknown> | undefined)?.['CORREO_SOLICITANTE'] as string ||
+      merc.correoSolicitante ||
+      '';
+
+    const numeroCuenta =
+      (bestSac?.numeroCuenta && bestSac.numeroCuenta.trim() !== ''
+        ? bestSac.numeroCuenta
+        : undefined) ||
+      (bestSac as Record<string, unknown> | undefined)?.['NUMERO_CUENTA'] as string ||
+      merc.numeroCuenta ||
+      '';
+
+    const cedulaSolicitante =
+      (bestSac?.cedulaSolicitante && bestSac.cedulaSolicitante.trim() !== ''
+        ? bestSac.cedulaSolicitante
+        : undefined) ||
+      (bestSac as Record<string, unknown> | undefined)?.['CEDULA_SOLICITANTE'] as string ||
+      merc.cedulaSolicitante ||
+      '';
+
     const semaforo = getEstadoSemaforo(numeroProceso, observacionRevision);
     const pqrInfo = calculatePqrBusinessDays(
       merc.fechaSolicitud ||
         (merc as Record<string, unknown>)['Fecha Radicación'] ||
+        (merc as Record<string, unknown>)['Fecha  Radicacion'] ||
         (merc as Record<string, unknown>)['FECHA_RADICACION']
     );
 
@@ -350,6 +461,18 @@ export function crossReferenceSacAndMercurio(
       numeroProceso,
       observacionProceso,
       observacionRevision,
+      tipoProceso: String(tipoProceso ?? '').trim(),
+      descripcionTipoProceso: String(descripcionTipoProceso ?? '').trim(),
+      usuarioResponsableInsumo: String(usuarioResponsableInsumo ?? '').trim(),
+      responsableInsumo: String(usuarioResponsableInsumo ?? '').trim(),
+      nombreSolicitante: String(nombreSolicitante ?? '').trim(),
+      direccionSolicitante: String(direccionSolicitante ?? '').trim(),
+      departamentoSolicitante: String(departamentoSolicitante ?? '').trim(),
+      municipioSolicitante: String(municipioSolicitante ?? '').trim(),
+      correoSolicitante: String(correoSolicitante ?? '').trim(),
+      cedulaSolicitante: String(cedulaSolicitante ?? '').trim(),
+      numeroCuenta: String(numeroCuenta ?? '').trim(),
+      cuenta: String(numeroCuenta ?? '').trim() || merc.cuenta,
       procesoCreado: hasMatch ? 'Sí' : 'No',
       creadoEnSac: hasMatch ? 'Sí' : 'No',
       cantidadProcesos: count,
@@ -507,6 +630,208 @@ export async function parseExcelFile(
 
   onProgress?.({
     stage: 'Validación completada',
+    progress: 100,
+    loadedBytes: file.size,
+    totalBytes: file.size,
+    processedRows: records.length,
+    totalRows: records.length,
+  });
+
+  return records;
+}
+
+export function buildMercurioRecord(row: RawExcelRow, index: number): EssaRecord | null {
+  const fechaRadRaw = getExcelCellValue(row, [
+    'Fecha  Radicacion',
+    'Fecha Radicacion',
+    'Fecha  Radicación',
+    'Fecha Radicación',
+    'FECHA_RADICACION',
+    'FECHA RADICACION',
+    'FECHA_RADICACION_MERCURIO',
+  ]);
+
+  const strFecha = String(fechaRadRaw ?? '').trim();
+  if (!strFecha || strFecha === '—' || strFecha.toLowerCase() === 'null' || strFecha.toLowerCase() === 'undefined') {
+    return null;
+  }
+
+  const noRadicadoRaw = getExcelCellValue(row, [
+    'No. Radicado',
+    'No Radicado',
+    'NO_RADICADO',
+    'RADICADO',
+    'RADICADO_ENTRADA',
+    'NUMERO_RADICADO',
+  ]);
+  const nitEntidadRaw = getExcelCellValue(row, [
+    'NIT de la Entidad',
+    'NIT DE LA ENTIDAD',
+    'NIT',
+    'CEDULA',
+    'DOCUMENTO',
+  ]);
+  const nombreEntidadRaw = getExcelCellValue(row, [
+    'Nombre de la Entidad Remitente',
+    'NOMBRE DE LA ENTIDAD REMITENTE',
+    'ENTIDAD_REMITENTE',
+    'REMITENTE',
+    'NOMBRE_SOLICITANTE',
+    'SOLICITANTE',
+  ]);
+  const referenciaDocRaw = getExcelCellValue(row, [
+    'Refencia del Documento',
+    'Referencia del Documento',
+    'REFERENCIA DEL DOCUMENTO',
+    'REFERENCIA',
+    'ASUNTO',
+  ]);
+  const idGestorRaw = getExcelCellValue(row, [
+    'ID del Gestor',
+    'ID DEL GESTOR',
+    'ID_GESTOR',
+    'GESTOR_ID',
+  ]);
+  const nombreGestorRaw = getExcelCellValue(row, [
+    'Nombre del Gestor',
+    'NOMBRE DEL GESTOR',
+    'NOMBRE_GESTOR',
+    'GESTOR',
+  ]);
+
+  const timestamp = Date.now();
+  const rowId = `merc_${index}_${timestamp}`;
+  const recordId = index + 1;
+  const fechaSolicitud = formatExcelDate(fechaRadRaw);
+
+  const radicadoEntrada = String(noRadicadoRaw ?? '').trim();
+  const cedulaSolicitante = String(nitEntidadRaw ?? '').trim();
+  const nombreSolicitante = String(nombreEntidadRaw ?? '').trim();
+  const pqrInfo = calculatePqrBusinessDays(fechaRadRaw || fechaSolicitud);
+
+  // Solo tomar las 7 columnas del Archivo Mercurio
+  const mercurioData: RawExcelRow = {
+    'No. Radicado': radicadoEntrada,
+    'Fecha  Radicacion': fechaSolicitud,
+    'NIT de la Entidad': cedulaSolicitante,
+    'Nombre de la Entidad Remitente': nombreSolicitante,
+    'Refencia del Documento': String(referenciaDocRaw ?? '').trim(),
+    'ID del Gestor': String(idGestorRaw ?? '').trim(),
+    'Nombre del Gestor': String(nombreGestorRaw ?? '').trim(),
+  };
+
+  return {
+    ...mercurioData,
+    rowId,
+    id: recordId,
+    status: 'Pendiente',
+    selected: false,
+    radicadoEntrada,
+    fechaSolicitud,
+    fechaVencimiento: '',
+    numeroProceso: '',
+    nombreSolicitante,
+    cedulaSolicitante,
+    direccionSolicitante: '',
+    departamentoSolicitante: '',
+    municipioSolicitante: '',
+    correoSolicitante: '',
+    numeroCuenta: '',
+    observacionProceso: '',
+    observacionRevision: '',
+    tipoProceso: '',
+    descripcionTipoProceso: '',
+    usuarioResponsableInsumo: '',
+    responsableInsumo: '',
+    procesoCreado: 'No',
+    creadoEnSac: 'No',
+    cantidadProcesos: 0,
+    estadoSemaforo: 'rojo',
+    diasPqr: pqrInfo.remainingDays,
+    diasPqrLabel: pqrInfo.label,
+  };
+}
+
+export async function parseMercurioFile(
+  file: File,
+  onProgress?: (info: ParseProgressInfo) => void
+): Promise<EssaRecord[]> {
+  onProgress?.({
+    stage: 'Iniciando lectura de Archivo Mercurio...',
+    progress: 5,
+    loadedBytes: 0,
+    totalBytes: file.size,
+  });
+
+  const buffer = await blobToArrayBuffer(file, onProgress);
+
+  onProgress?.({
+    stage: 'Decodificando estructura XLSX (Mercurio)...',
+    progress: 45,
+    loadedBytes: file.size,
+    totalBytes: file.size,
+  });
+
+  await new Promise((r) => setTimeout(r, 0));
+
+  const wb = XLSX.read(buffer, { type: 'array' });
+  const wsname = wb.SheetNames[0];
+  if (!wsname) {
+    onProgress?.({ stage: 'Archivo sin hojas válidas', progress: 100 });
+    return [];
+  }
+  const ws = wb.Sheets[wsname];
+  if (!ws) {
+    onProgress?.({ stage: 'Hoja vacía', progress: 100 });
+    return [];
+  }
+
+  onProgress?.({
+    stage: 'Filtrando por Fecha Radicación y extrayendo 7 columnas...',
+    progress: 55,
+    loadedBytes: file.size,
+    totalBytes: file.size,
+  });
+
+  const rawRows = XLSX.utils.sheet_to_json<RawExcelRow>(ws);
+  if (!rawRows || rawRows.length === 0) {
+    onProgress?.({ stage: 'Sin registros detectados', progress: 100 });
+    return [];
+  }
+
+  const validRows = rawRows.filter(isValidRow);
+  const total = validRows.length;
+  const records: EssaRecord[] = [];
+  const batchSize = Math.max(25, Math.floor(total / 15));
+
+  for (let i = 0; i < total; i++) {
+    const item = validRows[i];
+    if (item) {
+      const rec = buildMercurioRecord(item, records.length);
+      if (rec) {
+        records.push(rec);
+      }
+    }
+
+    if (i % batchSize === 0 || i === total - 1) {
+      const pct = 55 + Math.round(((i + 1) / total) * 40);
+      onProgress?.({
+        stage: `Procesando Mercurio: ${i + 1} de ${total} (Válidos: ${records.length})`,
+        progress: Math.min(96, pct),
+        loadedBytes: file.size,
+        totalBytes: file.size,
+        processedRows: records.length,
+        totalRows: total,
+      });
+
+      if (total > 500 && i % (batchSize * 3) === 0) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    }
+  }
+
+  onProgress?.({
+    stage: 'Procesamiento Mercurio completado',
     progress: 100,
     loadedBytes: file.size,
     totalBytes: file.size,

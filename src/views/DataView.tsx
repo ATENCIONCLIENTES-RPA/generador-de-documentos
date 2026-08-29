@@ -18,9 +18,12 @@ const SEARCHABLE_FIELDS: (keyof EssaRecord)[] = [
   'cuenta',
   'radicadoEntrada',
   'numeroProceso',
+  'tipoProceso',
+  'descripcionTipoProceso',
+  'usuarioResponsableInsumo',
+  'responsableInsumo',
   'cedulaSolicitante',
   'correoSolicitante',
-  'procesoCreado',
   'observacionProceso',
   'observacionRevision',
   'diasPqrLabel',
@@ -131,6 +134,7 @@ export function DataView() {
           const rawDate =
             r.fechaSolicitud ||
             (r as Record<string, unknown>)['Fecha Radicación'] ||
+            (r as Record<string, unknown>)['Fecha  Radicacion'] ||
             (r as Record<string, unknown>)['FECHA_RADICACION'];
           const rDate = parseDateOnly(rawDate);
           return rDate ? rDate.getTime() >= dDesde.getTime() : false;
@@ -145,6 +149,7 @@ export function DataView() {
           const rawDate =
             r.fechaSolicitud ||
             (r as Record<string, unknown>)['Fecha Radicación'] ||
+            (r as Record<string, unknown>)['Fecha  Radicacion'] ||
             (r as Record<string, unknown>)['FECHA_RADICACION'];
           const rDate = parseDateOnly(rawDate);
           return rDate ? rDate.getTime() <= dHasta.getTime() : false;
@@ -152,47 +157,20 @@ export function DataView() {
       }
     }
 
-    // Filtro Proceso Creado ('todos' | 'si' | 'no')
-    if (filterState.procesoCreado && filterState.procesoCreado !== 'todos') {
-      if (filterState.procesoCreado === 'si') {
-        out = out.filter(
-          (r) =>
-            r.procesoCreado === 'Sí' ||
-            r.creadoEnSac === 'Sí' ||
-            (r.numeroProceso &&
-              String(r.numeroProceso).trim() !== '' &&
-              String(r.numeroProceso).trim() !== '—')
-        );
-      } else if (filterState.procesoCreado === 'no') {
-        out = out.filter(
-          (r) =>
-            r.procesoCreado === 'No' ||
-            r.creadoEnSac === 'No' ||
-            !r.numeroProceso ||
-            String(r.numeroProceso).trim() === '' ||
-            String(r.numeroProceso).trim() === '—'
-        );
-      }
-    }
-
-    // Filtro Estado Semáforo ('todos' | 'verde' | 'violeta' | 'rojo')
+    // Filtro Estado Semáforo ('todos' | 'verde' | 'violeta' | 'rojo' | 'tiene_insumos' | 'no_tiene_insumos')
     if (filterState.estadoSemaforo && filterState.estadoSemaforo !== 'todos') {
       out = out.filter((r) => {
+        const resp = String(r.usuarioResponsableInsumo || (r as Record<string, unknown>)['USUARIO_RESPONSABLE_INSUMO'] || '').trim();
+        const hasInsumo = resp !== '' && resp !== '—' && resp.toLowerCase() !== 'null' && resp.toLowerCase() !== 'undefined';
         const sem = r.estadoSemaforo || getEstadoSemaforo(r.numeroProceso, r.observacionRevision);
-        return sem === filterState.estadoSemaforo;
-      });
-    }
 
-    // Filtro Cantidad de Procesos ('todos' | '0' | '1' | '2+')
-    if (filterState.cantProcesos && filterState.cantProcesos !== 'todos') {
-      out = out.filter((r) => {
-        const cant =
-          r.cantidadProcesos ??
-          (r.numeroProceso && String(r.numeroProceso).trim() !== '' ? 1 : 0);
-        if (filterState.cantProcesos === '0') return cant === 0;
-        if (filterState.cantProcesos === '1') return cant === 1;
-        if (filterState.cantProcesos === '2+') return cant >= 2;
-        return true;
+        if (filterState.estadoSemaforo === 'tiene_insumos') {
+          return hasInsumo;
+        }
+        if (filterState.estadoSemaforo === 'no_tiene_insumos') {
+          return !hasInsumo;
+        }
+        return sem === filterState.estadoSemaforo;
       });
     }
 
@@ -203,7 +181,7 @@ export function DataView() {
           r.diasPqr !== undefined
             ? { remainingDays: r.diasPqr }
             : calculatePqrBusinessDays(
-                r.fechaSolicitud || (r as Record<string, unknown>)['Fecha Radicación']
+                r.fechaSolicitud || (r as Record<string, unknown>)['Fecha Radicación'] || (r as Record<string, unknown>)['Fecha  Radicacion']
               );
         const rem = pqr.remainingDays;
         if (filterState.diasPqrFiltro === 'menor5') return rem < 5;
@@ -227,9 +205,7 @@ export function DataView() {
     filterState.fechaSolicitud,
     filterState.fechaDesde,
     filterState.fechaHasta,
-    filterState.procesoCreado,
     filterState.estadoSemaforo,
-    filterState.cantProcesos,
     filterState.diasPqrFiltro,
     showOnlySelected,
     selectedRows,
@@ -264,9 +240,7 @@ export function DataView() {
     filterState.fechaSolicitud.trim(),
     filterState.fechaDesde ? 'desde' : '',
     filterState.fechaHasta ? 'hasta' : '',
-    filterState.procesoCreado && filterState.procesoCreado !== 'todos' ? 'procesoCreado' : '',
     filterState.estadoSemaforo && filterState.estadoSemaforo !== 'todos' ? 'estadoSemaforo' : '',
-    filterState.cantProcesos && filterState.cantProcesos !== 'todos' ? 'cantProcesos' : '',
     filterState.diasPqrFiltro && filterState.diasPqrFiltro !== 'todos' ? 'diasPqrFiltro' : '',
   ].filter(Boolean).length;
 
@@ -282,9 +256,7 @@ export function DataView() {
       fechaSolicitud: '',
       fechaDesde: '',
       fechaHasta: '',
-      procesoCreado: 'todos',
       estadoSemaforo: 'todos',
-      cantProcesos: 'todos',
       diasPqrFiltro: 'todos',
     });
     setShowOnlySelected(false);
@@ -395,14 +367,16 @@ export function DataView() {
         .dv-semaforo--verde .dv-semaforo-dot { background:#16a34a; box-shadow:0 0 6px rgba(22, 163, 74, 0.4); }
         .dv-semaforo--violeta { background:#f3e8ff; color:#7e22ce; border-color:#d8b4fe; }
         .dv-semaforo--violeta .dv-semaforo-dot { background:#9333ea; box-shadow:0 0 6px rgba(147, 51, 234, 0.4); }
+        .dv-semaforo--azul { background:#e0f2fe; color:#0369a1; border-color:#7dd3fc; }
+        .dv-semaforo--azul .dv-semaforo-dot { background:#0284c7; box-shadow:0 0 6px rgba(2, 132, 199, 0.4); }
+        .dv-semaforo--naranja { background:#ffedd5; color:#c2410c; border-color:#fed7aa; }
+        .dv-semaforo--naranja .dv-semaforo-dot { background:#ea580c; box-shadow:0 0 6px rgba(234, 88, 12, 0.4); }
         .dv-semaforo--rojo { background:#fee2e2; color:#b91c1c; border-color:#fca5a5; }
         .dv-semaforo--rojo .dv-semaforo-dot { background:#dc2626; box-shadow:0 0 6px rgba(220, 38, 38, 0.4); }
 
-        /* badges */
-        .dv-badge-si { display:inline-flex; align-items:center; justify-content:center; background:#dcfce7; color:#15803d; border:1px solid #86efac; font-weight:800; font-size:0.74rem; padding:2px 10px; border-radius:999px; }
-        .dv-badge-no { display:inline-flex; align-items:center; justify-content:center; background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; font-weight:700; font-size:0.74rem; padding:2px 10px; border-radius:999px; }
-        .dv-badge-cant { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:24px; padding:0 6px; border-radius:999px; background:#eff6ff; color:#004B93; border:1px solid #bfdbfe; font-weight:800; font-size:0.75rem; }
+        .dv-tooltip-cell { cursor: help; border-bottom: 1px dotted #94a3b8; }
 
+        /* badges */
         .dv-badge-pqr { display:inline-flex; align-items:center; gap:4px; font-size:0.74rem; font-weight:700; padding:3px 9px; border-radius:999px; border:1px solid; white-space:nowrap; }
         .dv-badge-pqr--ok { background:#f0fdf4; color:#166534; border-color:#bbf7d0; }
         .dv-badge-pqr--urgente { background:#fffbeb; color:#b45309; border-color:#fde68a; font-weight:800; }
@@ -494,7 +468,7 @@ export function DataView() {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: '2 1 280px', minWidth: 220 }}>
             <Input
-              placeholder="Buscar por nombre, cuenta, radicado, proceso, cédula, correo…"
+              placeholder="Buscar por nombre, cuenta, radicado, proceso, tipo proceso, responsable…"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               aria-label="Buscar"
@@ -580,25 +554,7 @@ export function DataView() {
             />
           </div>
 
-          {/* Proceso creado */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--neutral-600)' }}>
-              Proceso creado:
-            </label>
-            <select
-              className="dv-select"
-              value={filterState.procesoCreado || 'todos'}
-              onChange={(e) => setFilter({ procesoCreado: e.target.value })}
-              aria-label="Filtro Proceso Creado"
-              data-testid="dv-filter-proceso-creado"
-            >
-              <option value="todos">Todos</option>
-              <option value="si">Creado (Sí)</option>
-              <option value="no">Sin crear (No)</option>
-            </select>
-          </div>
-
-          {/* Estado (Semáforo) */}
+          {/* Estado */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--neutral-600)' }}>
               Estado:
@@ -611,28 +567,11 @@ export function DataView() {
               data-testid="dv-filter-estado-semaforo"
             >
               <option value="todos">Todos</option>
-              <option value="verde">🟢 Verde (Completo)</option>
-              <option value="violeta">🟣 Violeta (En revisión)</option>
-              <option value="rojo">🔴 Rojo (Sin proceso)</option>
-            </select>
-          </div>
-
-          {/* Cant. Procesos */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--neutral-600)' }}>
-              Cant. Procesos:
-            </label>
-            <select
-              className="dv-select"
-              value={filterState.cantProcesos || 'todos'}
-              onChange={(e) => setFilter({ cantProcesos: e.target.value })}
-              aria-label="Filtro Cantidad Procesos"
-              data-testid="dv-filter-cant-procesos"
-            >
-              <option value="todos">Todas</option>
-              <option value="0">0 procesos</option>
-              <option value="1">1 proceso</option>
-              <option value="2+">2 o más procesos</option>
+              <option value="verde">🟢 Completo</option>
+              <option value="violeta">🟣 Tiene revisión</option>
+              <option value="tiene_insumos">🔵 Tiene Insumos</option>
+              <option value="no_tiene_insumos">🟠 No tiene insumos</option>
+              <option value="rojo">🔴 Sin proceso</option>
             </select>
           </div>
 
@@ -731,26 +670,21 @@ export function DataView() {
                 </button>
               </span>
             )}
-            {filterState.procesoCreado && filterState.procesoCreado !== 'todos' && (
-              <span className="dv-tag" data-testid="dv-tag-proceso-creado">
-                Creado en SAC: {filterState.procesoCreado === 'si' ? 'Sí' : 'No'}{' '}
-                <button onClick={() => setFilter({ procesoCreado: 'todos' })} aria-label="Quitar filtro creado">
-                  ×
-                </button>
-              </span>
-            )}
             {filterState.estadoSemaforo && filterState.estadoSemaforo !== 'todos' && (
               <span className="dv-tag" data-testid="dv-tag-estado-semaforo">
-                Estado: {filterState.estadoSemaforo}{' '}
+                Estado:{' '}
+                {filterState.estadoSemaforo === 'verde'
+                  ? 'Completo'
+                  : filterState.estadoSemaforo === 'violeta'
+                    ? 'Tiene revisión'
+                    : filterState.estadoSemaforo === 'tiene_insumos'
+                      ? 'Tiene Insumos'
+                      : filterState.estadoSemaforo === 'no_tiene_insumos'
+                        ? 'No tiene insumos'
+                        : filterState.estadoSemaforo === 'rojo'
+                          ? 'Sin proceso'
+                          : filterState.estadoSemaforo}{' '}
                 <button onClick={() => setFilter({ estadoSemaforo: 'todos' })} aria-label="Quitar filtro estado">
-                  ×
-                </button>
-              </span>
-            )}
-            {filterState.cantProcesos && filterState.cantProcesos !== 'todos' && (
-              <span className="dv-tag" data-testid="dv-tag-cant-procesos">
-                Procesos: {filterState.cantProcesos}{' '}
-                <button onClick={() => setFilter({ cantProcesos: 'todos' })} aria-label="Quitar filtro cant procesos">
                   ×
                 </button>
               </span>
@@ -807,11 +741,11 @@ export function DataView() {
                   />
                 </th>
                 <th>Estado</th>
-                <th>Proceso creado</th>
-                <th style={{ textAlign: 'center' }}>Cant. procesos</th>
+                <th>TIPO PROCESO</th>
+                <th>RESPONSABLE DEL INSUMO</th>
                 <th>Días PQR</th>
                 <th>Cuenta</th>
-                <th>Nombre</th>
+                <th>NOMBRE SOLICITANTE</th>
                 <th>Radicado</th>
                 <th>Proceso</th>
                 <th>Fecha</th>
@@ -844,12 +778,14 @@ export function DataView() {
                       : calculatePqrBusinessDays(
                           r.fechaSolicitud ||
                             (r as Record<string, unknown>)['Fecha Radicación'] ||
+                            (r as Record<string, unknown>)['Fecha  Radicacion'] ||
                             (r as Record<string, unknown>)['FECHA_RADICACION']
                         );
 
-                  const creadoLabel = r.procesoCreado || r.creadoEnSac || (r.numeroProceso ? 'Sí' : 'No');
-                  const isCreado = creadoLabel === 'Sí';
-                  const cantProcesos = r.cantidadProcesos ?? (r.numeroProceso ? 1 : 0);
+                  const tipoProc = String(r.tipoProceso || (r as Record<string, unknown>)['PROCESO'] || '—');
+                  const descTipoProc = String(r.descripcionTipoProceso || (r as Record<string, unknown>)['DESCRIPCION_TIPO_PROCESO'] || '');
+                  const respInsumo = String(r.usuarioResponsableInsumo || r.responsableInsumo || (r as Record<string, unknown>)['USUARIO_RESPONSABLE_INSUMO'] || '—');
+                  const hasInsumo = respInsumo !== '—' && respInsumo.trim() !== '' && respInsumo.toLowerCase() !== 'null' && respInsumo.toLowerCase() !== 'undefined';
 
                   return (
                     <tr
@@ -888,42 +824,61 @@ export function DataView() {
                           <span
                             className="dv-semaforo dv-semaforo--violeta"
                             data-testid={`dv-semaforo-${r.rowId}`}
-                            title="🟣 En revisión: Con número de proceso, sin observación de revisión"
+                            title="🟣 Tiene revisión: Con número de proceso, sin observación de revisión"
                           >
                             <span className="dv-semaforo-dot" aria-hidden />
-                            En revisión
+                            Tiene revisión
                           </span>
                         )}
-                        {semaforo === 'rojo' && (
+                        {semaforo === 'rojo' && hasInsumo && (
+                          <span
+                            className="dv-semaforo dv-semaforo--azul"
+                            data-testid={`dv-semaforo-${r.rowId}`}
+                            title="🔵 Tiene Insumos: Con responsable de insumo asignado"
+                          >
+                            <span className="dv-semaforo-dot" aria-hidden />
+                            Tiene Insumos
+                          </span>
+                        )}
+                        {semaforo === 'rojo' && !hasInsumo && (
                           <span
                             className="dv-semaforo dv-semaforo--rojo"
                             data-testid={`dv-semaforo-${r.rowId}`}
-                            title="🔴 Sin proceso: No tiene número de proceso ni observación"
+                            title="🔴 No tiene insumos / Sin proceso"
                           >
                             <span className="dv-semaforo-dot" aria-hidden />
-                            Sin proceso
+                            No tiene insumos
                           </span>
                         )}
                       </td>
 
-                      {/* 2. Proceso creado */}
-                      <td>
-                        <span
-                          className={isCreado ? 'dv-badge-si' : 'dv-badge-no'}
-                          data-testid={`dv-creado-${r.rowId}`}
-                        >
-                          {creadoLabel}
-                        </span>
+                      {/* 2. TIPO PROCESO (con tooltip DESCRIPCION_TIPO_PROCESO) */}
+                      <td
+                        style={{
+                          maxWidth: 160,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={descTipoProc || undefined}
+                        data-testid={`dv-tipo-proceso-${r.rowId}`}
+                        className={descTipoProc ? 'dv-tooltip-cell' : ''}
+                      >
+                        {tipoProc}
                       </td>
 
-                      {/* 3. Cantidad de procesos */}
-                      <td style={{ textAlign: 'center' }}>
-                        <span
-                          className="dv-badge-cant"
-                          data-testid={`dv-cant-${r.rowId}`}
-                        >
-                          {cantProcesos}
-                        </span>
+                      {/* 3. RESPONSABLE DEL INSUMO */}
+                      <td
+                        style={{
+                          maxWidth: 160,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={respInsumo !== '—' ? respInsumo : undefined}
+                        data-testid={`dv-responsable-insumo-${r.rowId}`}
+                      >
+                        {respInsumo}
                       </td>
 
                       {/* 4. Días PQR */}
@@ -998,7 +953,8 @@ export function DataView() {
                             strokeLinejoin="round"
                             aria-hidden
                           >
-                            <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
                       </td>

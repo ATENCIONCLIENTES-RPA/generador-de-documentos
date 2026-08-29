@@ -21,7 +21,8 @@ export interface UseExcelParserReturn {
   parseWithProgress: (
     file: File,
     setState: (s: ExcelFileState | null) => void,
-    onRecords?: (records: EssaRecord[]) => void
+    onRecords?: (records: EssaRecord[]) => void,
+    parserFn?: (file: File, onProgress?: (info: ParseProgressInfo) => void) => Promise<EssaRecord[]>
   ) => Promise<EssaRecord[]>;
   reset: () => void;
 }
@@ -53,7 +54,8 @@ export function useExcelParser(options?: UseExcelParserOptions): UseExcelParserR
     async (
       file: File,
       setState: (s: ExcelFileState | null) => void,
-      onRecords?: (records: EssaRecord[]) => void
+      onRecords?: (records: EssaRecord[]) => void,
+      parserFn?: (file: File, onProgress?: (info: ParseProgressInfo) => void) => Promise<EssaRecord[]>
     ): Promise<EssaRecord[]> => {
       let currentProgress = 0;
       let targetProgress = 8;
@@ -119,7 +121,8 @@ export function useExcelParser(options?: UseExcelParserOptions): UseExcelParserR
       };
 
       try {
-        const records = await parseExcelFile(file, progressCallback);
+        const parser = parserFn || parseExcelFile;
+        const records = await parser(file, progressCallback);
 
         isDone = true;
         window.clearInterval(ticker);

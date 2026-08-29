@@ -11,9 +11,9 @@ export interface FilterState {
   fechaSolicitud: string;
   fechaDesde: string;
   fechaHasta: string;
-  procesoCreado: string; // 'todos' | 'si' | 'no'
-  estadoSemaforo: string; // 'todos' | 'verde' | 'violeta' | 'rojo'
-  cantProcesos: string; // 'todos' | '0' | '1' | '2+'
+  procesoCreado: string; // 'todos' | 'Sí' | 'No'
+  estadoSemaforo: string; // 'todos' | 'verde' | 'violeta' | 'rojo' | 'tiene_insumos' | 'no_tiene_insumos'
+  cantProcesos: string; // 'todos' | 'uno' | 'varios' | ...
   diasPqrFiltro: string; // 'todos' | 'menor5' | 'urgente' | 'vence_hoy' | 'vencido'
 }
 
@@ -77,7 +77,10 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
         r.radicadoEntrada,
         r.correoSolicitante,
         r.municipioSolicitante,
-        r.procesoCreado,
+        r.tipoProceso,
+        r.descripcionTipoProceso,
+        r.usuarioResponsableInsumo,
+        r.responsableInsumo,
         r.observacionProceso,
         r.observacionRevision,
         r.diasPqrLabel,
@@ -121,7 +124,7 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
     const dDesde = parseDateOnly(filter.fechaDesde);
     if (dDesde) {
       out = out.filter((r) => {
-        const rawDate = r.fechaSolicitud || (r as globalThis.Record<string, unknown>)['Fecha Radicación'] || (r as globalThis.Record<string, unknown>)['FECHA_RADICACION'];
+        const rawDate = r.fechaSolicitud || (r as globalThis.Record<string, unknown>)['Fecha Radicación'] || (r as globalThis.Record<string, unknown>)['Fecha  Radicacion'] || (r as globalThis.Record<string, unknown>)['FECHA_RADICACION'];
         const rDate = parseDateOnly(rawDate);
         return rDate ? rDate.getTime() >= dDesde.getTime() : false;
       });
@@ -132,50 +135,27 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
     const dHasta = parseDateOnly(filter.fechaHasta);
     if (dHasta) {
       out = out.filter((r) => {
-        const rawDate = r.fechaSolicitud || (r as globalThis.Record<string, unknown>)['Fecha Radicación'] || (r as globalThis.Record<string, unknown>)['FECHA_RADICACION'];
+        const rawDate = r.fechaSolicitud || (r as globalThis.Record<string, unknown>)['Fecha Radicación'] || (r as globalThis.Record<string, unknown>)['Fecha  Radicacion'] || (r as globalThis.Record<string, unknown>)['FECHA_RADICACION'];
         const rDate = parseDateOnly(rawDate);
         return rDate ? rDate.getTime() <= dHasta.getTime() : false;
       });
     }
   }
 
-  // Filtro Proceso Creado ('todos' | 'si' | 'no')
-  if (filter.procesoCreado && filter.procesoCreado !== 'todos') {
-    if (filter.procesoCreado === 'si') {
-      out = out.filter(
-        (r) =>
-          r.procesoCreado === 'Sí' ||
-          r.creadoEnSac === 'Sí' ||
-          (r.numeroProceso && String(r.numeroProceso).trim() !== '' && String(r.numeroProceso).trim() !== '—')
-      );
-    } else if (filter.procesoCreado === 'no') {
-      out = out.filter(
-        (r) =>
-          r.procesoCreado === 'No' ||
-          r.creadoEnSac === 'No' ||
-          !r.numeroProceso ||
-          String(r.numeroProceso).trim() === '' ||
-          String(r.numeroProceso).trim() === '—'
-      );
-    }
-  }
-
-  // Filtro Estado Semáforo ('todos' | 'verde' | 'violeta' | 'rojo')
+  // Filtro Estado Semáforo ('todos' | 'verde' | 'violeta' | 'rojo' | 'tiene_insumos' | 'no_tiene_insumos')
   if (filter.estadoSemaforo && filter.estadoSemaforo !== 'todos') {
     out = out.filter((r) => {
+      const resp = String(r.usuarioResponsableInsumo || (r as globalThis.Record<string, unknown>)['USUARIO_RESPONSABLE_INSUMO'] || '').trim();
+      const hasInsumo = resp !== '' && resp !== '—' && resp.toLowerCase() !== 'null' && resp.toLowerCase() !== 'undefined';
       const sem = r.estadoSemaforo || getEstadoSemaforo(r.numeroProceso, r.observacionRevision);
-      return sem === filter.estadoSemaforo;
-    });
-  }
 
-  // Filtro Cantidad de Procesos ('todos' | '0' | '1' | '2+')
-  if (filter.cantProcesos && filter.cantProcesos !== 'todos') {
-    out = out.filter((r) => {
-      const cant = r.cantidadProcesos ?? (r.numeroProceso && String(r.numeroProceso).trim() !== '' ? 1 : 0);
-      if (filter.cantProcesos === '0') return cant === 0;
-      if (filter.cantProcesos === '1') return cant === 1;
-      if (filter.cantProcesos === '2+') return cant >= 2;
-      return true;
+      if (filter.estadoSemaforo === 'tiene_insumos') {
+        return hasInsumo;
+      }
+      if (filter.estadoSemaforo === 'no_tiene_insumos') {
+        return !hasInsumo;
+      }
+      return sem === filter.estadoSemaforo;
     });
   }
 
@@ -185,7 +165,7 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
       const pqr =
         r.diasPqr !== undefined
           ? { remainingDays: r.diasPqr }
-          : calculatePqrBusinessDays(r.fechaSolicitud || (r as globalThis.Record<string, unknown>)['Fecha Radicación']);
+          : calculatePqrBusinessDays(r.fechaSolicitud || (r as globalThis.Record<string, unknown>)['Fecha Radicación'] || (r as globalThis.Record<string, unknown>)['Fecha  Radicacion']);
       const rem = pqr.remainingDays;
       if (filter.diasPqrFiltro === 'menor5') return rem < 5;
       if (filter.diasPqrFiltro === 'urgente') return rem <= 3 && rem >= 0;

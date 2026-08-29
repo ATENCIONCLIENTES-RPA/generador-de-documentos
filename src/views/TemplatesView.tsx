@@ -405,8 +405,6 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
             ) : (
               filteredTemplates.map((tpl: Template) => {
               const isActive = selectedTemplate?.id === tpl.id;
-              const catStyle = getCategoryStyle(tpl.category);
-              const varCount = tpl.variables?.length ?? 0;
               return (
                 <button
                   key={tpl.id}
@@ -414,40 +412,41 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
                   onClick={() => selectTemplate(tpl.id)}
                   data-testid={`tv-card-${tpl.id}`}
                   aria-pressed={isActive}
-                  aria-label={`Seleccionar plantilla ${tpl.title}`}
+                  aria-label={`Seleccionar plantilla ${tpl.title || tpl.fileName}`}
                   data-selected={isActive ? 'true' : 'false'}
                   style={{
                     textAlign: 'left',
-                    padding: '12px',
-                    borderRadius: 12,
+                    padding: '10px 12px',
+                    borderRadius: 10,
                     border: `2px solid ${isActive ? '#004B93' : 'var(--border)'}`,
                     background: isActive ? '#eff6ff' : '#fff',
                     cursor: 'pointer',
                     display: 'flex',
                     gap: 10,
-                    alignItems: 'flex-start',
+                    alignItems: 'center',
                     width: '100%',
+                    transition: 'all 150ms ease',
                   }}
                   className="tv-card"
                 >
                   <span
                     aria-hidden
                     style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 10,
-                      background: '#eff6ff',
-                      border: '1px solid #bfdbfe',
+                      width: 32,
+                      height: 32,
+                      borderRadius: 8,
+                      background: isActive ? '#dbeafe' : '#f1f5f9',
+                      border: `1px solid ${isActive ? '#bfdbfe' : '#e2e8f0'}`,
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
-                      color: '#004B93',
+                      color: isActive ? '#004B93' : '#64748b',
                     }}
                   >
                     <svg
-                      width="18"
-                      height="18"
+                      width="16"
+                      height="16"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -459,117 +458,26 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
                   </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        marginBottom: 4,
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          fontSize: '0.62rem',
-                          fontWeight: 800,
-                          letterSpacing: '0.06em',
-                          textTransform: 'uppercase',
-                          padding: '2px 7px',
-                          borderRadius: 999,
-                          background: catStyle.bg,
-                          color: catStyle.color,
-                          border: `1px solid ${catStyle.border}`,
-                        }}
-                        data-testid={`tv-category-${tpl.id}`}
-                      >
-                        {tpl.category ?? 'General'}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          color: 'var(--neutral-500)',
-                          background: '#f8fafc',
-                          border: '1px solid var(--border)',
-                          borderRadius: 999,
-                          padding: '2px 7px',
-                        }}
-                        data-testid={`tv-varcount-${tpl.id}`}
-                      >
-                        {varCount} var
-                      </span>
-                    </span>
-                    <span
-                      style={{
-                        display: 'block',
-                        fontSize: '0.84rem',
-                        fontWeight: 800,
-                        color: 'var(--neutral-800)',
-                        lineHeight: 1.25,
-                        marginBottom: 4,
-                      }}
-                      data-testid={`tv-title-${tpl.id}`}
-                    >
-                      {tpl.title}
-                    </span>
-                    {tpl.description && (
-                      <span
-                        style={{
-                          display: 'block',
-                          fontSize: '0.74rem',
-                          color: 'var(--neutral-500)',
-                          lineHeight: 1.35,
-                          marginBottom: 4,
-                        }}
-                        className="tv-desc"
-                        data-testid={`tv-desc-${tpl.id}`}
-                      >
-                        {tpl.description}
-                      </span>
-                    )}
-                    <span
-                      style={{
-                        display: 'block',
-                        fontSize: '0.66rem',
-                        color: '#94a3b8',
-                        fontFamily: 'var(--font-mono, ui-monospace)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                      title={tpl.fileName}
-                    >
-                      {tpl.fileName}
-                    </span>
-                    {tpl.sampleContent && (
-                      <span
-                        style={{
-                          display: 'block',
-                          fontSize: '0.7rem',
-                          color: 'var(--neutral-600)',
-                          background: '#f8fafc',
-                          border: '1px solid #f1f5f9',
-                          borderRadius: 8,
-                          padding: '6px 8px',
-                          marginTop: 6,
-                          lineHeight: 1.4,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                        title={tpl.sampleContent.slice(0, 300)}
-                        data-testid={`tv-sample-${tpl.id}`}
-                      >
-                        {tpl.sampleContent.slice(0, 120)}
-                        {tpl.sampleContent.length > 120 ? '…' : ''}
-                      </span>
-                    )}
+                  <span
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      fontSize: '0.85rem',
+                      fontWeight: isActive ? 800 : 600,
+                      color: isActive ? '#004B93' : 'var(--neutral-800)',
+                      lineHeight: 1.3,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={tpl.title || tpl.fileName}
+                    data-testid={`tv-title-${tpl.id}`}
+                  >
+                    {tpl.title || tpl.fileName}
                   </span>
                   {isActive && (
                     <span
-                      style={{ color: '#004B93', flexShrink: 0, marginTop: 2 }}
+                      style={{ color: '#004B93', flexShrink: 0 }}
                       aria-hidden
                       data-testid={`tv-check-${tpl.id}`}
                     >

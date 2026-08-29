@@ -82,7 +82,7 @@ describe('TemplatesView — M4 preview fixes', () => {
     expect(screen.getByText(/Cargando plantillas/)).toBeInTheDocument();
   });
 
-  it('renderiza lista de plantillas con título, categoría, variable count y sampleContent preview', () => {
+  it('renderiza lista de plantillas mostrando únicamente el nombre de la plantilla', () => {
     const t1 = makeTemplate({
       id: 'tpl-1',
       title: 'Bloqueo de Cuenta',
@@ -101,15 +101,9 @@ describe('TemplatesView — M4 preview fixes', () => {
 
     expect(screen.getByTestId('tv-list')).toBeInTheDocument();
     expect(screen.getByTestId('tv-count')).toHaveTextContent(/2 plantillas/);
-    // title
+    // Solo título / nombre
     expect(screen.getByTestId('tv-title-tpl-1')).toHaveTextContent('Bloqueo de Cuenta');
     expect(screen.getByTestId('tv-title-tpl-2')).toHaveTextContent('Contrato ESSA');
-    // category
-    expect(screen.getByTestId('tv-category-tpl-1')).toHaveTextContent('Cartas');
-    expect(screen.getByTestId('tv-varcount-tpl-1')).toHaveTextContent('2 var');
-    expect(screen.getByTestId('tv-varcount-tpl-2')).toHaveTextContent('1 var');
-    // sample preview truncated
-    expect(screen.getByTestId('tv-sample-tpl-1')).toBeInTheDocument();
     // cards present
     expect(screen.getByTestId('tv-card-tpl-1')).toBeInTheDocument();
     expect(screen.getByTestId('tv-card-tpl-2')).toBeInTheDocument();
