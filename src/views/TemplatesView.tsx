@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import * as docxPreview from 'docx-preview';
 import { useTemplateStore } from '@/store/templateStore';
 import { useDataStore } from '@/store/dataStore';
 import { useNavigationStore } from '@/store/navigationStore';
@@ -76,6 +77,7 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
   }, [selectedRecords]);
 
   const [templateSearch, setTemplateSearch] = useState('');
+  const [docxRenderFailed, setDocxRenderFailed] = useState(false);
 
   const filteredTemplates = useMemo(() => {
     if (!templateSearch.trim()) return templates;
@@ -100,29 +102,24 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
     const container = previewContainerRef.current;
     if (!container) return;
 
-    // clear previous
+    setDocxRenderFailed(false);
     container.innerHTML = '';
 
     if (!selectedTemplate) return;
 
-    // If template has File (docx), try docx-preview
     if (selectedTemplate.file) {
       const file = selectedTemplate.file;
       const render = async () => {
         try {
-          // dynamic import to keep bundle/test mock friendly
-          const mod = await import('docx-preview');
           const renderAsync: (buffer: ArrayBuffer, el: HTMLElement) => Promise<void> =
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (mod as any).renderAsync ?? (mod as any).default?.renderAsync ?? (mod as any).default;
+            (docxPreview as any).renderAsync;
           if (!renderAsync) throw new Error('docx-preview renderAsync not found');
           const buf: ArrayBuffer = await (file as unknown as Blob).arrayBuffer();
           if (cancelled || !previewContainerRef.current) return;
-          // clear again before render
-          previewContainerRef.current!.innerHTML = '';
-          await renderAsync(buf, previewContainerRef.current!);
-          // remove any toolbar/header that docx-preview might inject (ensure clean)
-          // docx-preview does not inject gray toolbar by default, but guard: strip elements with gray bg if any
+          previewContainerRef.current.innerHTML = '';
+          await renderAsync(buf, previewContainerRef.current);
+
           if (cancelled || !previewContainerRef.current) return;
           const maybeToolbar = previewContainerRef.current.querySelectorAll(
             '[class*="toolbar"], [class*="header"]'
@@ -134,21 +131,18 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
               (el as HTMLElement).remove();
             }
           });
+          setDocxRenderFailed(false);
         } catch (err) {
           console.error('docx-preview render failed, fallback to sampleContent', err);
-          if (!cancelled && previewContainerRef.current) {
-            previewContainerRef.current.innerHTML = '';
-            // fallback will be rendered via fallbackRef content below
-            if (fallbackRef.current) {
-              fallbackRef.current.style.display = 'block';
+          if (!cancelled) {
+            setDocxRenderFailed(true);
+            if (previewContainerRef.current) {
+              previewContainerRef.current.innerHTML = '';
             }
           }
         }
       };
       void render();
-    } else {
-      // no file -> ensure fallback visible
-      if (fallbackRef.current) fallbackRef.current.style.display = 'block';
     }
 
     return () => {
@@ -171,7 +165,7 @@ export function TemplatesView({ loading = false }: TemplatesViewProps) {
     return raw;
   }, [selectedTemplate, previewRecord]);
 
-  const showFallback = !selectedTemplate?.file;
+  const showFallback = !selectedTemplate?.file || docxRenderFailed;
 
   if (loading) {
     return (

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import * as docxPreview from 'docx-preview';
 import { useGeneration } from '@/hooks/useGeneration';
 import { GenerationStageIndicator } from '@/components/features/GenerationStageIndicator';
 import { useDataStore } from '@/store/dataStore';
@@ -83,6 +84,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [docxRenderFailed, setDocxRenderFailed] = useState(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const docxContainerRef = useRef<HTMLDivElement>(null);
@@ -244,10 +246,9 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           });
         }
         if (cancelled || !docxContainerRef.current) return;
-        const mod = await import('docx-preview');
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const renderAsync: (buf: ArrayBuffer, el: HTMLElement) => Promise<void> =
-          (mod as any).renderAsync ?? (mod as any).default?.renderAsync ?? (mod as any).default;
+          (docxPreview as any).renderAsync;
         if (!renderAsync) throw new Error('renderAsync not found');
         docxContainerRef.current.innerHTML = '';
         await renderAsync(buf, docxContainerRef.current);
@@ -741,7 +742,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
                   }}
                 />
                 {/* fallback text if no file */}
-                {!selectedTemplate?.file && (
+                {(!selectedTemplate?.file || docxRenderFailed) && (
                   <div
                     style={{
                       background: '#ffffff',

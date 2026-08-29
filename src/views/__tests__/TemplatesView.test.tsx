@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import TemplatesView from '@/views/TemplatesView';
 import { useTemplateStore } from '@/store/templateStore';
 import { useDataStore } from '@/store/dataStore';
@@ -80,6 +80,34 @@ describe('TemplatesView — M4 preview fixes', () => {
     render(<TemplatesView loading />);
     expect(screen.getByTestId('tv-loading')).toBeInTheDocument();
     expect(screen.getByText(/Cargando plantillas/)).toBeInTheDocument();
+  });
+
+  it('muestra contenido alternativo cuando docx-preview falla en producción', async () => {
+    const t1 = makeTemplate({
+      id: 'tpl-preview-fallback',
+      title: 'Plantilla con falla de render',
+      file: new File(['docx'], 'plantilla.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+      sampleContent: 'Estimado [NOMBRE_SOLICITANTE] radicado [RADICADO_ENTRADA]',
+    });
+    const rec = makeRecord({ rowId: 'row_fallback', nombreSolicitante: 'Laura Gómez', radicadoEntrada: 'RAD-777' });
+
+    useTemplateStore.setState({ templates: [t1], selectedTemplate: t1 });
+    useDataStore.setState({
+      records: [rec] as unknown as EssaRecord[],
+      selectedRows: new Set(['row_fallback']),
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
+      currentPage: 1,
+      pageSize: 10,
+      editingRecord: null,
+    });
+
+    const { renderAsync } = await import('docx-preview');
+    vi.mocked(renderAsync).mockRejectedValueOnce(new Error('preview fail'));
+
+    render(<TemplatesView />);
+
+    await waitFor(() => expect(screen.getByTestId('tv-fallback-content')).toHaveTextContent('Laura Gómez'));
+    expect(screen.getByTestId('tv-fallback-content')).toHaveTextContent('RAD-777');
   });
 
   it('renderiza lista de plantillas mostrando únicamente el nombre de la plantilla', () => {
