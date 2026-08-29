@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { useDataStore } from '@/store/dataStore';
 import { useNavigationStore } from '@/store/navigationStore';
 import { useDebouncedSearch } from '@/hooks/useDebouncedSearch';
@@ -32,6 +33,51 @@ const SEARCHABLE_FIELDS: (keyof EssaRecord)[] = [
 function formatCount(n: number): string {
   // es-CO style with dot as thousand separator
   return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function getStateOrder(record: EssaRecord): number {
+  const semaforo = record.estadoSemaforo || getEstadoSemaforo(record.numeroProceso, record.observacionRevision);
+  const respInsumo = String(record.usuarioResponsableInsumo || record.responsableInsumo || '').trim();
+  const hasInsumo = respInsumo !== '—' && respInsumo !== '' && respInsumo.toLowerCase() !== 'null' && respInsumo.toLowerCase() !== 'undefined';
+
+  // Order: Completado (0) → Tiene revisión (1) → Tiene insumos (2) → No tiene insumos (3) → Sin proceso (4)
+  if (semaforo === 'verde') return 0;
+  if (semaforo === 'violeta') return 1;
+  if (semaforo === 'rojo') {
+    if (hasInsumo) return 2;
+    return 3;
+  }
+  return 4;
+}
+
+function exportToExcel(records: EssaRecord[]): void {
+  const exportData = records.map((record) => ({
+    'Nombre Solicitante': String(record.nombreSolicitante ?? ''),
+    'Fecha solicitud': String(record.fechaSolicitud ?? ''),
+    'Fecha vencimiento': String(record.fechaVencimiento ?? ''),
+    Cuenta: String((record.numeroCuenta || record.cuenta) ?? ''),
+    Radicado: String(record.radicadoEntrada ?? ''),
+    Proceso: String(record.tipoProceso ?? ''),
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(exportData);
+  
+  // Set column widths for better readability
+  worksheet['!cols'] = [
+    { wch: 30 }, // Nombre Solicitante
+    { wch: 15 }, // Fecha solicitud
+    { wch: 15 }, // Fecha vencimiento
+    { wch: 15 }, // Cuenta
+    { wch: 15 }, // Radicado
+    { wch: 20 }, // Proceso
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Datos');
+
+  const now = new Date();
+  const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+  XLSX.writeFile(workbook, `exportacion_datos_${timestamp}.xlsx`);
 }
 
 export function DataView() {
@@ -195,6 +241,10 @@ export function DataView() {
     if (showOnlySelected) {
       out = out.filter((r) => selectedRows.has(r.rowId));
     }
+    
+    // Sort by state order: Completado → Tiene revisión → Tiene insumos → No tiene insumos → Sin proceso
+    out.sort((a, b) => getStateOrder(a) - getStateOrder(b));
+    
     return out;
   }, [
     records,
@@ -435,6 +485,37 @@ export function DataView() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => exportToExcel(filteredRecords)}
+            data-testid="dv-export-excel"
+            title={activeFilterCount > 0 ? 'Exportar registros filtrados a Excel' : 'Exportar todos los registros a Excel'}
+            style={{
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              borderColor: '#059669',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Exportar Excel
+          </Button>
           <Button
             variant={showOnlySelected ? 'primary' : 'ghost'}
             size="sm"
@@ -741,14 +822,14 @@ export function DataView() {
                   />
                 </th>
                 <th>Estado</th>
+                <th>Fecha Solicitud</th>
                 <th>TIPO PROCESO</th>
-                <th>RESPONSABLE DEL INSUMO</th>
                 <th>Días PQR</th>
                 <th>Cuenta</th>
                 <th>NOMBRE SOLICITANTE</th>
                 <th>Radicado</th>
                 <th>Proceso</th>
-                <th>Fecha</th>
+                <th>RESPONSABLE DEL INSUMO</th>
                 <th style={{ width: 90, textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
@@ -852,7 +933,12 @@ export function DataView() {
                         )}
                       </td>
 
-                      {/* 2. TIPO PROCESO (con tooltip DESCRIPCION_TIPO_PROCESO) */}
+                      {/* 2. Fecha Solicitud */}
+                      <td style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+                        {String(r.fechaSolicitud ?? '—')}
+                      </td>
+
+                      {/* 3. TIPO PROCESO (con tooltip DESCRIPCION_TIPO_PROCESO) */}
                       <td
                         style={{
                           maxWidth: 160,
@@ -865,20 +951,6 @@ export function DataView() {
                         className={descTipoProc ? 'dv-tooltip-cell' : ''}
                       >
                         {tipoProc}
-                      </td>
-
-                      {/* 3. RESPONSABLE DEL INSUMO */}
-                      <td
-                        style={{
-                          maxWidth: 160,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                        title={respInsumo !== '—' ? respInsumo : undefined}
-                        data-testid={`dv-responsable-insumo-${r.rowId}`}
-                      >
-                        {respInsumo}
                       </td>
 
                       {/* 4. Días PQR */}
@@ -898,6 +970,7 @@ export function DataView() {
                         </span>
                       </td>
 
+                      {/* 5. Cuenta */}
                       <td
                         style={{
                           fontFamily: 'var(--font-mono)',
@@ -907,6 +980,8 @@ export function DataView() {
                       >
                         {String(r.numeroCuenta ?? r.cuenta ?? '—')}
                       </td>
+
+                      {/* 6. NOMBRE SOLICITANTE */}
                       <td
                         style={{
                           maxWidth: 180,
@@ -918,11 +993,28 @@ export function DataView() {
                       >
                         {String(r.nombreSolicitante ?? '—')}
                       </td>
+
+                      {/* 7. Radicado */}
                       <td style={{ fontSize: '0.78rem' }}>{String(r.radicadoEntrada ?? '—')}</td>
+
+                      {/* 8. Proceso */}
                       <td style={{ fontSize: '0.78rem' }}>{String(r.numeroProceso ?? '—')}</td>
-                      <td style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
-                        {String(r.fechaSolicitud ?? '—')}
+
+                      {/* 9. RESPONSABLE DEL INSUMO */}
+                      <td
+                        style={{
+                          maxWidth: 160,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={respInsumo !== '—' ? respInsumo : undefined}
+                        data-testid={`dv-responsable-insumo-${r.rowId}`}
+                      >
+                        {respInsumo}
                       </td>
+
+                      {/* 10. Acciones */}
                       <td style={{ textAlign: 'center' }}>
                         <button
                           onClick={() => openEdit(r)}

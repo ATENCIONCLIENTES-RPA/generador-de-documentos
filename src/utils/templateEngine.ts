@@ -3,6 +3,7 @@ import { TemplateHandler, MimeType } from 'easy-template-x';
 import type { Record as EssaRecord } from '@/types/record';
 import type { Profile } from '@/types/profile';
 import { extractFirstName, formatApplicantName } from './nameParser';
+import { formatDateToSpanish } from './businessDays';
 
 // ---------------------------------------------------------------------------
 // XML helpers
@@ -31,13 +32,14 @@ export function buildTemplateData(record: EssaRecord, profile?: Profile | null):
   const primerNombre = extractFirstName(rawName) || '—';
   const nombreNormalizado = formatApplicantName(rawName) || '—';
   const cuenta = (record?.numeroCuenta as string) || (record?.cuenta as string) || '';
+  const fechaSolicitudEspanol = formatDateToSpanish(record?.fechaSolicitud) || (record?.fechaSolicitud as string) || '—';
 
   const data: TemplateData = {
     NOMBRE_SOLICITANTE: nombreNormalizado,
     PRIMER_NOMBRE: primerNombre,
     RADICADO_ENTRADA: (record?.radicadoEntrada as string) || '—',
     NUMERO_PROCESO: (record?.numeroProceso as string) || '—',
-    FECHA_SOLICITUD: (record?.fechaSolicitud as string) || '—',
+    FECHA_SOLICITUD: fechaSolicitudEspanol,
     NUMERO_CUENTA: cuenta || '—',
     CORREO_SOLICITANTE: (record?.correoSolicitante as string) || '—',
     DIRECCION_SOLICITANTE: (record?.direccionSolicitante as string) || '—',
@@ -100,13 +102,14 @@ export function replaceTemplateVariables(
   const primerNombre = extractFirstName(rawName);
   const nombreNormalizado = formatApplicantName(rawName);
   const cuenta = (record?.numeroCuenta as string) || (record?.cuenta as string) || '';
+  const fechaSolicitudEspanol = formatDateToSpanish(record?.fechaSolicitud) || (record?.fechaSolicitud as string) || '—';
 
   return content
     .replace(/\[NOMBRE_SOLICITANTE\]/g, nombreNormalizado || '—')
     .replace(/\[PRIMER_NOMBRE\]/g, primerNombre || '—')
     .replace(/\[RADICADO_ENTRADA\]/g, (record?.radicadoEntrada as string) || '—')
     .replace(/\[NUMERO_PROCESO\]/g, (record?.numeroProceso as string) || '—')
-    .replace(/\[FECHA_SOLICITUD\]/g, (record?.fechaSolicitud as string) || '—')
+    .replace(/\[FECHA_SOLICITUD\]/g, fechaSolicitudEspanol)
     .replace(/\[NUMERO_CUENTA\]/g, cuenta || '—')
     .replace(/\[CORREO_SOLICITANTE\]/g, (record?.correoSolicitante as string) || '—')
     .replace(/\[DIRECCION_SOLICITANTE\]/g, (record?.direccionSolicitante as string) || '—')

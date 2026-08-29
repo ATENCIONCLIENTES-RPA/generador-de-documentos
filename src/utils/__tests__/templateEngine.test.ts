@@ -206,6 +206,7 @@ describe('templateEngine', () => {
     expect(td['PRIMER_NOMBRE']).toBe('Juan');
     expect(td['NUMERO_CUENTA']).toBe('3001458921');
     expect(td['NOMBRE_FIRMANTE']).toBe(baseProfile.name);
+    expect(td['FECHA_SOLICITUD']).toBe('27 de agosto de 2026');
   });
 
   it('soporta generateDocx con TemplateData flat + opts signature', async () => {

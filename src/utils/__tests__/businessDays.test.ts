@@ -6,6 +6,7 @@ import {
   parseDateOnly,
   addBusinessDays,
   countBusinessDaysBetween,
+  formatDateToSpanish,
 } from '../businessDays';
 
 describe('businessDays utility (Colombia)', () => {
@@ -73,5 +74,20 @@ describe('businessDays utility (Colombia)', () => {
     expect(pqr.remainingDays).toBe(15);
     expect(pqr.label).toContain('15 días hábiles');
     expect(pqr.isExpired).toBe(false);
+  });
+
+  it('formatDateToSpanish convierte fechas al formato escrito en español', () => {
+    expect(formatDateToSpanish('27/08/2026')).toBe('27 de agosto de 2026');
+    expect(formatDateToSpanish('06/08/2026')).toBe('6 de agosto de 2026');
+    expect(formatDateToSpanish('2026-08-27')).toBe('27 de agosto de 2026');
+    expect(formatDateToSpanish('01/01/2026')).toBe('1 de enero de 2026');
+    expect(formatDateToSpanish('31/12/2026')).toBe('31 de diciembre de 2026');
+  });
+
+  it('formatDateToSpanish retorna cadena vacía para valores inválidos', () => {
+    expect(formatDateToSpanish('')).toBe('');
+    expect(formatDateToSpanish(null)).toBe('');
+    expect(formatDateToSpanish(undefined)).toBe('');
+    expect(formatDateToSpanish('invalid')).toBe('');
   });
 });

@@ -448,6 +448,14 @@ export function crossReferenceSacAndMercurio(
       merc.cedulaSolicitante ||
       '';
 
+    const fechaVencimiento =
+      (bestSac?.fechaVencimiento && bestSac.fechaVencimiento.trim() !== ''
+        ? bestSac.fechaVencimiento
+        : undefined) ||
+      (bestSac as Record<string, unknown> | undefined)?.['FECHA_VENCIMIENTO'] as string ||
+      merc.fechaVencimiento ||
+      '';
+
     const semaforo = getEstadoSemaforo(numeroProceso, observacionRevision);
     const pqrInfo = calculatePqrBusinessDays(
       merc.fechaSolicitud ||
@@ -461,6 +469,7 @@ export function crossReferenceSacAndMercurio(
       numeroProceso,
       observacionProceso,
       observacionRevision,
+      fechaVencimiento: String(fechaVencimiento ?? '').trim(),
       tipoProceso: String(tipoProceso ?? '').trim(),
       descripcionTipoProceso: String(descripcionTipoProceso ?? '').trim(),
       usuarioResponsableInsumo: String(usuarioResponsableInsumo ?? '').trim(),

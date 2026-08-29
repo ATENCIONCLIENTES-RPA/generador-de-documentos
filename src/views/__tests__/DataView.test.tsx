@@ -466,7 +466,7 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
 
     fireEvent.click(screen.getByTestId('dv-edit-row_test_modal'));
     expect(await screen.findByText('Descripción de la solicitud')).toBeInTheDocument();
-    expect(screen.getByText('Observaciones')).toBeInTheDocument();
+    expect(screen.getByText('Observacion del insumo')).toBeInTheDocument();
 
     const descTextarea = screen.getByTestId('rem-textarea-descripcion') as HTMLTextAreaElement;
     expect(descTextarea.value).toBe('el cliente solicita revision del medidor , no esta de acuerdo con el cobro .');

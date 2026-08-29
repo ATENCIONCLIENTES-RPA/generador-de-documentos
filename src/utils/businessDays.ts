@@ -221,3 +221,29 @@ export function calculatePqrBusinessDays(
     label,
   };
 }
+
+export function formatDateToSpanish(val: unknown): string {
+  const date = parseDateOnly(val);
+  if (!date || isNaN(date.getTime())) return '';
+
+  const monthNames = [
+    'enero',
+    'febrero',
+    'marzo',
+    'abril',
+    'mayo',
+    'junio',
+    'julio',
+    'agosto',
+    'septiembre',
+    'octubre',
+    'noviembre',
+    'diciembre',
+  ];
+
+  const day = date.getDate();
+  const month = monthNames[date.getMonth()]!;
+  const year = date.getFullYear();
+
+  return `${day} de ${month} de ${year}`;
+}

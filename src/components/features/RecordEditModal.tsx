@@ -4,12 +4,23 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import DatePicker from '@/components/ui/DatePicker';
+import { parseDateOnly } from '@/utils/businessDays';
 
 interface Props {
   open: boolean;
   record: EssaRecord | null;
   onClose: () => void;
   onSave: (patch: Partial<EssaRecord>) => void;
+}
+
+function convertToISODate(val: unknown): string {
+  if (!val) return '';
+  const parsed = parseDateOnly(val);
+  if (!parsed) return String(val ?? '');
+  const y = parsed.getFullYear();
+  const m = String(parsed.getMonth() + 1).padStart(2, '0');
+  const d = String(parsed.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 function isDirty(a: EssaRecord | null, b: EssaRecord | null): boolean {
@@ -208,12 +219,12 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
               />
               <DatePicker
                 label="Fecha solicitud"
-                value={String(draft.fechaSolicitud ?? '')}
+                value={convertToISODate(draft.fechaSolicitud)}
                 onChange={(e) => set('fechaSolicitud', e.target.value)}
               />
               <DatePicker
                 label="Fecha vencimiento"
-                value={String(draft.fechaVencimiento ?? '')}
+                value={convertToISODate(draft.fechaVencimiento)}
                 onChange={(e) => set('fechaVencimiento', e.target.value)}
               />
             </div>
@@ -348,7 +359,7 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
                 <span
                   style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--neutral-700)' }}
                 >
-                  Observaciones
+                  Observacion del insumo
                 </span>
                 <textarea
                   className="rem-textarea"
