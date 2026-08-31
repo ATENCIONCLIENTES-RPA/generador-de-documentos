@@ -15,6 +15,8 @@ interface Props {
   onSelect: (e: ChangeEvent<HTMLInputElement>) => void;
   accent: Accent;
   iconBoxClass?: string;
+  locationUrl?: string;
+  locationLabel?: string;
 }
 
 const accentMap: Record<
@@ -182,6 +184,8 @@ export function ExcelUploadCard({
   onSelect,
   accent,
   iconBoxClass,
+  locationUrl,
+  locationLabel,
 }: Props) {
   const a = accentMap[accent];
   const isLoading = !!fileState?.loading;
@@ -310,6 +314,76 @@ export function ExcelUploadCard({
             {subtitle}
           </div>
         </div>
+        {locationUrl && (
+          <a
+            href={locationUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Abrir ubicación oficial en OneDrive"
+            data-testid={`m2-location-${accent}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '7px 14px',
+              borderRadius: 10,
+              border: `1px solid ${a.border}`,
+              background: a.iconBg,
+              color: a.iconColor,
+              fontSize: '0.76rem',
+              fontWeight: 800,
+              textDecoration: 'none',
+              cursor: 'pointer',
+              flexShrink: 0,
+              transition:
+                'background 200ms ease, border-color 200ms ease, box-shadow 200ms ease, color 200ms ease',
+              whiteSpace: 'nowrap',
+              letterSpacing: '-0.01em',
+              boxShadow: `0 1px 3px ${a.glow}`,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = a.border;
+              e.currentTarget.style.color = '#fff';
+              e.currentTarget.style.boxShadow = `0 2px 10px ${a.glow}`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = a.iconBg;
+              e.currentTarget.style.color = a.iconColor;
+              e.currentTarget.style.boxShadow = `0 1px 3px ${a.glow}`;
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+            {locationLabel || 'Consultar'}
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+              style={{ opacity: 0.6, marginLeft: -2 }}
+            >
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </a>
+        )}
         {isCompleted && (
           <span
             className="m2-badge m2-pop-in"

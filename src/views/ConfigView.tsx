@@ -11,6 +11,13 @@ import ExcelUploadCard from '@/components/features/ExcelUploadCard';
 import Button from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 
+const SAC_URL =
+  'https://epmco-my.sharepoint.com/:f:/r/personal/atencionclientes_essa_com_co/Documents/SAC_TRAMITE_EXCEL_COMPARTIDO?d=wc7d2ddae58bf4835affc2ac2eb9d5791&csf=1&web=1&e=vwn0sV';
+const MERCURIO_URL =
+  'https://epmco-my.sharepoint.com/:f:/r/personal/atencionclientes_essa_com_co/Documents/MERCURIO_TRAMITE_EXCEL_COMPARTIDO?d=wecd9b18ce9a0467ba0689edaca9a58c7&csf=1&web=1&e=TDZGI5';
+const PLANTILLAS_URL =
+  'https://epmco-my.sharepoint.com/:f:/r/personal/atencionclientes_essa_com_co/Documents/PLANTILAS_SOPORTE%20CLIENTES?d=wbb247310e4a14457bc93016440b8ecb0&csf=1&web=1&e=Cin5Ow';
+
 interface FolderTpl {
   name: string;
   size: number;
@@ -58,7 +65,12 @@ export function ConfigView() {
   const handleMercurioFile = useCallback(
     async (file: File) => {
       try {
-        const records = await parseWithProgress(file, setMercurioFile, undefined, parseMercurioFile);
+        const records = await parseWithProgress(
+          file,
+          setMercurioFile,
+          undefined,
+          parseMercurioFile
+        );
         if (records.length > 0) setMercurioRecords(records);
       } catch {
         // handled
@@ -90,9 +102,7 @@ export function ConfigView() {
       }
       // create pseudo file for store — use first docx or synthetic
       const pseudo = docx[0] ?? arr[0] ?? null;
-      const folderFile = pseudo
-        ? new File([pseudo as unknown as BlobPart], name, { type: pseudo.type })
-        : null;
+      const folderFile = pseudo ? new File([pseudo], name, { type: pseudo.type }) : null;
 
       const totalBytes = docx.reduce((acc, f) => acc + (f.size || 0), 0);
       setTemplateFolder({
@@ -432,6 +442,8 @@ export function ConfigView() {
           onDrop={onSacDrop}
           onSelect={onSacSelect}
           accent="sac"
+          locationUrl={SAC_URL}
+          locationLabel="Consultar archivo SAC"
         />
         <ExcelUploadCard
           title="Archivo Mercurio"
@@ -444,6 +456,8 @@ export function ConfigView() {
           onDrop={onMercurioDrop}
           onSelect={onMercurioSelect}
           accent="mercurio"
+          locationUrl={MERCURIO_URL}
+          locationLabel="Consultar archivo Mercurio"
         />
 
         {/* folder full-width */}
@@ -467,6 +481,8 @@ export function ConfigView() {
             onDrop={onFolderDrop}
             onSelect={onFolderSelect}
             accent="folder"
+            locationUrl={PLANTILLAS_URL}
+            locationLabel="Consultar carpeta de Plantillas"
           />
 
           {/* templates list when selected */}
