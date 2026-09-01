@@ -32,21 +32,33 @@ export function buildTemplateData(record: EssaRecord, profile?: Profile | null):
   const primerNombre = extractFirstName(rawName) || '—';
   const nombreNormalizado = formatApplicantName(rawName) || '—';
   const cuenta = (record?.numeroCuenta as string) || (record?.cuenta as string) || '';
-  const fechaSolicitudEspanol = formatDateToSpanish(record?.fechaSolicitud) || (record?.fechaSolicitud as string) || '—';
+  const fechaSolicitudEspanol =
+    formatDateToSpanish(record?.fechaSolicitud) || (record?.fechaSolicitud as string) || '—';
+  const fechaRadSalidaHoy = formatDateToSpanish(new Date()) || '—';
 
   const data: TemplateData = {
     NOMBRE_SOLICITANTE: nombreNormalizado,
     PRIMER_NOMBRE: primerNombre,
     RADICADO_ENTRADA: (record?.radicadoEntrada as string) || '—',
+    RADICADO_SALIDA:
+      (record?.['RADICADO_SALIDA'] as string) || (record?.radicadoSalida as string) || '—',
     NUMERO_PROCESO: (record?.numeroProceso as string) || '—',
     FECHA_SOLICITUD: fechaSolicitudEspanol,
+    FECHA_RAD_SALIDA: fechaRadSalidaHoy,
     NUMERO_CUENTA: cuenta || '—',
     CORREO_SOLICITANTE: (record?.correoSolicitante as string) || '—',
     DIRECCION_SOLICITANTE: (record?.direccionSolicitante as string) || '—',
     CEDULA_SOLICITANTE: (record?.cedulaSolicitante as string) || '—',
-    TELEFONO_SOLICITANTE: (record?.['telefonoSolicitante'] as string) || '—',
+    TELEFONO_SOLICITANTE:
+      (record?.['celularSolicitante'] as string) ||
+      (record?.['CELULAR_SOLICITANTE'] as string) ||
+      '—',
     CELULAR_SOLICITANTE: (record?.['celularSolicitante'] as string) || '—',
     MUNICIPIO_SOLICITANTE: (record?.municipioSolicitante as string) || '—',
+    DEPARTAMENTO_SOLICITANTE:
+      (record?.departamentoSolicitante as string) ||
+      (record?.['DEPTO_SOLICITANTE'] as string) ||
+      '—',
     DEPTO_SOLICITANTE: (record?.departamentoSolicitante as string) || '—',
     BARRIO_SOLICITANTE: (record?.['barrioSolicitante'] as string) || '—',
     MEDIO_SOLICITUD: (record?.['medioSolicitud'] as string) || '—',
@@ -102,21 +114,39 @@ export function replaceTemplateVariables(
   const primerNombre = extractFirstName(rawName);
   const nombreNormalizado = formatApplicantName(rawName);
   const cuenta = (record?.numeroCuenta as string) || (record?.cuenta as string) || '';
-  const fechaSolicitudEspanol = formatDateToSpanish(record?.fechaSolicitud) || (record?.fechaSolicitud as string) || '—';
+  const fechaSolicitudEspanol =
+    formatDateToSpanish(record?.fechaSolicitud) || (record?.fechaSolicitud as string) || '—';
+  const fechaRadSalidaHoy = formatDateToSpanish(new Date()) || '—';
 
   return content
     .replace(/\[NOMBRE_SOLICITANTE\]/g, nombreNormalizado || '—')
     .replace(/\[PRIMER_NOMBRE\]/g, primerNombre || '—')
     .replace(/\[RADICADO_ENTRADA\]/g, (record?.radicadoEntrada as string) || '—')
+    .replace(
+      /\[RADICADO_SALIDA\]/g,
+      (record?.['RADICADO_SALIDA'] as string) || (record?.radicadoSalida as string) || '—'
+    )
     .replace(/\[NUMERO_PROCESO\]/g, (record?.numeroProceso as string) || '—')
     .replace(/\[FECHA_SOLICITUD\]/g, fechaSolicitudEspanol)
+    .replace(/\[FECHA_RAD_SALIDA\]/g, fechaRadSalidaHoy)
     .replace(/\[NUMERO_CUENTA\]/g, cuenta || '—')
     .replace(/\[CORREO_SOLICITANTE\]/g, (record?.correoSolicitante as string) || '—')
     .replace(/\[DIRECCION_SOLICITANTE\]/g, (record?.direccionSolicitante as string) || '—')
     .replace(/\[CEDULA_SOLICITANTE\]/g, (record?.cedulaSolicitante as string) || '—')
-    .replace(/\[TELEFONO_SOLICITANTE\]/g, (record?.['telefonoSolicitante'] as string) || '—')
+    .replace(
+      /\[TELEFONO_SOLICITANTE\]/g,
+      (record?.['celularSolicitante'] as string) ||
+        (record?.['CELULAR_SOLICITANTE'] as string) ||
+        '—'
+    )
     .replace(/\[CELULAR_SOLICITANTE\]/g, (record?.['celularSolicitante'] as string) || '—')
     .replace(/\[MUNICIPIO_SOLICITANTE\]/g, (record?.municipioSolicitante as string) || '—')
+    .replace(
+      /\[DEPARTAMENTO_SOLICITANTE\]/g,
+      (record?.departamentoSolicitante as string) ||
+        (record?.['DEPTO_SOLICITANTE'] as string) ||
+        '—'
+    )
     .replace(/\[DEPTO_SOLICITANTE\]/g, (record?.departamentoSolicitante as string) || '—')
     .replace(/\[BARRIO_SOLICITANTE\]/g, (record?.['barrioSolicitante'] as string) || '—')
     .replace(/\[MEDIO_SOLICITUD\]/g, (record?.['medioSolicitud'] as string) || '—')
@@ -159,11 +189,6 @@ async function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
     reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'));
     reader.readAsArrayBuffer(blob);
   });
-}
-
-async function blobToUint8Array(blob: Blob): Promise<Uint8Array> {
-  const buf = await blobToArrayBuffer(blob);
-  return new Uint8Array(buf);
 }
 
 function detectMimeType(blob: Blob, bytes: Uint8Array): MimeType {
@@ -413,7 +438,7 @@ export async function generateDocx(
     });
   } catch (e) {
     console.error('Fallback scrub failed', e);
-    return new Blob([processedBuffer as unknown as BlobPart], {
+    return new Blob([processedBuffer], {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
   }

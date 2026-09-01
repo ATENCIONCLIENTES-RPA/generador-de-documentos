@@ -33,6 +33,7 @@ export interface Record {
   descripcionTipoProceso?: string;
   usuarioResponsableInsumo?: string;
   responsableInsumo?: string;
+  medioSolicitud?: string;
 
   // Index signature for the ~119 dynamic Excel columns (SAC_TRAMITE_GENERAL)
   [key: string]: unknown;

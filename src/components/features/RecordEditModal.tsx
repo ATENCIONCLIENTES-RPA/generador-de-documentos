@@ -204,6 +204,12 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
                 placeholder="Radicado de entrada"
               />
               <Input
+                label="Radicado salida"
+                value={String(draft['RADICADO_SALIDA'] ?? '')}
+                onChange={(e) => set('RADICADO_SALIDA', e.target.value)}
+                placeholder="Radicado de salida"
+              />
+              <Input
                 label="Cuenta"
                 value={String(draft.numeroCuenta ?? draft.cuenta ?? '')}
                 onChange={(e) => set('numeroCuenta', e.target.value)}

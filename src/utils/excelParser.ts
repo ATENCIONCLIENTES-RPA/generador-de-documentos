@@ -212,6 +212,16 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     'CUENTA_ESSA',
     'NUMERO DE CUENTA',
   ]);
+  const medioSolRaw = getExcelCellValue(row, [
+    'MEDIO_SOLICITUD',
+    'MEDIO SOLICITUD',
+    'MEDIO DE SOLICITUD',
+    'CANAL_SOLICITUD',
+    'CANAL SOLICITUD',
+    'CANAL',
+    'FORMA_SOLICITUD',
+    'FORMA DE SOLICITUD',
+  ]);
 
   const observacionProcRaw = getExcelCellValue(row, [
     'OBSERVACION_PROCESO',
@@ -289,6 +299,7 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     municipioSolicitante: String(municipioSolRaw ?? ''),
     correoSolicitante: String(correoSolRaw ?? ''),
     numeroCuenta: String(cuentaRaw ?? ''),
+    medioSolicitud: String(medioSolRaw ?? ''),
     observacionProceso,
     observacionRevision,
     tipoProceso,
@@ -318,7 +329,11 @@ export function crossReferenceSacAndMercurio(
   if (!sacRecords || sacRecords.length === 0) {
     return mercurioRecords.map((merc) => {
       const semaforo = getEstadoSemaforo(merc.numeroProceso, merc.observacionRevision);
-      const pqrInfo = calculatePqrBusinessDays(merc.fechaSolicitud || (merc as Record<string, unknown>)['Fecha Radicación'] || (merc as Record<string, unknown>)['Fecha  Radicacion']);
+      const pqrInfo = calculatePqrBusinessDays(
+        merc.fechaSolicitud ||
+          (merc as Record<string, unknown>)['Fecha Radicación'] ||
+          (merc as Record<string, unknown>)['Fecha  Radicacion']
+      );
       return {
         ...merc,
         procesoCreado: 'No',
@@ -332,6 +347,7 @@ export function crossReferenceSacAndMercurio(
   }
 
   const sacByRadicado = new Map<string, EssaRecord[]>();
+  const matchedSacKeys = new Set<string>();
 
   for (const sac of sacRecords) {
     const rawRad =
@@ -348,7 +364,7 @@ export function crossReferenceSacAndMercurio(
     }
   }
 
-  return mercurioRecords.map((merc) => {
+  const mercurioBased = mercurioRecords.map((merc) => {
     const rawRad =
       merc.radicadoEntrada ||
       (merc as Record<string, unknown>)['No. Radicado'] ||
@@ -360,6 +376,7 @@ export function crossReferenceSacAndMercurio(
     const count = matches.length;
     const hasMatch = count > 0;
     const bestSac = matches[0];
+    if (hasMatch && key) matchedSacKeys.add(key);
 
     const numeroProceso = (bestSac?.numeroProceso || merc.numeroProceso || '').trim();
     const observacionProceso =
@@ -373,20 +390,22 @@ export function crossReferenceSacAndMercurio(
 
     const tipoProceso =
       bestSac?.tipoProceso ||
-      (bestSac as Record<string, unknown> | undefined)?.['PROCESO'] as string ||
-      (bestSac as Record<string, unknown> | undefined)?.['TIPO_PROCESO'] as string ||
+      ((bestSac as Record<string, unknown> | undefined)?.['PROCESO'] as string) ||
+      ((bestSac as Record<string, unknown> | undefined)?.['TIPO_PROCESO'] as string) ||
       merc.tipoProceso ||
       '';
 
     const descripcionTipoProceso =
       bestSac?.descripcionTipoProceso ||
-      (bestSac as Record<string, unknown> | undefined)?.['DESCRIPCION_TIPO_PROCESO'] as string ||
+      ((bestSac as Record<string, unknown> | undefined)?.['DESCRIPCION_TIPO_PROCESO'] as string) ||
       merc.descripcionTipoProceso ||
       '';
 
     const usuarioResponsableInsumo =
       bestSac?.usuarioResponsableInsumo ||
-      (bestSac as Record<string, unknown> | undefined)?.['USUARIO_RESPONSABLE_INSUMO'] as string ||
+      ((bestSac as Record<string, unknown> | undefined)?.[
+        'USUARIO_RESPONSABLE_INSUMO'
+      ] as string) ||
       merc.usuarioResponsableInsumo ||
       '';
 
@@ -395,7 +414,7 @@ export function crossReferenceSacAndMercurio(
       (bestSac?.nombreSolicitante && bestSac.nombreSolicitante.trim() !== ''
         ? bestSac.nombreSolicitante
         : undefined) ||
-      (bestSac as Record<string, unknown> | undefined)?.['NOMBRE_SOLICITANTE'] as string ||
+      ((bestSac as Record<string, unknown> | undefined)?.['NOMBRE_SOLICITANTE'] as string) ||
       merc.nombreSolicitante ||
       '';
 
@@ -403,7 +422,7 @@ export function crossReferenceSacAndMercurio(
       (bestSac?.direccionSolicitante && bestSac.direccionSolicitante.trim() !== ''
         ? bestSac.direccionSolicitante
         : undefined) ||
-      (bestSac as Record<string, unknown> | undefined)?.['DIRECCION_SOLICITANTE'] as string ||
+      ((bestSac as Record<string, unknown> | undefined)?.['DIRECCION_SOLICITANTE'] as string) ||
       merc.direccionSolicitante ||
       '';
 
@@ -411,8 +430,8 @@ export function crossReferenceSacAndMercurio(
       (bestSac?.departamentoSolicitante && bestSac.departamentoSolicitante.trim() !== ''
         ? bestSac.departamentoSolicitante
         : undefined) ||
-      (bestSac as Record<string, unknown> | undefined)?.['DEPTO_SOLICITANTE'] as string ||
-      (bestSac as Record<string, unknown> | undefined)?.['DEPARTAMENTO_SOLICITANTE'] as string ||
+      ((bestSac as Record<string, unknown> | undefined)?.['DEPTO_SOLICITANTE'] as string) ||
+      ((bestSac as Record<string, unknown> | undefined)?.['DEPARTAMENTO_SOLICITANTE'] as string) ||
       merc.departamentoSolicitante ||
       '';
 
@@ -420,7 +439,7 @@ export function crossReferenceSacAndMercurio(
       (bestSac?.municipioSolicitante && bestSac.municipioSolicitante.trim() !== ''
         ? bestSac.municipioSolicitante
         : undefined) ||
-      (bestSac as Record<string, unknown> | undefined)?.['MUNICIPIO_SOLICITANTE'] as string ||
+      ((bestSac as Record<string, unknown> | undefined)?.['MUNICIPIO_SOLICITANTE'] as string) ||
       merc.municipioSolicitante ||
       '';
 
@@ -428,7 +447,7 @@ export function crossReferenceSacAndMercurio(
       (bestSac?.correoSolicitante && bestSac.correoSolicitante.trim() !== ''
         ? bestSac.correoSolicitante
         : undefined) ||
-      (bestSac as Record<string, unknown> | undefined)?.['CORREO_SOLICITANTE'] as string ||
+      ((bestSac as Record<string, unknown> | undefined)?.['CORREO_SOLICITANTE'] as string) ||
       merc.correoSolicitante ||
       '';
 
@@ -436,7 +455,7 @@ export function crossReferenceSacAndMercurio(
       (bestSac?.numeroCuenta && bestSac.numeroCuenta.trim() !== ''
         ? bestSac.numeroCuenta
         : undefined) ||
-      (bestSac as Record<string, unknown> | undefined)?.['NUMERO_CUENTA'] as string ||
+      ((bestSac as Record<string, unknown> | undefined)?.['NUMERO_CUENTA'] as string) ||
       merc.numeroCuenta ||
       '';
 
@@ -444,7 +463,7 @@ export function crossReferenceSacAndMercurio(
       (bestSac?.cedulaSolicitante && bestSac.cedulaSolicitante.trim() !== ''
         ? bestSac.cedulaSolicitante
         : undefined) ||
-      (bestSac as Record<string, unknown> | undefined)?.['CEDULA_SOLICITANTE'] as string ||
+      ((bestSac as Record<string, unknown> | undefined)?.['CEDULA_SOLICITANTE'] as string) ||
       merc.cedulaSolicitante ||
       '';
 
@@ -452,7 +471,7 @@ export function crossReferenceSacAndMercurio(
       (bestSac?.fechaVencimiento && bestSac.fechaVencimiento.trim() !== ''
         ? bestSac.fechaVencimiento
         : undefined) ||
-      (bestSac as Record<string, unknown> | undefined)?.['FECHA_VENCIMIENTO'] as string ||
+      ((bestSac as Record<string, unknown> | undefined)?.['FECHA_VENCIMIENTO'] as string) ||
       merc.fechaVencimiento ||
       '';
 
@@ -482,6 +501,7 @@ export function crossReferenceSacAndMercurio(
       cedulaSolicitante: String(cedulaSolicitante ?? '').trim(),
       numeroCuenta: String(numeroCuenta ?? '').trim(),
       cuenta: String(numeroCuenta ?? '').trim() || merc.cuenta,
+      medioSolicitud: String(bestSac?.medioSolicitud ?? merc.medioSolicitud ?? '').trim(),
       procesoCreado: hasMatch ? 'Sí' : 'No',
       creadoEnSac: hasMatch ? 'Sí' : 'No',
       cantidadProcesos: count,
@@ -490,6 +510,22 @@ export function crossReferenceSacAndMercurio(
       diasPqrLabel: pqrInfo.label,
     };
   });
+
+  // Append SAC records that had no matching Mercurio entry
+  const unmatchedSac: EssaRecord[] = [];
+  for (const sac of sacRecords) {
+    const rawRad =
+      sac.radicadoEntrada ||
+      (sac as Record<string, unknown>)['RADICADO_ENTRADA'] ||
+      (sac as Record<string, unknown>)['No. Radicado'] ||
+      (sac as Record<string, unknown>)['NO_RADICADO'];
+    const key = normalizeRadicadoKey(rawRad);
+    if (key && !matchedSacKeys.has(key)) {
+      unmatchedSac.push(sac);
+    }
+  }
+
+  return [...mercurioBased, ...unmatchedSac];
 }
 
 function isValidRow(item: unknown): boolean {
@@ -661,7 +697,12 @@ export function buildMercurioRecord(row: RawExcelRow, index: number): EssaRecord
   ]);
 
   const strFecha = String(fechaRadRaw ?? '').trim();
-  if (!strFecha || strFecha === '—' || strFecha.toLowerCase() === 'null' || strFecha.toLowerCase() === 'undefined') {
+  if (
+    !strFecha ||
+    strFecha === '—' ||
+    strFecha.toLowerCase() === 'null' ||
+    strFecha.toLowerCase() === 'undefined'
+  ) {
     return null;
   }
 

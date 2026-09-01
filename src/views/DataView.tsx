@@ -27,6 +27,7 @@ const SEARCHABLE_FIELDS: (keyof EssaRecord)[] = [
   'correoSolicitante',
   'observacionProceso',
   'observacionRevision',
+  'medioSolicitud',
   'diasPqrLabel',
 ];
 
@@ -148,19 +149,30 @@ export function DataView() {
     }
     if (filterState.cuenta.trim()) {
       const q = filterState.cuenta.trim().toLowerCase();
-      out = out.filter((r) =>
-        String(r.numeroCuenta ?? r.cuenta ?? '')
-          .toLowerCase()
-          .includes(q)
-      );
+      out = out.filter((r) => {
+        const v = String(
+          r.numeroCuenta ||
+            r.cuenta ||
+            (r as Record<string, unknown>)['NUMERO_CUENTA'] ||
+            (r as Record<string, unknown>)['NUMERO CUENTA'] ||
+            (r as Record<string, unknown>)['CUENTA'] ||
+            ''
+        ).toLowerCase();
+        return v.includes(q);
+      });
     }
     if (filterState.proceso.trim()) {
       const q = filterState.proceso.trim().toLowerCase();
-      out = out.filter((r) =>
-        String(r.numeroProceso ?? '')
-          .toLowerCase()
-          .includes(q)
-      );
+      out = out.filter((r) => {
+        const v = String(
+          r.numeroProceso ||
+            (r as Record<string, unknown>)['NUMERO_PROCESO'] ||
+            (r as Record<string, unknown>)['NUMERO PROCESO'] ||
+            (r as Record<string, unknown>)['No. Proceso'] ||
+            ''
+        ).toLowerCase();
+        return v.includes(q);
+      });
     }
     if (filterState.radicado.trim()) {
       const q = filterState.radicado.trim().toLowerCase();

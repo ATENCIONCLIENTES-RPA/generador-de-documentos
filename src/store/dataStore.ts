@@ -11,6 +11,7 @@ export interface FilterState {
   fechaSolicitud: string;
   fechaDesde: string;
   fechaHasta: string;
+  medioSolicitud: string; // 'todos' | 'Página Web' | 'Verbal' | 'Escrito' | 'E-Mail' | ...
   procesoCreado: string; // 'todos' | 'Sí' | 'No'
   estadoSemaforo: string; // 'todos' | 'verde' | 'violeta' | 'rojo' | 'tiene_insumos' | 'no_tiene_insumos'
   cantProcesos: string; // 'todos' | 'uno' | 'varios' | ...
@@ -54,6 +55,7 @@ const defaultFilter: FilterState = {
   fechaSolicitud: '',
   fechaDesde: '',
   fechaHasta: '',
+  medioSolicitud: 'todos',
   procesoCreado: 'todos',
   estadoSemaforo: 'todos',
   cantProcesos: 'todos',
@@ -83,6 +85,7 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
         r.responsableInsumo,
         r.observacionProceso,
         r.observacionRevision,
+        r.medioSolicitud,
         r.diasPqrLabel,
       ]
         .filter(Boolean)
@@ -94,17 +97,29 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
   if (filter.cuenta.trim()) {
     const q = filter.cuenta.trim().toLowerCase();
     out = out.filter((r) => {
-      const v = String(r.numeroCuenta ?? r.cuenta ?? '').toLowerCase();
+      const v = String(
+        r.numeroCuenta ||
+          r.cuenta ||
+          (r as globalThis.Record<string, unknown>)['NUMERO_CUENTA'] ||
+          (r as globalThis.Record<string, unknown>)['NUMERO CUENTA'] ||
+          (r as globalThis.Record<string, unknown>)['CUENTA'] ||
+          ''
+      ).toLowerCase();
       return v.includes(q);
     });
   }
   if (filter.proceso.trim()) {
     const q = filter.proceso.trim().toLowerCase();
-    out = out.filter((r) =>
-      String(r.numeroProceso ?? '')
-        .toLowerCase()
-        .includes(q)
-    );
+    out = out.filter((r) => {
+      const v = String(
+        r.numeroProceso ||
+          (r as globalThis.Record<string, unknown>)['NUMERO_PROCESO'] ||
+          (r as globalThis.Record<string, unknown>)['NUMERO PROCESO'] ||
+          (r as globalThis.Record<string, unknown>)['No. Proceso'] ||
+          ''
+      ).toLowerCase();
+      return v.includes(q);
+    });
   }
   if (filter.radicado.trim()) {
     const q = filter.radicado.trim().toLowerCase();
@@ -113,6 +128,20 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
         .toLowerCase()
         .includes(q)
     );
+  }
+  if (filter.medioSolicitud && filter.medioSolicitud !== 'todos') {
+    const q = filter.medioSolicitud.toLowerCase();
+    out = out.filter((r) => {
+      const v = String(
+        r.medioSolicitud ||
+          (r as globalThis.Record<string, unknown>)['MEDIO_SOLICITUD'] ||
+          (r as globalThis.Record<string, unknown>)['MEDIO SOLICITUD'] ||
+          ''
+      )
+        .trim()
+        .toLowerCase();
+      return v === q;
+    });
   }
   if (filter.fechaSolicitud.trim()) {
     const q = filter.fechaSolicitud.trim();
@@ -124,7 +153,11 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
     const dDesde = parseDateOnly(filter.fechaDesde);
     if (dDesde) {
       out = out.filter((r) => {
-        const rawDate = r.fechaSolicitud || (r as globalThis.Record<string, unknown>)['Fecha Radicación'] || (r as globalThis.Record<string, unknown>)['Fecha  Radicacion'] || (r as globalThis.Record<string, unknown>)['FECHA_RADICACION'];
+        const rawDate =
+          r.fechaSolicitud ||
+          (r as globalThis.Record<string, unknown>)['Fecha Radicación'] ||
+          (r as globalThis.Record<string, unknown>)['Fecha  Radicacion'] ||
+          (r as globalThis.Record<string, unknown>)['FECHA_RADICACION'];
         const rDate = parseDateOnly(rawDate);
         return rDate ? rDate.getTime() >= dDesde.getTime() : false;
       });
@@ -135,7 +168,11 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
     const dHasta = parseDateOnly(filter.fechaHasta);
     if (dHasta) {
       out = out.filter((r) => {
-        const rawDate = r.fechaSolicitud || (r as globalThis.Record<string, unknown>)['Fecha Radicación'] || (r as globalThis.Record<string, unknown>)['Fecha  Radicacion'] || (r as globalThis.Record<string, unknown>)['FECHA_RADICACION'];
+        const rawDate =
+          r.fechaSolicitud ||
+          (r as globalThis.Record<string, unknown>)['Fecha Radicación'] ||
+          (r as globalThis.Record<string, unknown>)['Fecha  Radicacion'] ||
+          (r as globalThis.Record<string, unknown>)['FECHA_RADICACION'];
         const rDate = parseDateOnly(rawDate);
         return rDate ? rDate.getTime() <= dHasta.getTime() : false;
       });
@@ -145,8 +182,16 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
   // Filtro Estado Semáforo ('todos' | 'verde' | 'violeta' | 'rojo' | 'tiene_insumos' | 'no_tiene_insumos')
   if (filter.estadoSemaforo && filter.estadoSemaforo !== 'todos') {
     out = out.filter((r) => {
-      const resp = String(r.usuarioResponsableInsumo || (r as globalThis.Record<string, unknown>)['USUARIO_RESPONSABLE_INSUMO'] || '').trim();
-      const hasInsumo = resp !== '' && resp !== '—' && resp.toLowerCase() !== 'null' && resp.toLowerCase() !== 'undefined';
+      const resp = String(
+        r.usuarioResponsableInsumo ||
+          (r as globalThis.Record<string, unknown>)['USUARIO_RESPONSABLE_INSUMO'] ||
+          ''
+      ).trim();
+      const hasInsumo =
+        resp !== '' &&
+        resp !== '—' &&
+        resp.toLowerCase() !== 'null' &&
+        resp.toLowerCase() !== 'undefined';
       const sem = r.estadoSemaforo || getEstadoSemaforo(r.numeroProceso, r.observacionRevision);
 
       if (filter.estadoSemaforo === 'tiene_insumos') {
@@ -165,7 +210,11 @@ function applyFilters(records: Record[], filter: FilterState): Record[] {
       const pqr =
         r.diasPqr !== undefined
           ? { remainingDays: r.diasPqr }
-          : calculatePqrBusinessDays(r.fechaSolicitud || (r as globalThis.Record<string, unknown>)['Fecha Radicación'] || (r as globalThis.Record<string, unknown>)['Fecha  Radicacion']);
+          : calculatePqrBusinessDays(
+              r.fechaSolicitud ||
+                (r as globalThis.Record<string, unknown>)['Fecha Radicación'] ||
+                (r as globalThis.Record<string, unknown>)['Fecha  Radicacion']
+            );
       const rem = pqr.remainingDays;
       if (filter.diasPqrFiltro === 'menor5') return rem < 5;
       if (filter.diasPqrFiltro === 'urgente') return rem <= 3 && rem >= 0;
@@ -270,12 +319,17 @@ export const useDataStore = create<DataStore>((set, get) => ({
       const base = s.records[idx]!;
       const updated = { ...base, ...patch } as Record;
       // Recalculate semáforo if numeroProceso or observacionRevision updated
-      updated.estadoSemaforo = getEstadoSemaforo(updated.numeroProceso, updated.observacionRevision);
+      updated.estadoSemaforo = getEstadoSemaforo(
+        updated.numeroProceso,
+        updated.observacionRevision
+      );
       if (patch.observacionProceso !== undefined) {
-        (updated as globalThis.Record<string, unknown>)['OBSERVACION_PROCESO'] = patch.observacionProceso;
+        (updated as globalThis.Record<string, unknown>)['OBSERVACION_PROCESO'] =
+          patch.observacionProceso;
       }
       if (patch.observacionRevision !== undefined) {
-        (updated as globalThis.Record<string, unknown>)['OBSERVACION_REVISION'] = patch.observacionRevision;
+        (updated as globalThis.Record<string, unknown>)['OBSERVACION_REVISION'] =
+          patch.observacionRevision;
       }
 
       const nextRecords = [...s.records];
