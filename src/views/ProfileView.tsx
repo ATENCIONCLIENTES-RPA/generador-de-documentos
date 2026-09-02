@@ -107,8 +107,8 @@ export function ProfileView(): JSX.Element {
   };
 
   return (
-    <div data-testid="profile-view" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ maxWidth: 900, margin: '0 auto', width: '100%' }}>
+    <div data-testid="profile-view" style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, justifyContent: 'center', padding: '4px 0' }}>
+      <div style={{ maxWidth: 860, margin: '0 auto', width: '100%' }}>
         <div
           data-testid="profile-card"
           style={{
@@ -124,8 +124,8 @@ export function ProfileView(): JSX.Element {
             aria-hidden
           />
 
-          <div style={{ padding: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+          <div style={{ padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
               <span
                 aria-hidden
                 style={{
@@ -175,8 +175,8 @@ export function ProfileView(): JSX.Element {
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 14,
-                marginBottom: 20,
+                gap: 12,
+                marginBottom: 16,
               }}
             >
               <div>
@@ -236,46 +236,18 @@ export function ProfileView(): JSX.Element {
               </div>
             </div>
 
-            <div style={{ marginBottom: 18 }}>
+            <div style={{ marginBottom: 14 }}>
               <h3
-                style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', marginBottom: 10 }}
+                style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', marginBottom: 8 }}
               >
                 Firma Digital
               </h3>
 
               <div
-                data-testid="signature-dropzone"
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                role="button"
-                tabIndex={0}
-                aria-label="Arrastra tu imagen de firma aquí o haz clic para buscar"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    fileInputRef.current?.click();
-                  }
-                }}
                 style={{
-                  minHeight: 140,
-                  marginBottom: 10,
-                  border: `2px dashed ${dragOver ? '#76BC21' : '#e2e8f0'}`,
-                  borderRadius: 12,
-                  padding: 16,
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  background: dragOver ? 'rgba(118,188,33,0.06)' : '#fff',
-                  transition: 'border-color 150ms var(--ease), background 150ms var(--ease)',
+                  position: 'relative',
+                  minHeight: 132,
+                  marginBottom: 8,
                 }}
               >
                 <input
@@ -287,117 +259,222 @@ export function ProfileView(): JSX.Element {
                   data-testid="profile-file-input"
                   aria-hidden
                 />
-                <svg
-                  width="36"
-                  height="36"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#94a3b8"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <polyline points="21 15 16 10 5 21" />
-                </svg>
-                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                  Arrastra tu imagen de firma aquí o{' '}
-                  <span style={{ color: '#004B93', fontWeight: 600 }}>haz clic para buscar</span>
-                </div>
-                <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                  Formatos: PNG, JPG, SVG (max 2MB)
-                </div>
-                {errors.signature && (
-                  <span style={{ fontSize: '0.72rem', color: '#dc2626' }}>{errors.signature}</span>
-                )}
-              </div>
 
-              <div style={{ textAlign: 'center', marginBottom: 12, fontSize: '0.8rem' }}>
-                <span style={{ color: '#94a3b8' }}>o </span>
-                <button
-                  type="button"
-                  onClick={() => setShowPad(true)}
-                  data-testid="profile-open-pad"
-                  aria-label="Dibuja tu firma en pantalla"
+                {/* ── EMPTY STATE: dropzone + dibuja tu firma ── */}
+                <div
+                  data-testid="signature-dropzone"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                  onClick={() => !signature && fileInputRef.current?.click()}
+                  role="button"
+                  tabIndex={signature ? -1 : 0}
+                  aria-label="Arrastra tu imagen de firma aquí o haz clic para buscar"
+                  onKeyDown={(e) => {
+                    if (!signature && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#004B93',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    textDecoration: 'underline',
+                    position: 'absolute',
+                    inset: 0,
+                    border: `2px dashed ${dragOver ? '#76BC21' : '#e2e8f0'}`,
+                    borderRadius: 12,
+                    padding: 16,
+                    textAlign: 'center',
+                    cursor: signature ? 'default' : 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    background: dragOver ? 'rgba(118,188,33,0.06)' : '#fff',
+                    transition: 'opacity 320ms cubic-bezier(.4,0,.2,1), transform 320ms cubic-bezier(.4,0,.2,1), border-color 150ms var(--ease), background 150ms var(--ease)',
+                    opacity: signature ? 0 : 1,
+                    transform: signature ? 'scale(0.97)' : 'scale(1)',
+                    pointerEvents: signature ? 'none' : 'auto',
+                    zIndex: signature ? 0 : 1,
                   }}
                 >
-                  dibuja tu firma en pantalla
-                </button>
-              </div>
+                  <svg
+                    width="36"
+                    height="36"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#94a3b8"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                  <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                    Arrastra tu imagen de firma aquí o{' '}
+                    <span style={{ color: '#004B93', fontWeight: 600 }}>haz clic para buscar</span>
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                    Formatos: PNG, JPG, SVG (max 2MB)
+                  </div>
+                  {errors.signature && (
+                    <span style={{ fontSize: '0.72rem', color: '#dc2626' }}>{errors.signature}</span>
+                  )}
+                </div>
 
-              {signature && (
                 <div
-                  data-testid="profile-signature-preview"
                   style={{
-                    border: '2px solid #e2e8f0',
-                    borderRadius: 12,
-                    padding: 12,
-                    background: '#f8fafc',
+                    position: 'absolute',
+                    inset: 0,
+                    textAlign: 'center',
+                    cursor: 'default',
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 12,
+                    justifyContent: 'center',
+                    gap: 8,
+                    transition: 'opacity 320ms cubic-bezier(.4,0,.2,1), transform 320ms cubic-bezier(.4,0,.2,1)',
+                    opacity: signature ? 1 : 0,
+                    transform: signature ? 'scale(1)' : 'scale(1.02)',
+                    pointerEvents: signature ? 'auto' : 'none',
+                    zIndex: signature ? 1 : 0,
                   }}
                 >
                   <img
-                    src={signature}
+                    src={signature!}
                     alt="Firma digital"
                     data-testid="profile-signature-img"
                     style={{
-                      height: 60,
+                      height: 72,
+                      maxWidth: '100%',
                       objectFit: 'contain',
-                      borderRadius: 6,
+                      borderRadius: 8,
                       background: '#fff',
-                      border: '1px solid #e2e8f0',
+                      border: '2px solid #e2e8f0',
+                      padding: '6px 12px',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
                     }}
                   />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#0f172a' }}>
-                      Firma cargada
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                      La firma se aplicará automáticamente en los documentos generados.
-                    </div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.01em' }}>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#76BC21"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ display: 'inline', verticalAlign: '-2px', marginRight: 4 }}
+                      aria-hidden
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Firma cargada
                   </div>
+                  <div style={{ fontSize: '0.7rem', color: '#64748b', marginBottom: 2 }}>
+                    Se aplicará automáticamente en los documentos generados.
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      data-testid="profile-replace-signature"
+                      aria-label="Reemplazar firma"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        color: '#004B93',
+                        background: '#f0f7ff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: 6,
+                        padding: '4px 10px',
+                        cursor: 'pointer',
+                        transition: 'background 150ms, border-color 150ms',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#e0efff';
+                        e.currentTarget.style.borderColor = '#93c5fd';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#f0f7ff';
+                        e.currentTarget.style.borderColor = '#bfdbfe';
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <polyline points="23 4 23 10 17 10" />
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                      </svg>
+                      Reemplazar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSignature(null);
+                        updateProfile({ signatureUrl: null });
+                      }}
+                      data-testid="profile-remove-signature"
+                      aria-label="Eliminar firma"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        color: '#dc2626',
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        borderRadius: 6,
+                        padding: '4px 10px',
+                        cursor: 'pointer',
+                        transition: 'background 150ms, border-color 150ms',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#fee2e2';
+                        e.currentTarget.style.borderColor = '#fca5a5';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#fef2f2';
+                        e.currentTarget.style.borderColor = '#fecaca';
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {!signature && (
+                <div style={{ textAlign: 'center', marginBottom: 12, fontSize: '0.8rem' }}>
+                  <span style={{ color: '#94a3b8' }}>o </span>
                   <button
                     type="button"
-                    onClick={() => {
-                      setSignature(null);
-                      updateProfile({ signatureUrl: null });
-                    }}
-                    aria-label="Eliminar firma"
-                    data-testid="profile-remove-signature"
+                    onClick={() => setShowPad(true)}
+                    data-testid="profile-open-pad"
+                    aria-label="Dibuja tu firma en pantalla"
                     style={{
                       background: 'none',
                       border: 'none',
+                      color: '#004B93',
+                      fontWeight: 600,
                       cursor: 'pointer',
-                      color: '#94a3b8',
-                      padding: 4,
+                      fontSize: '0.8rem',
+                      textDecoration: 'underline',
                     }}
                   >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden
-                    >
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
+                    dibuja tu firma en pantalla
                   </button>
                 </div>
               )}

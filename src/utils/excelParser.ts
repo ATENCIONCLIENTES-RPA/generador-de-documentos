@@ -201,6 +201,19 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     'E-MAIL',
     'EMAIL_SOLICITANTE',
   ]);
+  const celularSolRaw = getExcelCellValue(row, [
+    'CELULAR_SOLICITANTE',
+    'CELULAR SOLICITANTE',
+    'CELULAR',
+    'TELEFONO_SOLICITANTE',
+    'TELEFONO SOLICITANTE',
+    'TELEFONO',
+    'TEL_SOLICITANTE',
+    'TEL',
+    'CEL',
+    'CELULAR CLIENTE',
+    'CELULAR_CLIENTE',
+  ]);
   const cuentaRaw = getExcelCellValue(row, [
     'NUMERO_CUENTA',
     'NUMERO CUENTA',
@@ -298,6 +311,7 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     departamentoSolicitante: String(deptoSolRaw ?? ''),
     municipioSolicitante: String(municipioSolRaw ?? ''),
     correoSolicitante: String(correoSolRaw ?? ''),
+    celularSolicitante: String(celularSolRaw ?? ''),
     numeroCuenta: String(cuentaRaw ?? ''),
     medioSolicitud: String(medioSolRaw ?? ''),
     observacionProceso,
@@ -498,6 +512,7 @@ export function crossReferenceSacAndMercurio(
       departamentoSolicitante: String(departamentoSolicitante ?? '').trim(),
       municipioSolicitante: String(municipioSolicitante ?? '').trim(),
       correoSolicitante: String(correoSolicitante ?? '').trim(),
+      celularSolicitante: String(bestSac?.celularSolicitante ?? merc.celularSolicitante ?? '').trim(),
       cedulaSolicitante: String(cedulaSolicitante ?? '').trim(),
       numeroCuenta: String(numeroCuenta ?? '').trim(),
       cuenta: String(numeroCuenta ?? '').trim() || merc.cuenta,

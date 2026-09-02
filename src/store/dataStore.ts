@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Record } from '@/types/record';
+import type { Record as EssaRecord } from '@/types/record';
 import { crossReferenceSacAndMercurio, getEstadoSemaforo } from '@/utils/excelParser';
 import { calculatePqrBusinessDays, parseDateOnly } from '@/utils/businessDays';
 
@@ -11,38 +11,42 @@ export interface FilterState {
   fechaSolicitud: string;
   fechaDesde: string;
   fechaHasta: string;
-  medioSolicitud: string; // 'todos' | 'Página Web' | 'Verbal' | 'Escrito' | 'E-Mail' | ...
-  procesoCreado: string; // 'todos' | 'Sí' | 'No'
+  medioSolicitud?: string; // 'todos' | 'Página Web' | 'Verbal' | 'Escrito' | 'E-Mail' | ...
+  procesoCreado?: string; // 'todos' | 'Sí' | 'No'
   estadoSemaforo: string; // 'todos' | 'verde' | 'violeta' | 'rojo' | 'tiene_insumos' | 'no_tiene_insumos'
-  cantProcesos: string; // 'todos' | 'uno' | 'varios' | ...
+  cantProcesos?: string; // 'todos' | 'uno' | 'varios' | ...
   diasPqrFiltro: string; // 'todos' | 'menor5' | 'urgente' | 'vence_hoy' | 'vencido'
 }
 
 interface DataStore {
-  records: Record[];
-  sacRecords: Record[];
-  mercurioRecords: Record[];
+  records: EssaRecord[];
+  sacRecords: EssaRecord[];
+  mercurioRecords: EssaRecord[];
   selectedRows: Set<string>;
   filterState: FilterState;
   currentPage: number;
   pageSize: number;
-  editingRecord: Record | null;
+  editingRecord: EssaRecord | null;
+  templateAssignments: globalThis.Record<string, string>; // rowId → templateId
 
   // setters / helpers
-  setRecords: (records: Record[]) => void;
-  setSacRecords: (records: Record[]) => void;
-  setMercurioRecords: (records: Record[]) => void;
+  setRecords: (records: EssaRecord[]) => void;
+  setSacRecords: (records: EssaRecord[]) => void;
+  setMercurioRecords: (records: EssaRecord[]) => void;
   toggleRow: (id: string) => void;
   togglePage: () => void;
   clearSelection: () => void;
   setFilter: (patch: Partial<FilterState>) => void;
   setPage: (n: number) => void;
-  setEditingRecord: (record: Record | null) => void;
-  editRecord: (id: string, patch: Partial<Record>) => void;
+  setEditingRecord: (record: EssaRecord | null) => void;
+  editRecord: (id: string, patch: Partial<EssaRecord>) => void;
+  assignTemplate: (rowId: string, templateId: string) => void;
+  removeTemplateAssignment: (rowId: string) => void;
+  clearTemplateAssignments: () => void;
 
   // derived helpers
-  getFilteredRecords: () => Record[];
-  getPaginatedRecords: () => Record[];
+  getFilteredRecords: () => EssaRecord[];
+  getPaginatedRecords: () => EssaRecord[];
   getTotalPages: () => number;
   getTotalFilteredCount: () => number;
 }
@@ -65,7 +69,7 @@ const defaultFilter: FilterState = {
 // NOTE: C2 — DataView local pipeline is canonical for rendering (includes showOnlySelected + SEARCHABLE_FIELDS);
 // dataStore.applyFilters is the programmatic source for getFilteredRecords/getPaginatedRecords.
 // Keep both in sync when changing filter semantics — same fields, same case/trim logic.
-function applyFilters(records: Record[], filter: FilterState): Record[] {
+function applyFilters(records: EssaRecord[], filter: FilterState): EssaRecord[] {
   let out = records;
   const search = filter.search.trim().toLowerCase();
   if (search) {
@@ -236,6 +240,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
   currentPage: 1,
   pageSize: 10,
   editingRecord: null,
+  templateAssignments: {},
 
   setRecords: (records) =>
     set({
@@ -245,7 +250,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   setSacRecords: (sacRecords) =>
     set((s) => {
-      let combined: Record[] = [];
+      let combined: EssaRecord[] = [];
       if (s.mercurioRecords.length > 0) {
         combined = crossReferenceSacAndMercurio(s.mercurioRecords, sacRecords);
       } else {
@@ -317,7 +322,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
       const idx = s.records.findIndex((r) => r.rowId === id);
       if (idx === -1) return {};
       const base = s.records[idx]!;
-      const updated = { ...base, ...patch } as Record;
+      const updated = { ...base, ...patch } as EssaRecord;
       // Recalculate semáforo if numeroProceso or observacionRevision updated
       updated.estadoSemaforo = getEstadoSemaforo(
         updated.numeroProceso,
@@ -338,6 +343,20 @@ export const useDataStore = create<DataStore>((set, get) => ({
         s.editingRecord && s.editingRecord.rowId === id ? updated : s.editingRecord;
       return { records: nextRecords, editingRecord };
     }),
+
+  assignTemplate: (rowId, templateId) =>
+    set((s) => ({
+      templateAssignments: { ...s.templateAssignments, [rowId]: templateId },
+    })),
+
+  removeTemplateAssignment: (rowId) =>
+    set((s) => {
+      const next = { ...s.templateAssignments };
+      delete next[rowId];
+      return { templateAssignments: next };
+    }),
+
+  clearTemplateAssignments: () => set({ templateAssignments: {} }),
 
   getFilteredRecords: () => {
     const { records, filterState } = get();
@@ -362,3 +381,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
     return applyFilters(records, filterState).length;
   },
 }));
+
+// expose for e2e seeding in dev
+if (typeof window !== 'undefined' && import.meta.env.DEV) (window as unknown as Record<string, unknown>).__dataStore = useDataStore;

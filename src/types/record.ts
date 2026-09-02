@@ -15,6 +15,7 @@ export interface Record {
   departamentoSolicitante: string;
   municipioSolicitante: string;
   correoSolicitante: string;
+  celularSolicitante?: string;
   numeroCuenta: string;
   cuenta?: string;
 

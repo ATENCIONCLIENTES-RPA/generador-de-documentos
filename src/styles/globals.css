@@ -17,20 +17,39 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  scrollbar-gutter: stable;
-  scroll-behavior: smooth;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 body {
-  min-height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   line-height: var(--leading-normal);
   font-size: var(--text-base);
 }
 
 #root {
-  min-height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* ── Shell scrollbars: single scroll container = #main-content ── */
+#main-content {
+  scrollbar-width: thin;
+  scrollbar-color: var(--neutral-300) transparent;
+  scrollbar-gutter: stable;
+}
+#main-content::-webkit-scrollbar { width: 6px; height: 6px; }
+#main-content::-webkit-scrollbar-thumb { background: var(--neutral-300); border-radius: 999px; }
+#main-content::-webkit-scrollbar-thumb:hover { background: var(--neutral-400); }
+
+/* ── Module uniform tokens ── */
+:root {
+  --module-gap: 12px;
+  --module-card-pad: 16px;
+  --module-hero-pad: 14px 18px;
 }
 
 a {

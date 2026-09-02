@@ -117,7 +117,7 @@ export function DataView() {
   const [jumpPage, setJumpPage] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [activeRecord, setActiveRecord] = useState<EssaRecord | null>(null);
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const headerCbRef = useRef<HTMLInputElement>(null);
 
@@ -368,7 +368,7 @@ export function DataView() {
   // ─── EMPTY STATE ──────────────────────────────────────────
   if (!records || records.length === 0) {
     return (
-      <div data-testid="data-view" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div data-testid="data-view" style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 0 }}>
         <style>{dvStyles}</style>
         <div className="dv-empty-state" data-testid="dv-empty-state">
           <div className="dv-empty-icon">
@@ -422,8 +422,26 @@ export function DataView() {
 
   // ─── MAIN RENDER ──────────────────────────────────────────
   return (
-    <div data-testid="data-view" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div data-testid="data-view" style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%', minHeight: 0 }}>
       <style>{dvStyles}</style>
+      <style>{`
+        [data-testid="data-view"]{gap:10px}
+        .dv-hero{flex-shrink:0}
+        .dv-hero-content{padding:12px 16px !important}
+        .dv-hero-title{font-size:1rem !important}
+        .dv-hero-icon{width:38px !important;height:38px !important}
+        .dv-filter-panel{flex-shrink:0; display:flex; flex-direction:column; min-height:0}
+        .dv-filter-body{scrollbar-width:thin; scrollbar-color: var(--neutral-300) transparent}
+        .dv-filter-body--open{max-height:22vh !important; overflow-y:auto !important; overflow-x:hidden}
+        @media (max-height: 900px){ .dv-filter-body--open{max-height:20vh !important} }
+        @media (max-height: 760px){ .dv-filter-body--open{max-height:18vh !important} }
+        .dv-results-bar{flex-shrink:0;padding:2px 0 !important;font-size:0.78rem !important}
+        .dv-table-container{flex:1; min-height:180px !important; display:flex; flex-direction:column; overflow:hidden}
+        .dv-table-scroll{flex:1; min-height:120px; overflow:auto; scrollbar-width:thin; scrollbar-gutter:stable}
+        .dv-table-scroll thead th{position:sticky; top:0; z-index:2}
+        .dv-pagination{flex-shrink:0; position:sticky; bottom:0; background:var(--neutral-50); z-index:1}
+        .dv-bottom-bar{flex-shrink:0;padding-top:8px !important}
+      `}</style>
 
       {/* ═══════ HERO HEADER ═══════ */}
       <div className="dv-hero">
@@ -573,33 +591,6 @@ export function DataView() {
         </button>
 
         <div className={`dv-filter-body ${filtersOpen ? 'dv-filter-body--open' : ''}`}>
-          {/* ── SEARCH ── */}
-          <div className="dv-filter-card dv-filter-card--search">
-            <div className="dv-filter-card-header">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--essa-primary)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <span>Buscar</span>
-            </div>
-            <Input
-              placeholder="Nombre, cuenta, radicado, proceso…"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              aria-label="Buscar"
-              data-testid="dv-search"
-            />
-          </div>
-
           {/* ── TEXT FILTERS ── */}
           <div className="dv-filter-card">
             <div className="dv-filter-card-header">

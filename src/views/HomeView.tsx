@@ -98,18 +98,18 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
   ];
 
   return (
-    <div data-testid="home-view" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div data-testid="home-view" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <style>{`
-        .home-hero { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; align-items: center; }
+        .home-hero { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; align-items: center; }
         @media (max-width: 1024px) { .home-hero { grid-template-columns: 1fr; } }
-        .home-card-icon { width: 44px; height: 44px; border-radius: 8px; background: var(--essa-primary-50); display: inline-flex; align-items: center; justify-content: center; border: 1px solid #bfdbfe; flex-shrink:0; }
+        .home-card-icon { width: 40px; height: 40px; border-radius: 8px; background: var(--essa-primary-50); display: inline-flex; align-items: center; justify-content: center; border: 1px solid #bfdbfe; flex-shrink:0; }
       `}</style>
 
       {/* Hero 12-col grid */}
       <div className="home-hero" data-testid="home-hero">
         {/* Left 7 cols */}
         <div
-          style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column', gap: 14 }}
+          style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column', gap: 10 }}
           data-testid="home-hero-left"
         >
           <div>
@@ -130,7 +130,7 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
           <h1
             data-testid="home-title"
             style={{
-              fontSize: '2.5rem',
+              fontSize: '2.2rem',
               fontWeight: 800,
               color: '#0f172a',
               lineHeight: 1.15,
@@ -142,9 +142,9 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
           <p
             data-testid="home-description"
             style={{
-              fontSize: '1.05rem',
+              fontSize: '0.95rem',
               color: '#64748b',
-              lineHeight: 1.65,
+              lineHeight: 1.6,
               maxWidth: 540,
             }}
           >
@@ -194,12 +194,12 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
       </div>
 
       {/* Welcome + 4 cards */}
-      <Card padding={28} data-testid="home-welcome-card">
-        <div style={{ marginBottom: 18 }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
+      <Card padding={20} data-testid="home-welcome-card">
+        <div style={{ marginBottom: 14 }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
             Bienvenido al Generador
           </h2>
-          <p style={{ fontSize: '0.875rem', color: '#64748b', marginTop: 4 }}>
+          <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 4 }}>
             Herramienta de uso interno para la creación automatizada de documentos oficiales ESSA.
           </p>
         </div>
@@ -209,8 +209,8 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 16,
-            marginBottom: 18,
+            gap: 12,
+            marginBottom: 14,
           }}
         >
           {features.map((f) => (
@@ -218,18 +218,18 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
               key={f.title}
               data-testid={`feature-card-${f.title.toLowerCase()}`}
               style={{
-                padding: 16,
-                borderRadius: 12,
+                padding: 12,
+                borderRadius: 10,
                 border: '1px solid #e2e8f0',
                 background: '#f8fafc',
                 textAlign: 'center',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 10,
+                gap: 8,
               }}
             >
-              <span className="home-card-icon" style={{ width: 44, height: 44 }} aria-hidden>
+              <span className="home-card-icon" style={{ width: 40, height: 40 }} aria-hidden>
                 {f.icon}
               </span>
               <span style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a' }}>
@@ -247,9 +247,9 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
           data-testid="home-como-funciona"
           style={{
             display: 'flex',
-            gap: 12,
-            padding: '14px 16px',
-            borderRadius: 12,
+            gap: 10,
+            padding: '12px 14px',
+            borderRadius: 10,
             background: '#eff6ff',
             border: '1px solid #bfdbfe',
             alignItems: 'flex-start',

@@ -105,14 +105,15 @@ const stepperStyles = `
   .stepper-bar {
     background: #fff;
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    padding: 14px 20px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-xs);
+    padding: 8px 14px;
     display: flex;
     align-items: center;
     gap: 0;
     overflow-x: auto;
     animation: stepSlideIn 400ms var(--ease-out) both;
+    flex-shrink: 0;
   }
 
   .stepper-item {
@@ -125,13 +126,13 @@ const stepperStyles = `
   .stepper-btn {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     background: transparent;
     border: 0;
     cursor: pointer;
     min-width: 0;
     text-align: left;
-    padding: 6px 8px;
+    padding: 4px 8px;
     border-radius: var(--radius-sm);
     transition: background 200ms var(--ease);
   }
@@ -156,9 +157,9 @@ const stepperStyles = `
   }
 
   .step-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-sm);
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
     display: inline-flex;
     align-items: center;
     justify-content: center;

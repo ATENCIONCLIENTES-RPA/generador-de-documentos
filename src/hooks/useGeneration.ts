@@ -91,6 +91,8 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
 
   const records = useDataStore((s) => s.records) as EssaRecord[];
   const selectedRows = useDataStore((s) => s.selectedRows);
+  const templateAssignments = useDataStore((s) => s.templateAssignments);
+  const allTemplates = useTemplateStore((s) => s.templates);
   const selectedTemplate = useTemplateStore((s) => s.selectedTemplate);
   const profile = useProfileStore((s) => s.profile);
 
@@ -115,7 +117,24 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
     });
   }, [selectedRecords, options?.excludedIds]);
 
-  const canGenerate = visibleRecords.length > 0 && !!selectedTemplate;
+  // Per-record template lookup helper
+  const getTemplateForRecord = useCallback(
+    (rec: EssaRecord) => {
+      const rowId = (rec as unknown as { rowId: string }).rowId;
+      const tid = templateAssignments[rowId];
+      if (!tid) return null;
+      return allTemplates.find((t) => t.id === tid) ?? null;
+    },
+    [templateAssignments, allTemplates]
+  );
+
+  // Fallback: use global selectedTemplate if no per-record assignment
+  const resolveTemplate = useCallback(
+    (rec: EssaRecord) => getTemplateForRecord(rec) ?? selectedTemplate,
+    [getTemplateForRecord, selectedTemplate]
+  );
+
+  const canGenerate = visibleRecords.length > 0 && visibleRecords.every((r) => !!resolveTemplate(r));
 
   const processSequential = useCallback(
     async (
@@ -123,10 +142,7 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
       existingResults: DocxGenerationResult[]
     ): Promise<DocxGenerationResult[]> => {
       const len = visibleRecords.length;
-      if (len === 0 || !selectedTemplate) return existingResults;
-
-      const templateFile = selectedTemplate.file as File | undefined;
-      const templateFileName = selectedTemplate.fileName;
+      if (len === 0) return existingResults;
 
       // fetch signature once
       const signatureBlob = await getSignatureBlob(profile.signatureUrl ?? null);
@@ -139,11 +155,12 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
         if (!next[i]) {
           const rec = visibleRecords[i];
           const rid = (rec as unknown as { rowId: string }).rowId ?? `rec-${i}`;
+          const tpl = resolveTemplate(rec);
           next[i] = {
             id: rid,
             recordId: rid,
-            templateId: selectedTemplate.id,
-            fileName: buildFileName(templateFileName, rec, rid),
+            templateId: tpl?.id,
+            fileName: buildFileName(tpl?.fileName ?? 'doc', rec, rid),
             status: 'pending' as const,
           };
         }
@@ -153,27 +170,29 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
       for (const idx of indices) {
         const rec = visibleRecords[idx];
         const rid = (rec as unknown as { rowId: string }).rowId ?? `rec-${idx}`;
+        const tpl = resolveTemplate(rec);
+        const tplFile = tpl?.file as File | undefined;
+        const tplFileName = tpl?.fileName ?? 'doc';
         // mark generating
-        next[idx] = { ...next[idx], status: 'pending' as const, error: undefined };
+        next[idx] = { ...next[idx], status: 'pending' as const, error: undefined, templateId: tpl?.id };
         setDocResults([...next]);
         setProgress(Math.round((idx / len) * 100));
 
         try {
           let blob: Blob;
-          if (templateFile) {
+          if (tplFile) {
             if (signatureBlob) {
               const templateData = buildTemplateData(rec, {
                 name: profile.name,
                 position: profile.position,
                 email: profile.email,
               });
-              blob = await generateDocx(templateFile as unknown as File, templateData, {
+              blob = await generateDocx(tplFile as unknown as File, templateData, {
                 signatureBlob,
               });
             } else {
-              // use overload with record+profile for text replacement
               blob = await generateDocx(
-                templateFile as unknown as File,
+                tplFile as unknown as File,
                 rec as unknown as Record<string, unknown> as never,
                 {
                   name: profile.name,
@@ -183,15 +202,13 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
               );
             }
           } else {
-            // no file -> fallback text blob (should not happen in prod but allows tests)
-            const content = selectedTemplate.sampleContent ?? '';
-            // simple fallback: generateDocx would throw due to missing file; create text blob
+            const content = tpl?.sampleContent ?? '';
             const text = `ESSA - ${content} - ${rec.nombreSolicitante ?? ''}`;
             blob = new Blob([text], {
               type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             });
           }
-          const fileName = buildFileName(templateFileName, rec, rid);
+          const fileName = buildFileName(tplFileName, rec, rid);
           next[idx] = {
             ...next[idx],
             id: rid,
@@ -232,7 +249,7 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
             type: next.length > 1 ? 'Masivo' : 'Individual',
             status: hasError ? 'Con errores' : 'Completado',
             recordsCount: next.length,
-            templateName: selectedTemplate.title ?? selectedTemplate.fileName ?? 'Plantilla',
+            templateName: visibleRecords.length === 1 ? (resolveTemplate(visibleRecords[0])?.title ?? resolveTemplate(visibleRecords[0])?.fileName ?? 'Plantilla') : 'Múltiples plantillas',
           });
         } catch (e) {
           console.error('[useGeneration] onAddHistory failed', e);
@@ -241,7 +258,7 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
 
       return next;
     },
-    [visibleRecords, selectedTemplate, profile, setStage, setProgress, setDocResults, options]
+    [visibleRecords, resolveTemplate, profile, setStage, setProgress, setDocResults, options]
   );
 
   const generate = useCallback(async () => {
@@ -251,11 +268,12 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
     // init pending results for visible records only
     const initial: DocxGenerationResult[] = visibleRecords.map((rec, i) => {
       const rid = (rec as unknown as { rowId: string }).rowId ?? `rec-${i}`;
+      const tpl = resolveTemplate(rec);
       return {
         id: rid,
         recordId: rid,
-        templateId: selectedTemplate!.id,
-        fileName: buildFileName(selectedTemplate!.fileName, rec, rid),
+        templateId: tpl?.id,
+        fileName: buildFileName(tpl?.fileName ?? 'doc', rec, rid),
         status: 'pending' as const,
       };
     });
@@ -265,7 +283,7 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
   }, [
     canGenerate,
     visibleRecords,
-    selectedTemplate,
+    resolveTemplate,
     setStage,
     setProgress,
     setDocResults,

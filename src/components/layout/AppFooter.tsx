@@ -17,10 +17,11 @@ export function AppFooter() {
 const footerStyles = `
   .app-footer {
     border-top: 1px solid var(--border);
-    background: rgba(255,255,255,0.8);
+    background: rgba(255,255,255,0.92);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    padding: 16px 24px;
+    padding: 8px 20px;
+    flex-shrink: 0;
   }
   .app-footer-inner {
     max-width: var(--max-container);

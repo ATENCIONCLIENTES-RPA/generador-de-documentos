@@ -3,6 +3,8 @@ import * as docxPreview from 'docx-preview';
 import { useGeneration } from '@/hooks/useGeneration';
 import { GenerationStageIndicator } from '@/components/features/GenerationStageIndicator';
 import { useProfileStore } from '@/store/profileStore';
+import { useDataStore } from '@/store/dataStore';
+import { useTemplateStore } from '@/store/templateStore';
 import { generateDocx, buildTemplateData, replaceTemplateVariables } from '@/utils/templateEngine';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -176,8 +178,13 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
     downloadAll,
   } = useGeneration({ onAddHistory, excludedIds });
 
+  const templateAssignments = useDataStore((s) => s.templateAssignments);
+  const allTemplates = useTemplateStore((s) => s.templates);
+
   const previewRef = useRef<HTMLDivElement>(null);
   const docxContainerRef = useRef<HTMLDivElement>(null);
+  const previewInnerRef = useRef<HTMLDivElement>(null);
+  const [docNaturalSize, setDocNaturalSize] = useState<{ w: number; h: number } | null>(null);
 
   // items combined with status — exclude removed docs
   const combined = useMemo(() => {
@@ -251,6 +258,25 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
   const zoomIn = useCallback(() => setZoom((z) => Math.min(z + 15, 200)), []);
   const zoomOut = useCallback(() => setZoom((z) => Math.max(z - 15, 40)), []);
   const zoomReset = useCallback(() => setZoom(100), []);
+  const calcFitZoom = useCallback(() => {
+    const viewer = previewRef.current;
+    const inner = previewInnerRef.current;
+    if (!viewer || !inner) return;
+    const vw = viewer.clientWidth - 16;
+    const vh = viewer.clientHeight - 16;
+    if (vw <= 0 || vh <= 0) return;
+    const dw = inner.scrollWidth || inner.offsetWidth;
+    const dh = inner.scrollHeight || inner.offsetHeight;
+    if (dw <= 0 || dh <= 0) return;
+    setDocNaturalSize({ w: dw, h: dh });
+    const isMultiPage = dh > vh * 1.4;
+    const refH = isMultiPage ? vh : dh;
+    const scaleW = vw / dw;
+    const scaleH = vh / refH;
+    const pct = Math.round(Math.min(scaleW, scaleH, 2.5) * 100);
+    setZoom(Math.max(40, Math.min(200, pct || 100)));
+  }, []);
+  const fitToPage = useCallback(() => calcFitZoom(), [calcFitZoom]);
 
   // -- remove document --
   const requestRemove = useCallback((rid: string, name: string) => {
@@ -375,6 +401,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         if (!renderAsync) throw new Error('renderAsync not found');
         docxContainerRef.current.innerHTML = '';
         await renderAsync(buf, docxContainerRef.current);
+        if (!cancelled) requestAnimationFrame(() => calcFitZoom());
       } catch (e) {
         console.error('docx-preview render failed, fallback to text', e);
         if (!cancelled) setDocxRenderFailed(true);
@@ -384,13 +411,43 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [selectedTemplate?.file, activeRecord, profile]);
+  }, [selectedTemplate?.file, activeRecord, profile, calcFitZoom]);
 
-  // reset zoom on document change
+  // reset zoom on document change + auto-fit
   useEffect(() => {
     setZoom(100);
     setDocxRenderFailed(false);
-  }, [activeItem?.rid]);
+    setDocNaturalSize(null);
+    // auto-fit after render settled
+    const t = window.setTimeout(() => calcFitZoom(), 180);
+    return () => window.clearTimeout(t);
+  }, [activeItem?.rid, calcFitZoom]);
+
+  // keep viewer fit on resize / resolution change
+  useEffect(() => {
+    const viewer = previewRef.current;
+    if (!viewer) return;
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => calcFitZoom());
+    ro.observe(viewer);
+    return () => ro.disconnect();
+  }, [calcFitZoom]);
+
+  // refit when natural size known
+  useEffect(() => {
+    if (!docNaturalSize) return;
+    const viewer = previewRef.current;
+    if (!viewer) return;
+    const vw = viewer.clientWidth - 16;
+    const vh = viewer.clientHeight - 16;
+    if (vw <= 0 || vh <= 0) return;
+    const isMultiPage = docNaturalSize.h > vh * 1.4;
+    const refH = isMultiPage ? vh : docNaturalSize.h;
+    const scaleW = vw / docNaturalSize.w;
+    const scaleH = vh / refH;
+    const pct = Math.round(Math.min(scaleW, scaleH, 2.5) * 100);
+    setZoom(Math.max(40, Math.min(200, pct || 100)));
+  }, [docNaturalSize]);
 
   const hasError = counts.errores > 0;
 
@@ -408,30 +465,32 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         .gv-root {
           display: flex;
           flex-direction: column;
-          gap: 14px;
+          gap: 8px;
           width: 100%;
           max-width: 100%;
-          overflow: hidden;
+          height: 100%;
+          min-height: 0;
         }
 
         /* ── Header ── */
         .gv-header {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           flex-wrap: wrap;
           justify-content: space-between;
+          flex-shrink: 0;
         }
         .gv-header-left {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           min-width: 0;
         }
         .gv-header-icon {
-          width: 38px;
-          height: 38px;
-          border-radius: 10px;
+          width: 30px;
+          height: 30px;
+          border-radius: 8px;
           background: #eff6ff;
           display: inline-flex;
           align-items: center;
@@ -440,7 +499,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           flex-shrink: 0;
         }
         .gv-header-title {
-          font-size: 1.15rem;
+          font-size: 1rem;
           font-weight: 900;
           color: var(--neutral-900);
           margin: 0;
@@ -448,7 +507,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           white-space: nowrap;
         }
         .gv-header-sub {
-          font-size: 0.78rem;
+          font-size: 0.72rem;
           color: var(--neutral-500);
           margin: 0;
         }
@@ -473,13 +532,14 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         .gv-toolbar {
           background: var(--bg-card);
           border: 1px solid var(--border);
-          border-radius: var(--radius-md);
-          padding: 10px 14px;
+          border-radius: 10px;
+          padding: 8px 12px;
           box-shadow: var(--shadow-xs);
           display: flex;
-          gap: 10px;
+          gap: 8px;
           align-items: center;
           flex-wrap: wrap;
+          flex-shrink: 0;
         }
         .gv-toolbar-search {
           flex: 1 1 300px;
@@ -511,9 +571,10 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         /* ── 3-panel layout ── */
         .gv-layout {
           display: grid;
-          grid-template-columns: minmax(240px, 280px) 1fr minmax(220px, 270px);
-          gap: 14px;
-          align-items: start;
+          grid-template-columns: minmax(230px, 250px) 1fr minmax(220px, 250px);
+          gap: 8px;
+          align-items: stretch;
+          flex: 1;
           min-height: 0;
         }
         @media (max-width: 1100px) {
@@ -537,16 +598,17 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           overflow: hidden;
           display: flex;
           flex-direction: column;
+          min-height: 0;
         }
 
         /* ── Card Header ── */
         .gv-card-header {
-          padding: 11px 14px;
+          padding: 8px 10px;
           border-bottom: 1px solid var(--border);
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 8px;
+          gap: 6px;
           background: var(--neutral-50);
           flex-shrink: 0;
         }
@@ -571,12 +633,11 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         .gv-sidebar-list {
           flex: 1;
           overflow-y: auto;
-          padding: 8px 10px;
+          padding: 6px 8px;
           display: flex;
           flex-direction: column;
-          gap: 6px;
-          max-height: calc(100vh - 320px);
-          min-height: 400px;
+          gap: 5px;
+          min-height: 0;
         }
         .gv-sidebar-item {
           display: flex;
@@ -711,12 +772,12 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         .gv-preview {
           background: var(--neutral-100);
           overflow: hidden;
-          padding: 16px;
+          padding: 8px;
           flex: 1;
           display: flex;
           justify-content: center;
           align-items: flex-start;
-          min-height: 400px;
+          min-height: 0;
           position: relative;
         }
         .gv-preview-scroll {
@@ -860,11 +921,11 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
 
         /* ── Responsive ── */
         @media (max-width: 1100px) {
-          .gv-sidebar-list { max-height: 350px; min-height: 300px; }
+          .gv-sidebar-list { min-height: 0; }
         }
         @media (max-width: 860px) {
-          .gv-sidebar-list { max-height: 300px; min-height: 250px; }
-          .gv-preview { min-height: 350px; }
+          .gv-sidebar-list { min-height: 0; }
+          .gv-preview { min-height: 0; }
         }
 
         /* ── Confirm modal ── */
@@ -1051,6 +1112,16 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
                         {String(item.rec.numeroCuenta ?? item.rec.cuenta ?? '—')} ·{' '}
                         {String(item.rec.radicadoEntrada ?? '—')}
                       </span>
+                      {(() => {
+                        const tid = templateAssignments[item.rid];
+                        const tpl = tid ? allTemplates.find((t) => t.id === tid) : null;
+                        if (!tpl) return null;
+                        return (
+                          <span className="gv-sidebar-item-meta" style={{ color: '#004B93', fontWeight: 600 }}>
+                            {tpl.title || tpl.fileName}
+                          </span>
+                        );
+                      })()}
                       <span
                         className="gv-sidebar-item-status"
                         style={{
@@ -1171,36 +1242,49 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
                   {String(activeRecord.nombreSolicitante ?? '')}
                 </span>
               )}
-              {selectedTemplate?.file && (
-                <div className="gv-zoom-bar">
+              <div className="gv-zoom-bar">
                   <button
                     className="gv-zoom-btn"
                     onClick={zoomOut}
                     title="Reducir"
                     aria-label="Reducir zoom"
+                    data-testid="gv-zoom-out"
                   >
                     −
                   </button>
-                  <span className="gv-zoom-label">{zoom}%</span>
+                  <span className="gv-zoom-label" data-testid="gv-zoom-pct">{zoom}%</span>
                   <button
                     className="gv-zoom-btn"
                     onClick={zoomIn}
                     title="Ampliar"
                     aria-label="Ampliar zoom"
+                    data-testid="gv-zoom-in"
                   >
                     +
                   </button>
                   <button
                     className="gv-zoom-btn"
                     onClick={zoomReset}
-                    title="Restablecer"
+                    title="Restablecer 1:1"
                     aria-label="Restablecer zoom"
-                    style={{ fontSize: '0.7rem' }}
+                    data-testid="gv-zoom-reset"
+                    style={{ fontSize: '0.62rem' }}
                   >
                     1:1
                   </button>
+                  <div style={{ width:1,height:14,background:'var(--border)',margin:'0 2px' }} />
+                  <button
+                    className="gv-zoom-btn active"
+                    onClick={fitToPage}
+                    title="Ajustar a página"
+                    aria-label="Ajustar a página"
+                    data-testid="gv-zoom-fit-page"
+                    style={{ width:'auto',padding:'0 6px',fontSize:'0.6rem',gap:4 }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                    Página
+                  </button>
                 </div>
-              )}
             </div>
           </div>
 
@@ -1213,32 +1297,35 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
               No hay registros seleccionados
             </div>
           ) : (
-            <div className="gv-preview" data-testid="gv-preview" ref={previewRef}>
-              <div
-                className="gv-preview-inner"
-                style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
-              >
-                {/* docx-preview mount point */}
+            <div className="gv-preview" data-testid="gv-preview" ref={previewRef} style={{ overflow:'auto', display:'flex', flexDirection:'column' }}>
+              <div style={{ display:'flex', justifyContent:'center', alignItems:'flex-start', flex:1, padding:12, minHeight:0, width:'100%' }}>
                 <div
-                  ref={docxContainerRef}
-                  data-testid="gv-docx-container"
-                  style={{
-                    display: selectedTemplate?.file ? 'block' : 'none',
-                    minHeight: selectedTemplate?.file ? 200 : 0,
-                  }}
-                />
-                {/* fallback text if no file */}
-                {(!selectedTemplate?.file || docxRenderFailed) && (
-                  <div className="gv-fallback">
-                    <div data-testid="gv-fallback-content" className="gv-fallback-text">
-                      {previewContent || (
-                        <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
-                          Sin contenido disponible
-                        </span>
-                      )}
+                  ref={previewInnerRef}
+                  className="gv-preview-inner"
+                  style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center', flexShrink:0 }}
+                >
+                  {/* docx-preview mount point */}
+                  <div
+                    ref={docxContainerRef}
+                    data-testid="gv-docx-container"
+                    style={{
+                      display: selectedTemplate?.file ? 'block' : 'none',
+                      minHeight: selectedTemplate?.file ? 200 : 0,
+                    }}
+                  />
+                  {/* fallback text if no file */}
+                  {(!selectedTemplate?.file || docxRenderFailed) && (
+                    <div className="gv-fallback" style={{ maxWidth:560 }}>
+                      <div data-testid="gv-fallback-content" className="gv-fallback-text">
+                        {previewContent || (
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                            Sin contenido disponible
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           )}

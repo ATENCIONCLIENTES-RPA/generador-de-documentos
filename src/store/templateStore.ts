@@ -40,3 +40,5 @@ export const useTemplateStore = create<TemplateStore>((set, get) => ({
 
   clearTemplates: () => set({ templates: [], selectedTemplate: null }),
 }));
+
+if (typeof window !== 'undefined' && import.meta.env.DEV) (window as unknown as Record<string, unknown>).__templateStore = useTemplateStore;

@@ -61,3 +61,6 @@ export const useExcelStore = create<ExcelStore>((set) => ({
     })),
   clearAll: () => set({ sacFile: null, mercurioFile: null, templateFolder: null, allReady: false }),
 }));
+
+// expose for e2e seeding in dev
+if (typeof window !== 'undefined' && import.meta.env.DEV) (window as unknown as Record<string, unknown>).__excelStore = useExcelStore;

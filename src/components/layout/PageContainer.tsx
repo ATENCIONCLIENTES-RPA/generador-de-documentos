@@ -9,10 +9,10 @@ interface Props {
 export function PageContainer({
   children,
   maxWidth = 'var(--max-container)',
-  padding = '28px 24px',
+  padding = '14px 20px 12px',
 }: Props) {
   return (
-    <div style={{ maxWidth, margin: '0 auto', width: '100%', padding, flex: 1 }}>{children}</div>
+    <div style={{ maxWidth, margin: '0 auto', width: '100%', padding, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, gap: 10 }}>{children}</div>
   );
 }
 export default PageContainer;

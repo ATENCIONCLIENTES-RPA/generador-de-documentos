@@ -218,16 +218,20 @@ export function ConfigView() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }} data-testid="config-view">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }} data-testid="config-view">
       <style>{`
-        .m2-hero { position:relative; overflow:hidden; border-radius:16px; padding:26px 28px; background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 45%, #F0FDF4 100%); border:1px solid #E0F2FE; }
-        .m2-blur { position:absolute; border-radius:999px; filter: blur(32px); opacity:0.55; pointer-events:none; }
-        .m2-grid { display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+        .m2-hero { position:relative; overflow:hidden; border-radius:14px; padding:14px 16px; background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 45%, #F0FDF4 100%); border:1px solid #E0F2FE; flex-shrink:0; }
+        .m2-blur { position:absolute; border-radius:999px; filter: blur(28px); opacity:0.45; pointer-events:none; }
+        .m2-grid { display:grid; grid-template-columns: 1fr 1fr; gap:10px; flex-shrink:0; }
         @media (max-width: 860px) { .m2-grid { grid-template-columns: 1fr; } }
         .m2-segment { flex:1; height:100%; border-radius:999px; transition: background 220ms ease-out, opacity 220ms ease-out; }
+        .m2-scroll-area { display:flex; flex-direction:column; gap:10px; }
+        .m2-card{padding:14px !important;gap:10px !important}
+        .m2-drop{padding:14px 12px !important;min-height:118px !important;gap:8px !important}
+        .m2-drop--completed{min-height:118px !important}
       `}</style>
 
-      {/* HERO */}
+      <div className="m2-scroll-area">
       <div className="m2-hero" data-testid="m2-hero">
         <div
           className="m2-blur"
@@ -265,7 +269,7 @@ export function ConfigView() {
           aria-hidden
         />
 
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
             <Badge
               variant="info"
@@ -273,8 +277,8 @@ export function ConfigView() {
                 background: '#fff',
                 borderColor: '#bfdbfe',
                 color: '#1e40af',
-                fontSize: '0.66rem',
-                letterSpacing: '0.08em',
+                fontSize: '0.62rem',
+                letterSpacing: '0.07em',
               }}
             >
               MÓDULO 2: CONFIGURACIÓN DE RECURSOS
@@ -286,14 +290,14 @@ export function ConfigView() {
               display: 'flex',
               alignItems: 'flex-start',
               justifyContent: 'space-between',
-              gap: 16,
+              gap: 14,
               flexWrap: 'wrap',
             }}
           >
             <div>
               <h1
                 style={{
-                  fontSize: '1.55rem',
+                  fontSize: '1.35rem',
                   fontWeight: 900,
                   color: '#0f172a',
                   letterSpacing: '-0.02em',
@@ -304,11 +308,11 @@ export function ConfigView() {
               </h1>
               <p
                 style={{
-                  fontSize: '0.875rem',
+                  fontSize: '0.82rem',
                   color: '#475569',
-                  marginTop: 6,
+                  marginTop: 4,
                   maxWidth: 640,
-                  lineHeight: 1.5,
+                  lineHeight: 1.45,
                 }}
               >
                 Carga los archivos Excel de <strong style={{ color: '#004B93' }}>SAC</strong> y{' '}
@@ -485,131 +489,7 @@ export function ConfigView() {
             locationLabel="Consultar carpeta de Plantillas"
           />
 
-          {/* templates list when selected */}
-          {templateFolder?.file &&
-            !templateFolder.loading &&
-            !templateFolder.error &&
-            folderTemplates.length > 0 && (
-              <div
-                data-testid="m2-templates-list"
-                style={{
-                  marginTop: 12,
-                  background: '#fff',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-card)',
-                  padding: 14,
-                  boxShadow: 'var(--shadow-xs)',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 10,
-                    marginBottom: 10,
-                  }}
-                >
-                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--neutral-700)' }}>
-                    Plantillas detectadas{' '}
-                    <span style={{ color: 'var(--neutral-500)', fontWeight: 600 }}>
-                      — {folderName || 'Carpeta'} · {folderTemplates.length} .docx
-                    </span>
-                  </div>
-                  <Badge variant="accent" style={{ fontSize: '0.68rem' }}>
-                    {folderTemplates.length} archivos
-                  </Badge>
-                </div>
-                <div
-                  style={{
-                    maxHeight: 180,
-                    overflowY: 'auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                    paddingRight: 4,
-                  }}
-                >
-                  {folderTemplates.map((tpl, i) => (
-                    <div
-                      key={`${tpl.name}-${i}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        padding: '8px 10px',
-                        borderRadius: 10,
-                        border: '1px solid #e2e8f0',
-                        background: '#f8fafc',
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      <span
-                        aria-hidden
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 8,
-                          background: '#004B93',
-                          color: '#fff',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 800,
-                          fontSize: '0.68rem',
-                          flexShrink: 0,
-                        }}
-                      >
-                        W
-                      </span>
-                      <span
-                        style={{
-                          flex: 1,
-                          color: '#334155',
-                          fontWeight: 600,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                        title={tpl.name}
-                      >
-                        {tpl.name}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '0.72rem',
-                          color: '#94a3b8',
-                          fontWeight: 600,
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {(tpl.size / 1024).toFixed(1)} KB
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
-          {templateFolder?.file &&
-            !templateFolder.loading &&
-            !templateFolder.error &&
-            folderTemplates.length === 0 &&
-            templateFolder.recordCount === 0 && (
-              <div
-                style={{
-                  marginTop: 10,
-                  fontSize: '0.78rem',
-                  color: '#dc2626',
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  borderRadius: 10,
-                  padding: '8px 12px',
-                }}
-              >
-                No se encontraron plantillas .docx en la carpeta seleccionada.
-              </div>
-            )}
         </div>
       </div>
 
@@ -623,9 +503,10 @@ export function ConfigView() {
           flexWrap: 'wrap',
           background: '#fff',
           border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-card)',
-          padding: '14px 16px',
+          borderRadius: 10,
+          padding: '10px 14px',
           boxShadow: 'var(--shadow-xs)',
+          flexShrink: 0,
         }}
       >
         <Button variant="ghost" onClick={handleCancelar} data-testid="m2-cancelar">
@@ -683,6 +564,7 @@ export function ConfigView() {
             </svg>
           </Button>
         </div>
+      </div>
       </div>
     </div>
   );

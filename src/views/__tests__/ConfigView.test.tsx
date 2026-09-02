@@ -181,7 +181,9 @@ describe('ConfigView allReady gate', () => {
     );
     // excelStore folder recordCount reflects docx count
     expect(useExcelStore.getState().templateFolder?.recordCount).toBe(2);
-    expect(screen.getByTestId('m2-templates-list')).toBeInTheDocument();
+    // M2 ya no renderiza la lista detallada — solo la tarjeta de carpeta en estado LISTO (verificada en M4)
+    expect(screen.queryByTestId('m2-templates-list')).not.toBeInTheDocument();
+    expect(screen.getByText('Carpeta de Plantillas')).toBeInTheDocument();
   });
 
   it('C1: no hidrata templateStore si carpeta no tiene .docx', async () => {

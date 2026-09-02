@@ -12,6 +12,14 @@ vi.mock('docx-preview', () => ({
   renderAsync: vi.fn(async () => {}),
 }));
 
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  (globalThis as any).ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 function makeTemplate(overrides: Partial<Template> & { id: string }): Template {
   return {
     id: overrides.id,
@@ -55,6 +63,7 @@ function resetStores() {
   useDataStore.setState({
     records: [],
     selectedRows: new Set<string>(),
+    templateAssignments: {},
     filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
     currentPage: 1,
     pageSize: 10,
@@ -63,7 +72,7 @@ function resetStores() {
   useNavigationStore.setState({ currentStep: 'plantillas', completed: new Set() });
 }
 
-describe('TemplatesView — M4 preview fixes', () => {
+describe('TemplatesView — M4 3-panel layout', () => {
   beforeEach(() => {
     resetStores();
     vi.clearAllMocks();
@@ -82,7 +91,7 @@ describe('TemplatesView — M4 preview fixes', () => {
     expect(screen.getByText(/Cargando plantillas/)).toBeInTheDocument();
   });
 
-  it('muestra contenido alternativo cuando docx-preview falla en producción', async () => {
+  it('muestra contenido alternativo cuando docx-preview falla', async () => {
     const t1 = makeTemplate({
       id: 'tpl-preview-fallback',
       title: 'Plantilla con falla de render',
@@ -95,6 +104,7 @@ describe('TemplatesView — M4 preview fixes', () => {
     useDataStore.setState({
       records: [rec] as unknown as EssaRecord[],
       selectedRows: new Set(['row_fallback']),
+      templateAssignments: {},
       filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
       currentPage: 1,
       pageSize: 10,
@@ -110,7 +120,7 @@ describe('TemplatesView — M4 preview fixes', () => {
     expect(screen.getByTestId('tv-fallback-content')).toHaveTextContent('RAD-777');
   });
 
-  it('renderiza lista de plantillas mostrando únicamente el nombre de la plantilla', () => {
+  it('renderiza lista de plantillas mostrando nombre y conteo', () => {
     const t1 = makeTemplate({
       id: 'tpl-1',
       title: 'Bloqueo de Cuenta',
@@ -128,11 +138,9 @@ describe('TemplatesView — M4 preview fixes', () => {
     render(<TemplatesView />);
 
     expect(screen.getByTestId('tv-list')).toBeInTheDocument();
-    expect(screen.getByTestId('tv-count')).toHaveTextContent(/2 plantillas/);
-    // Solo título / nombre
+    expect(screen.getByTestId('tv-count')).toHaveTextContent('2');
     expect(screen.getByTestId('tv-title-tpl-1')).toHaveTextContent('Bloqueo de Cuenta');
     expect(screen.getByTestId('tv-title-tpl-2')).toHaveTextContent('Contrato ESSA');
-    // cards present
     expect(screen.getByTestId('tv-card-tpl-1')).toBeInTheDocument();
     expect(screen.getByTestId('tv-card-tpl-2')).toBeInTheDocument();
   });
@@ -144,7 +152,6 @@ describe('TemplatesView — M4 preview fixes', () => {
       sampleContent: 'Hola [NOMBRE_SOLICITANTE] radicado [RADICADO_ENTRADA]',
     });
     useTemplateStore.setState({ templates: [t1], selectedTemplate: null });
-    // seed a record and select it
     const rec = makeRecord({
       rowId: 'row_0_1',
       nombreSolicitante: 'María López',
@@ -153,6 +160,7 @@ describe('TemplatesView — M4 preview fixes', () => {
     useDataStore.setState({
       records: [rec] as unknown as EssaRecord[],
       selectedRows: new Set(['row_0_1']),
+      templateAssignments: {},
       filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
       currentPage: 1,
       pageSize: 10,
@@ -161,24 +169,18 @@ describe('TemplatesView — M4 preview fixes', () => {
 
     render(<TemplatesView />);
 
-    // initially no preview, empty placeholder
     expect(screen.getByTestId('tv-preview-empty')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('tv-card-tpl-1'));
-    // store updated
     expect(useTemplateStore.getState().selectedTemplate?.id).toBe('tpl-1');
 
-    // preview viewer appears
     expect(screen.getByTestId('tv-preview-viewer')).toBeInTheDocument();
     expect(screen.getByTestId('tv-preview-document')).toBeInTheDocument();
-    // variable tags
     expect(screen.getByTestId('tv-variables')).toBeInTheDocument();
     expect(screen.getByTestId('tv-var-NOMBRE_SOLICITANTE')).toBeInTheDocument();
     expect(screen.getByTestId('tv-var-RADICADO_ENTRADA')).toBeInTheDocument();
-    // fallback content contains fused data (replaceTemplateVariables)
     expect(screen.getByTestId('tv-fallback-content')).toHaveTextContent('María López');
     expect(screen.getByTestId('tv-fallback-content')).toHaveTextContent('RAD-999');
-    // no longer empty placeholder
     expect(screen.queryByTestId('tv-preview-empty')).not.toBeInTheDocument();
   });
 
@@ -197,7 +199,7 @@ describe('TemplatesView — M4 preview fixes', () => {
     expect(screen.getByTestId('tv-empty-search')).toBeInTheDocument();
   });
 
-  it('preview centrado: margin 0 auto, scroll vertical interno', async () => {
+  it('preview centrado: scroll interno y centrado flexbox', async () => {
     const t1 = makeTemplate({ id: 'tpl-1', title: 'Tpl A' });
     useTemplateStore.setState({ templates: [t1], selectedTemplate: t1 });
     render(<TemplatesView />);
@@ -206,16 +208,9 @@ describe('TemplatesView — M4 preview fixes', () => {
     const doc = screen.getByTestId('tv-preview-document');
 
     expect(viewer).toBeInTheDocument();
-    const viewerStyle = viewer.style;
-    expect(viewerStyle.overflowY).toBe('auto');
-    expect(viewerStyle.overflowX).toBe('hidden');
 
-    // document centered
-    const docStyle = doc.style;
-    expect(docStyle.margin).toBe('0px auto');
     expect(doc.getAttribute('data-centered')).toBe('true');
 
-    // sin toolbar gris — ensure no element with gray toolbar text in preview
     expect(screen.queryByText(/toolbar/i)).not.toBeInTheDocument();
   });
 
@@ -238,70 +233,80 @@ describe('TemplatesView — M4 preview fixes', () => {
     useDataStore.setState({
       records: [rec1, rec2] as unknown as EssaRecord[],
       selectedRows: new Set(['row_1_1']),
+      templateAssignments: {},
       filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
       currentPage: 1,
       pageSize: 10,
       editingRecord: null,
     });
     render(<TemplatesView />);
-    // preview should use row_1_1 (Carlos Ruiz) because selectedRows
     expect(screen.getByTestId('tv-fallback-content')).toHaveTextContent('Carlos Ruiz');
     expect(screen.getByTestId('tv-fallback-content')).toHaveTextContent('222');
     expect(screen.getByTestId('tv-preview-record')).toHaveTextContent('Carlos Ruiz');
   });
 
-  it('botón Continuar bottom-right deshabilitado sin selección y navega correctamente', async () => {
-    const t1 = makeTemplate({ id: 'tpl-1' });
+  it('botón Continuar deshabilitado hasta que todos los registros tengan plantilla asignada', async () => {
+    const t1 = makeTemplate({ id: 'tpl-1', title: 'Mi Plantilla' });
+    const rec = makeRecord({ rowId: 'row_assign', nombreSolicitante: 'Pedro López' });
     useTemplateStore.setState({ templates: [t1], selectedTemplate: null });
+    useDataStore.setState({
+      records: [rec] as unknown as EssaRecord[],
+      selectedRows: new Set(['row_assign']),
+      templateAssignments: {},
+      filterState: { search: '', cuenta: '', proceso: '', radicado: '', fechaSolicitud: '', fechaDesde: '', fechaHasta: '', procesoCreado: 'todos', estadoSemaforo: 'todos', cantProcesos: 'todos', diasPqrFiltro: 'todos' },
+      currentPage: 1,
+      pageSize: 10,
+      editingRecord: null,
+    });
+
     render(<TemplatesView />);
+
     const btn = screen.getByTestId('tv-continuar') as HTMLButtonElement;
     expect(btn).toBeDisabled();
     expect(btn).toHaveTextContent(/Continuar a Generación/);
-    // clicking disabled should not navigate
     fireEvent.click(btn);
     expect(useNavigationStore.getState().currentStep).toBe('plantillas');
 
-    // select and click
     fireEvent.click(screen.getByTestId('tv-card-tpl-1'));
+
+    fireEvent.click(screen.getByTestId('tv-record-row_assign'));
+
+    fireEvent.click(screen.getByTestId('tv-assign-btn'));
+
     const btn2 = screen.getByTestId('tv-continuar') as HTMLButtonElement;
     expect(btn2).toBeEnabled();
-    // ensure bottom-right alignment via marginLeft auto
-    expect(btn2.style.marginLeft).toBe('auto');
-    // actions container should be flex justify space-between / end
+
     const actions = screen.getByTestId('tv-actions');
-    expect(actions.style.display).toBe('flex');
     expect(actions.style.justifyContent).toBe('space-between');
 
     fireEvent.click(btn2);
     expect(useNavigationStore.getState().completed.has('plantillas')).toBe(true);
     expect(useNavigationStore.getState().currentStep).toBe('generacion');
-    // alias label also contains Vista Previa
-    expect(screen.getByTestId('tv-continuar-alias')).toHaveTextContent(/Continuar a Vista Previa/);
   });
 
-  it('selección cambia border y check', () => {
+  it('selección de plantilla muestra check visual y aria-pressed', () => {
     const t1 = makeTemplate({ id: 'tpl-1' });
     const t2 = makeTemplate({ id: 'tpl-2' });
     useTemplateStore.setState({ templates: [t1, t2], selectedTemplate: null });
     render(<TemplatesView />);
+
     fireEvent.click(screen.getByTestId('tv-card-tpl-1'));
     const card1 = screen.getByTestId('tv-card-tpl-1');
-    expect(card1.getAttribute('data-selected')).toBe('true');
-    expect(card1.style.border.toLowerCase()).toMatch(/004b93|rgb\(0,\s*75,\s*147\)/);
-    expect(screen.getByTestId('tv-check-tpl-1')).toBeInTheDocument();
+    expect(card1.getAttribute('aria-pressed')).toBe('true');
+    expect(card1.style.borderColor).toMatch(/004b93|rgb\(0,\s*75,\s*147\)/);
 
     fireEvent.click(screen.getByTestId('tv-card-tpl-2'));
-    expect(screen.getByTestId('tv-card-tpl-2').getAttribute('data-selected')).toBe('true');
-    expect(screen.getByTestId('tv-card-tpl-1').getAttribute('data-selected')).toBe('false');
+    expect(screen.getByTestId('tv-card-tpl-2').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('tv-card-tpl-1').getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('muestra grid 5/7 y preview panel structure', () => {
+  it('muestra layout 3 paneles y estructura de preview', () => {
     const t1 = makeTemplate({ id: 'tpl-1' });
     useTemplateStore.setState({ templates: [t1], selectedTemplate: null });
     render(<TemplatesView />);
-    expect(screen.getByTestId('tv-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('tv-layout')).toBeInTheDocument();
     expect(screen.getByTestId('tv-preview-panel')).toBeInTheDocument();
-    // Volver button exists
+    expect(screen.getByTestId('tv-records-panel')).toBeInTheDocument();
     expect(screen.getByTestId('tv-volver')).toBeInTheDocument();
   });
 });
