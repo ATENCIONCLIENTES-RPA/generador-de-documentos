@@ -1,4 +1,6 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
+import { animate } from 'animejs';
+import { prefersReducedMotion } from '@/utils/motion';
 import type { DragEvent, ChangeEvent } from 'react';
 import { useExcelStore } from '@/store/excelStore';
 import { useNavigationStore } from '@/store/navigationStore';
@@ -49,6 +51,18 @@ export function ConfigView() {
   const { parseWithProgress } = useExcelParser();
   const setSacRecords = useDataStore((s) => s.setSacRecords);
   const setMercurioRecords = useDataStore((s) => s.setMercurioRecords);
+  const heroRef = useRef<HTMLDivElement>(null);
+
+  // Hero entrance animation
+  useEffect(() => {
+    if (prefersReducedMotion() || !heroRef.current) return;
+    animate(heroRef.current, {
+      y: [20, 0],
+      opacity: [0, 1],
+      duration: 400,
+      ease: 'power3.out',
+    });
+  }, []);
 
   const handleSacFile = useCallback(
     async (file: File) => {
@@ -232,7 +246,7 @@ export function ConfigView() {
       `}</style>
 
       <div className="m2-scroll-area">
-      <div className="m2-hero" data-testid="m2-hero">
+      <div className="m2-hero" data-testid="m2-hero" ref={heroRef}>
         <div
           className="m2-blur"
           style={{

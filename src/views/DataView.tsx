@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import autoAnimate from '@formkit/auto-animate';
 import * as XLSX from 'xlsx';
 import { useDataStore } from '@/store/dataStore';
 import { useNavigationStore } from '@/store/navigationStore';
@@ -120,6 +121,18 @@ export function DataView() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const headerCbRef = useRef<HTMLInputElement>(null);
+  const filterTagsRef = useRef<HTMLDivElement>(null);
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+
+  // Auto-animate filter tags
+  useEffect(() => {
+    if (filterTagsRef.current) autoAnimate(filterTagsRef.current, { duration: 200 });
+  }, []);
+
+  // Auto-animate table body rows
+  useEffect(() => {
+    if (tbodyRef.current) autoAnimate(tbodyRef.current, { duration: 180 });
+  }, []);
 
   useEffect(() => {
     if (debouncedSearch !== filterState.search) {
@@ -368,7 +381,7 @@ export function DataView() {
   // ─── EMPTY STATE ──────────────────────────────────────────
   if (!records || records.length === 0) {
     return (
-      <div data-testid="data-view" style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 0 }}>
+    <div data-testid="data-view" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <style>{dvStyles}</style>
         <div className="dv-empty-state" data-testid="dv-empty-state">
           <div className="dv-empty-icon">
@@ -422,24 +435,22 @@ export function DataView() {
 
   // ─── MAIN RENDER ──────────────────────────────────────────
   return (
-    <div data-testid="data-view" style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%', minHeight: 0 }}>
+    <div data-testid="data-view" style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'visible' }}>
       <style>{dvStyles}</style>
       <style>{`
-        [data-testid="data-view"]{gap:10px}
+        [data-testid="data-view"]{gap:12px; height:auto !important}
         .dv-hero{flex-shrink:0}
         .dv-hero-content{padding:12px 16px !important}
         .dv-hero-title{font-size:1rem !important}
         .dv-hero-icon{width:38px !important;height:38px !important}
-        .dv-filter-panel{flex-shrink:0; display:flex; flex-direction:column; min-height:0}
+        .dv-filter-panel{flex-shrink:0; display:flex; flex-direction:column; position:relative; z-index:10}
         .dv-filter-body{scrollbar-width:thin; scrollbar-color: var(--neutral-300) transparent}
-        .dv-filter-body--open{max-height:22vh !important; overflow-y:auto !important; overflow-x:hidden}
-        @media (max-height: 900px){ .dv-filter-body--open{max-height:20vh !important} }
-        @media (max-height: 760px){ .dv-filter-body--open{max-height:18vh !important} }
+        .dv-filter-body--open{max-height:900px !important; padding-bottom:16px}
         .dv-results-bar{flex-shrink:0;padding:2px 0 !important;font-size:0.78rem !important}
-        .dv-table-container{flex:1; min-height:180px !important; display:flex; flex-direction:column; overflow:hidden}
-        .dv-table-scroll{flex:1; min-height:120px; overflow:auto; scrollbar-width:thin; scrollbar-gutter:stable}
+        .dv-table-container{flex:1 1 auto; min-height:420px !important; height:auto !important; display:flex; flex-direction:column}
+        .dv-table-scroll{flex:1 1 auto; min-height:380px; overflow-x:auto; scrollbar-width:thin}
         .dv-table-scroll thead th{position:sticky; top:0; z-index:2}
-        .dv-pagination{flex-shrink:0; position:sticky; bottom:0; background:var(--neutral-50); z-index:1}
+        .dv-pagination{flex-shrink:0; position:static; background:var(--neutral-50); z-index:1}
         .dv-bottom-bar{flex-shrink:0;padding-top:8px !important}
       `}</style>
 
@@ -592,7 +603,7 @@ export function DataView() {
 
         <div className={`dv-filter-body ${filtersOpen ? 'dv-filter-body--open' : ''}`}>
           {/* ── TEXT FILTERS ── */}
-          <div className="dv-filter-card">
+          <div className="dv-filter-card dv-filter-card--referencia">
             <div className="dv-filter-card-header">
               <svg
                 width="14"
@@ -609,7 +620,7 @@ export function DataView() {
               </svg>
               <span>Referencia</span>
             </div>
-            <div className="dv-filter-fields-row">
+            <div className="dv-filter-fields-row dv-fields--ref">
               <Input
                 placeholder="Cuenta"
                 value={filterState.cuenta}
@@ -635,7 +646,7 @@ export function DataView() {
           </div>
 
           {/* ── DATE & STATUS FILTERS ── */}
-          <div className="dv-filter-card">
+          <div className="dv-filter-card dv-filter-card--fecha">
             <div className="dv-filter-card-header">
               <svg
                 width="14"
@@ -654,7 +665,7 @@ export function DataView() {
               </svg>
               <span>Fecha y estado</span>
             </div>
-            <div className="dv-filter-fields-row">
+            <div className="dv-filter-fields-row dv-fields--fecha">
               <div className="dv-filter-date-group">
                 <label className="dv-filter-label">Desde</label>
                 <input
@@ -715,7 +726,7 @@ export function DataView() {
 
           {/* ── FILTER ACTIONS + TAGS ── */}
           <div className="dv-filter-footer">
-            <div className="dv-filter-tags">
+            <div className="dv-filter-tags" ref={filterTagsRef}>
               {filterState.search.trim() && (
                 <span className="dv-tag" data-testid="dv-tag-search">
                   <svg
@@ -911,7 +922,7 @@ export function DataView() {
                 <th className="dv-th dv-th--actions">Acciones</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody ref={tbodyRef}>
               {pageRecords.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="dv-empty-row">
@@ -1503,7 +1514,7 @@ const dvStyles = `
     padding: 0 20px;
   }
   .dv-filter-body--open {
-    max-height: 600px;
+    max-height: 900px;
     padding: 0 20px 16px;
   }
 
@@ -1539,9 +1550,15 @@ const dvStyles = `
   }
   .dv-filter-fields-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 10px;
+    gap: 12px;
+    align-items: end;
   }
+  .dv-fields--ref { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dv-fields--fecha { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  @media (max-width: 1100px) { .dv-fields--fecha { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px) { .dv-fields--ref { grid-template-columns: 1fr; } .dv-fields--fecha { grid-template-columns: 1fr; } }
+  .dv-filter-fields-row > * { min-width: 0; width: 100%; }
+  .dv-filter-fields-row label { width: 100%; }
   .dv-filter-date-group,
   .dv-filter-select-group {
     display: flex;
@@ -1556,34 +1573,36 @@ const dvStyles = `
     letter-spacing: 0.04em;
   }
   .dv-date-input {
-    height: 36px;
-    border-radius: var(--radius-sm);
+    height: 40px;
+    border-radius: var(--radius-input);
     border: 1px solid var(--border-strong);
     background: #fff;
-    padding: 0 10px;
-    font-size: 0.8125rem;
+    padding: 0 12px;
+    font-size: 0.875rem;
     font-family: inherit;
     color: var(--neutral-800);
     outline: none;
     cursor: pointer;
-    transition: border-color 200ms var(--ease), box-shadow 200ms var(--ease);
+    width: 100%;
+    transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
   }
   .dv-date-input:focus {
     border-color: var(--essa-primary);
     box-shadow: var(--ring);
   }
   .dv-select {
-    height: 36px;
-    border-radius: var(--radius-sm);
+    height: 40px;
+    border-radius: var(--radius-input);
     border: 1px solid var(--border-strong);
     background: #fff;
-    padding: 0 10px;
-    font-size: 0.8125rem;
+    padding: 0 12px;
+    font-size: 0.875rem;
     font-family: inherit;
     color: var(--neutral-800);
     outline: none;
     cursor: pointer;
-    transition: border-color 200ms var(--ease), box-shadow 200ms var(--ease);
+    width: 100%;
+    transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
   }
   .dv-select:focus {
     border-color: var(--essa-primary);

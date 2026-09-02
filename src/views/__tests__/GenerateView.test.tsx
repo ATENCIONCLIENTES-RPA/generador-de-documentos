@@ -516,24 +516,11 @@ describe('GenerateView — M5 unificado', () => {
 
     render(<GenerateView />);
 
-    // zoom starts at 100%
-    expect(screen.getByText('100%')).toBeInTheDocument();
-
-    // zoom in
-    const zoomInBtn = screen.getByLabelText('Ampliar zoom');
-    fireEvent.click(zoomInBtn);
-    expect(screen.getByText('115%')).toBeInTheDocument();
-
-    // zoom out
-    const zoomOutBtn = screen.getByLabelText('Reducir zoom');
-    fireEvent.click(zoomOutBtn);
-    fireEvent.click(zoomOutBtn);
-    expect(screen.getByText('85%')).toBeInTheDocument();
-
-    // reset
-    const resetBtn = screen.getByLabelText('Restablecer zoom');
-    fireEvent.click(resetBtn);
-    expect(screen.getByText('100%')).toBeInTheDocument();
+    // fixed-height viewer: no zoom controls present
+    const preview = screen.getByTestId('gv-preview');
+    expect(preview).toBeInTheDocument();
+    expect(screen.queryByLabelText('Ampliar zoom')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Reducir zoom')).not.toBeInTheDocument();
   });
 
   it('documento excluido no se genera: al quitar un doc, "Generar todos" solo procesa los visibles', async () => {

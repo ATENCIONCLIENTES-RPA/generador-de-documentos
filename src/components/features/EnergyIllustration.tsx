@@ -1,8 +1,27 @@
+import { useRef, useEffect } from 'react';
+import { animate } from 'animejs';
+import { prefersReducedMotion } from '@/utils/motion';
+
 interface Props {
   className?: string;
 }
 
 export function EnergyIllustration({ className = '' }: Props): JSX.Element {
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // Floating clouds ambient animation
+  useEffect(() => {
+    if (prefersReducedMotion() || !svgRef.current) return;
+    const clouds = svgRef.current.querySelectorAll('g[opacity]');
+    if (clouds.length === 0) return;
+    animate(clouds, {
+      x: [0, 8, -6, 0],
+      y: [0, -4, 3, 0],
+      duration: 15000,
+      ease: 'linear',
+      loop: true,
+    });
+  }, []);
   return (
     <div
       className={`energy-illustration ${className}`}
@@ -11,6 +30,7 @@ export function EnergyIllustration({ className = '' }: Props): JSX.Element {
       aria-hidden="true"
     >
       <svg
+        ref={svgRef}
         viewBox="0 0 800 300"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"

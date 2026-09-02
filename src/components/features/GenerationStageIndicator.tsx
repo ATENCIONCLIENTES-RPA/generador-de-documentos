@@ -1,3 +1,6 @@
+import { useRef, useEffect } from 'react';
+import { animate } from 'animejs';
+import { prefersReducedMotion } from '@/utils/motion';
 import type { GenerationStage } from '@/store/generationStore';
 
 interface Props {
@@ -31,8 +34,22 @@ const STAGE_MAP: Record<
 export function GenerationStageIndicator({ stage, className, style }: Props) {
   const key = String(stage ?? 'revision');
   const cfg = STAGE_MAP[key] ?? STAGE_MAP['revision'];
+  const ref = useRef<HTMLSpanElement>(null);
+
+  // Animate on stage change
+  useEffect(() => {
+    if (prefersReducedMotion() || !ref.current) return;
+    animate(ref.current, {
+      scale: [0.92, 1],
+      opacity: [0, 1],
+      duration: 280,
+      ease: 'power2.out',
+    });
+  }, [key]);
+
   return (
     <span
+      ref={ref}
       data-testid="generation-stage-indicator"
       data-stage={key}
       className={className}

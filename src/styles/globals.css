@@ -17,33 +17,33 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  height: 100dvh;
-  overflow: hidden;
+  min-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--neutral-300) transparent;
 }
 
 body {
-  height: 100dvh;
-  overflow: hidden;
+  min-height: 100dvh;
+  height: auto;
+  overflow: visible;
   line-height: var(--leading-normal);
   font-size: var(--text-base);
 }
 
 #root {
-  height: 100dvh;
-  overflow: hidden;
+  min-height: 100dvh;
+  height: auto;
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }
 
-/* ── Shell scrollbars: single scroll container = #main-content ── */
-#main-content {
-  scrollbar-width: thin;
-  scrollbar-color: var(--neutral-300) transparent;
-  scrollbar-gutter: stable;
-}
-#main-content::-webkit-scrollbar { width: 6px; height: 6px; }
-#main-content::-webkit-scrollbar-thumb { background: var(--neutral-300); border-radius: 999px; }
-#main-content::-webkit-scrollbar-thumb:hover { background: var(--neutral-400); }
+/* ── Shell scrollbars: page-level vertical scroll ── */
+html::-webkit-scrollbar { width: 8px; height: 8px; }
+html::-webkit-scrollbar-thumb { background: var(--neutral-300); border-radius: 999px; }
+html::-webkit-scrollbar-thumb:hover { background: var(--neutral-400); }
 
 /* ── Module uniform tokens ── */
 :root {

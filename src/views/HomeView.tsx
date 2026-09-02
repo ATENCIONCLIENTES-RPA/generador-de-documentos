@@ -1,3 +1,6 @@
+import { useRef, useEffect } from 'react';
+import { animate } from 'animejs';
+import { prefersReducedMotion } from '@/utils/motion';
 import { EnergyIllustration } from '@/components/features/EnergyIllustration';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -10,6 +13,37 @@ interface HomeViewProps {
 
 export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
   const goTo = useNavigationStore((s) => s.goTo);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const featuresRef = useRef<HTMLDivElement>(null);
+
+  // Hero entrance stagger
+  useEffect(() => {
+    if (prefersReducedMotion() || !heroRef.current) return;
+    const targets = heroRef.current.querySelectorAll('[data-animate="hero"]');
+    if (targets.length === 0) return;
+    animate(targets, {
+      y: [24, 0],
+      opacity: [0, 1],
+      duration: 350,
+      delay: (_el, i) => (i ?? 0) * 80,
+      ease: 'power3.out',
+    });
+  }, []);
+
+  // Feature cards stagger
+  useEffect(() => {
+    if (prefersReducedMotion() || !featuresRef.current) return;
+    const cards = featuresRef.current.querySelectorAll('[data-animate="feature"]');
+    if (cards.length === 0) return;
+    animate(cards, {
+      y: [20, 0],
+      opacity: [0, 1],
+      scale: [0.96, 1],
+      duration: 300,
+      delay: (_el, i) => (i ?? 0) * 60,
+      ease: 'power3.out',
+    });
+  }, []);
 
   const handleComenzar = () => {
     if (onNavigate) onNavigate('perfil');
@@ -112,7 +146,7 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
           style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column', gap: 10 }}
           data-testid="home-hero-left"
         >
-          <div>
+          <div data-animate="hero" data-delay="0">
             <Badge
               variant="info"
               style={{
@@ -129,6 +163,8 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
           </div>
           <h1
             data-testid="home-title"
+            data-animate="hero"
+            data-delay="80"
             style={{
               fontSize: '2.2rem',
               fontWeight: 800,
@@ -141,6 +177,8 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
           </h1>
           <p
             data-testid="home-description"
+            data-animate="hero"
+            data-delay="160"
             style={{
               fontSize: '0.95rem',
               color: '#64748b',
@@ -151,7 +189,7 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
             Plataforma interna de ESSA para automatizar la generación de documentos oficiales a
             partir de plantillas Word y datos de clientes cargados desde archivos Excel.
           </p>
-          <div style={{ marginTop: 4 }}>
+          <div style={{ marginTop: 4 }} data-animate="hero" data-delay="240">
             <Button
               variant="primary"
               size="lg"
@@ -188,6 +226,8 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
             alignItems: 'center',
           }}
           data-testid="home-hero-right"
+          data-animate="hero"
+          data-delay="120"
         >
           <EnergyIllustration />
         </div>
@@ -206,6 +246,7 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
 
         <div
           data-testid="home-features"
+          ref={featuresRef}
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
@@ -213,10 +254,12 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
             marginBottom: 14,
           }}
         >
-          {features.map((f) => (
+          {features.map((f, i) => (
             <div
               key={f.title}
               data-testid={`feature-card-${f.title.toLowerCase()}`}
+              data-animate="feature"
+              data-delay={String(i * 60)}
               style={{
                 padding: 12,
                 borderRadius: 10,

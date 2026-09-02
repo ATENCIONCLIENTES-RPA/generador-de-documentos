@@ -153,6 +153,8 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
 
   // zoom state for preview
   const [zoom, setZoom] = useState(100);
+  const [docPage, setDocPage] = useState(1);
+  const [totalDocPages, setTotalDocPages] = useState(1);
 
   // excluded documents (local to this session, does not modify dataStore)
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
@@ -255,28 +257,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
   const isSingle = visibleRecords.length === 1;
 
   // -- zoom controls --
-  const zoomIn = useCallback(() => setZoom((z) => Math.min(z + 15, 200)), []);
-  const zoomOut = useCallback(() => setZoom((z) => Math.max(z - 15, 40)), []);
-  const zoomReset = useCallback(() => setZoom(100), []);
-  const calcFitZoom = useCallback(() => {
-    const viewer = previewRef.current;
-    const inner = previewInnerRef.current;
-    if (!viewer || !inner) return;
-    const vw = viewer.clientWidth - 16;
-    const vh = viewer.clientHeight - 16;
-    if (vw <= 0 || vh <= 0) return;
-    const dw = inner.scrollWidth || inner.offsetWidth;
-    const dh = inner.scrollHeight || inner.offsetHeight;
-    if (dw <= 0 || dh <= 0) return;
-    setDocNaturalSize({ w: dw, h: dh });
-    const isMultiPage = dh > vh * 1.4;
-    const refH = isMultiPage ? vh : dh;
-    const scaleW = vw / dw;
-    const scaleH = vh / refH;
-    const pct = Math.round(Math.min(scaleW, scaleH, 2.5) * 100);
-    setZoom(Math.max(40, Math.min(200, pct || 100)));
-  }, []);
-  const fitToPage = useCallback(() => calcFitZoom(), [calcFitZoom]);
+  // zoom removed for clean preview
 
   // -- remove document --
   const requestRemove = useCallback((rid: string, name: string) => {
@@ -401,53 +382,32 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         if (!renderAsync) throw new Error('renderAsync not found');
         docxContainerRef.current.innerHTML = '';
         await renderAsync(buf, docxContainerRef.current);
-        if (!cancelled) requestAnimationFrame(() => calcFitZoom());
+        if (!cancelled) {
+          requestAnimationFrame(() => {
+            if (!docxContainerRef.current) return;
+            // Show all sections (no page-by-page)
+            const sections = docxContainerRef.current.querySelectorAll('section.docx, section[class*="docx"]');
+            sections.forEach((sec) => {
+              (sec as HTMLElement).style.display = 'block';
+              (sec as HTMLElement).style.marginBottom = '18px';
+            });
+          });
+        }
       } catch (e) {
         console.error('docx-preview render failed, fallback to text', e);
-        if (!cancelled) setDocxRenderFailed(true);
+        if (!cancelled) { setDocxRenderFailed(true); }
       }
     };
     void run();
     return () => {
       cancelled = true;
     };
-  }, [selectedTemplate?.file, activeRecord, profile, calcFitZoom]);
+  }, [selectedTemplate?.file, activeRecord, profile]);
 
-  // reset zoom on document change + auto-fit
+  // reset state on document change
   useEffect(() => {
-    setZoom(100);
     setDocxRenderFailed(false);
-    setDocNaturalSize(null);
-    // auto-fit after render settled
-    const t = window.setTimeout(() => calcFitZoom(), 180);
-    return () => window.clearTimeout(t);
-  }, [activeItem?.rid, calcFitZoom]);
-
-  // keep viewer fit on resize / resolution change
-  useEffect(() => {
-    const viewer = previewRef.current;
-    if (!viewer) return;
-    if (typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => calcFitZoom());
-    ro.observe(viewer);
-    return () => ro.disconnect();
-  }, [calcFitZoom]);
-
-  // refit when natural size known
-  useEffect(() => {
-    if (!docNaturalSize) return;
-    const viewer = previewRef.current;
-    if (!viewer) return;
-    const vw = viewer.clientWidth - 16;
-    const vh = viewer.clientHeight - 16;
-    if (vw <= 0 || vh <= 0) return;
-    const isMultiPage = docNaturalSize.h > vh * 1.4;
-    const refH = isMultiPage ? vh : docNaturalSize.h;
-    const scaleW = vw / docNaturalSize.w;
-    const scaleH = vh / refH;
-    const pct = Math.round(Math.min(scaleW, scaleH, 2.5) * 100);
-    setZoom(Math.max(40, Math.min(200, pct || 100)));
-  }, [docNaturalSize]);
+  }, [activeItem?.rid]);
 
   const hasError = counts.errores > 0;
 
@@ -468,8 +428,9 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           gap: 8px;
           width: 100%;
           max-width: 100%;
-          height: 100%;
-          min-height: 0;
+          height: auto;
+          min-height: 620px;
+          overflow: visible;
         }
 
         /* ── Header ── */
@@ -573,9 +534,11 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           display: grid;
           grid-template-columns: minmax(230px, 250px) 1fr minmax(220px, 250px);
           gap: 8px;
-          align-items: stretch;
-          flex: 1;
-          min-height: 0;
+          align-items: start;
+          flex: 0 0 auto;
+          min-height: 560px;
+          height: auto;
+          overflow: visible;
         }
         @media (max-width: 1100px) {
           .gv-layout {
@@ -595,10 +558,11 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           border: 1px solid var(--border);
           border-radius: var(--radius-md);
           box-shadow: var(--shadow-sm);
-          overflow: hidden;
+          overflow: visible;
           display: flex;
           flex-direction: column;
-          min-height: 0;
+          min-height: 520px;
+          height: auto;
         }
 
         /* ── Card Header ── */
@@ -631,13 +595,14 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
 
         /* ── Sidebar list ── */
         .gv-sidebar-list {
-          flex: 1;
-          overflow-y: auto;
+          flex: 0 0 auto;
+          overflow: visible;
           padding: 6px 8px;
           display: flex;
           flex-direction: column;
           gap: 5px;
-          min-height: 0;
+          min-height: 420px;
+          height: auto;
         }
         .gv-sidebar-item {
           display: flex;
@@ -771,19 +736,22 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         /* ── Preview panel ── */
         .gv-preview {
           background: var(--neutral-100);
-          overflow: hidden;
+          overflow-y: visible;
+          overflow-x: auto;
           padding: 8px;
-          flex: 1;
+          flex: 0 0 auto;
           display: flex;
           justify-content: center;
           align-items: flex-start;
-          min-height: 0;
+          min-height: 520px;
+          height: auto;
           position: relative;
         }
         .gv-preview-scroll {
           width: 100%;
-          height: 100%;
-          overflow: auto;
+          height: auto;
+          min-height: 520px;
+          overflow: visible;
           display: flex;
           justify-content: center;
           align-items: flex-start;
@@ -921,11 +889,11 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
 
         /* ── Responsive ── */
         @media (max-width: 1100px) {
-          .gv-sidebar-list { min-height: 0; }
+          .gv-sidebar-list { min-height: 420px; }
         }
         @media (max-width: 860px) {
-          .gv-sidebar-list { min-height: 0; }
-          .gv-preview { min-height: 0; }
+          .gv-sidebar-list { min-height: 300px; }
+          .gv-preview { min-height: 380px; }
         }
 
         /* ── Confirm modal ── */
@@ -1242,49 +1210,6 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
                   {String(activeRecord.nombreSolicitante ?? '')}
                 </span>
               )}
-              <div className="gv-zoom-bar">
-                  <button
-                    className="gv-zoom-btn"
-                    onClick={zoomOut}
-                    title="Reducir"
-                    aria-label="Reducir zoom"
-                    data-testid="gv-zoom-out"
-                  >
-                    −
-                  </button>
-                  <span className="gv-zoom-label" data-testid="gv-zoom-pct">{zoom}%</span>
-                  <button
-                    className="gv-zoom-btn"
-                    onClick={zoomIn}
-                    title="Ampliar"
-                    aria-label="Ampliar zoom"
-                    data-testid="gv-zoom-in"
-                  >
-                    +
-                  </button>
-                  <button
-                    className="gv-zoom-btn"
-                    onClick={zoomReset}
-                    title="Restablecer 1:1"
-                    aria-label="Restablecer zoom"
-                    data-testid="gv-zoom-reset"
-                    style={{ fontSize: '0.62rem' }}
-                  >
-                    1:1
-                  </button>
-                  <div style={{ width:1,height:14,background:'var(--border)',margin:'0 2px' }} />
-                  <button
-                    className="gv-zoom-btn active"
-                    onClick={fitToPage}
-                    title="Ajustar a página"
-                    aria-label="Ajustar a página"
-                    data-testid="gv-zoom-fit-page"
-                    style={{ width:'auto',padding:'0 6px',fontSize:'0.6rem',gap:4 }}
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                    Página
-                  </button>
-                </div>
             </div>
           </div>
 
@@ -1297,12 +1222,11 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
               No hay registros seleccionados
             </div>
           ) : (
-            <div className="gv-preview" data-testid="gv-preview" ref={previewRef} style={{ overflow:'auto', display:'flex', flexDirection:'column' }}>
-              <div style={{ display:'flex', justifyContent:'center', alignItems:'flex-start', flex:1, padding:12, minHeight:0, width:'100%' }}>
+            <div className="gv-preview" data-testid="gv-preview" ref={previewRef} style={{ height: 500, overflowY: 'auto', overflowX: 'auto' }}>
+              <div style={{ display:'flex', justifyContent:'center', alignItems:'flex-start', padding:12, width:'100%' }}>
                 <div
                   ref={previewInnerRef}
                   className="gv-preview-inner"
-                  style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center', flexShrink:0 }}
                 >
                   {/* docx-preview mount point */}
                   <div

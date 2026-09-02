@@ -88,23 +88,22 @@ export default function App(): JSX.Element {
   };
 
   const showStepper = currentStep !== 'inicio';
-  const isDenseView = currentStep === 'plantillas' || currentStep === 'generacion' || currentStep === 'datos';
 
   return (
     <ToastProvider>
       <div
         style={{
-          height: '100dvh',
+          minHeight: '100dvh',
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden',
+          overflow: 'visible',
           background: 'var(--bg-page)',
         }}
       >
         <AppHeader activeKey={currentStep} onNav={handleStepperClick} />
 
         <PageContainer>
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflow: 'visible' }}>
             {showStepper && <StepperBar steps={stepperSteps} onStepClick={handleStepperClick} />}
 
             <main
@@ -113,12 +112,10 @@ export default function App(): JSX.Element {
               data-testid={`view-${currentStep}`}
               tabIndex={-1}
               style={{
-                flex: 1,
-                minHeight: 0,
+                flex: '0 0 auto',
                 display: 'flex',
                 flexDirection: 'column',
-                overflowY: isDenseView ? 'hidden' : 'auto',
-                overflowX: 'hidden',
+                overflow: 'visible',
               }}
             >
               <ViewRouter currentStep={currentStep} />

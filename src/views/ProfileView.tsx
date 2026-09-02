@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
+import { animate } from 'animejs';
+import { prefersReducedMotion } from '@/utils/motion';
 import { useProfileStore } from '@/store/profileStore';
 import { useNavigationStore } from '@/store/navigationStore';
 import { SignaturePad } from '@/components/features/SignaturePad';
@@ -22,6 +24,18 @@ export function ProfileView(): JSX.Element {
   const [dragOver, setDragOver] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Card entrance animation
+  useEffect(() => {
+    if (prefersReducedMotion() || !cardRef.current) return;
+    animate(cardRef.current, {
+      y: [16, 0],
+      opacity: [0, 1],
+      duration: 350,
+      ease: 'power3.out',
+    });
+  }, []);
 
   // keep local form in sync if profile external changes (persist hydrate)
   useEffect(() => {
@@ -111,6 +125,7 @@ export function ProfileView(): JSX.Element {
       <div style={{ maxWidth: 860, margin: '0 auto', width: '100%' }}>
         <div
           data-testid="profile-card"
+          ref={cardRef}
           style={{
             background: '#fff',
             border: '1px solid var(--border)',

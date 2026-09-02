@@ -1,3 +1,7 @@
+import { useRef, useEffect } from 'react';
+import { animate } from 'animejs';
+import { prefersReducedMotion } from '@/utils/motion';
+
 type StepStatus = 'pending' | 'active' | 'completed';
 
 export interface StepDef {
@@ -49,6 +53,22 @@ function StepIcon({ icon, status }: { icon: string; status: StepStatus }) {
 }
 
 export function StepperBar({ steps, onStepClick }: Props) {
+  const barRef = useRef<HTMLDivElement>(null);
+
+  // Stagger entrance animation for steps
+  useEffect(() => {
+    if (prefersReducedMotion() || !barRef.current) return;
+    const items = barRef.current.querySelectorAll('.stepper-item');
+    if (items.length === 0) return;
+    animate(items, {
+      y: [6, 0],
+      opacity: [0, 1],
+      duration: 300,
+      delay: (_el, i) => (i ?? 0) * 80,
+      ease: 'power2.out',
+    });
+  }, []);
+
   return (
     <>
       <style>{stepperStyles}</style>
@@ -57,9 +77,10 @@ export function StepperBar({ steps, onStepClick }: Props) {
         aria-label="Progreso del flujo"
         data-testid="stepper-bar"
         className="stepper-bar"
+        ref={barRef}
       >
         {steps.map((s, idx) => (
-          <div key={s.key} className="stepper-item">
+          <div key={s.key} className="stepper-item" data-idx={String(idx)}>
             <button
               onClick={() => onStepClick?.(s.key)}
               aria-label={`Ir a ${s.label}`}
