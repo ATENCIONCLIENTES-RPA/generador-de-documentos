@@ -66,12 +66,33 @@ export function buildTemplateData(record: EssaRecord, profile?: Profile | null):
     CEDULA_SUSCRIPTOR: (record?.['cedulaSuscriptor'] as string) || '—',
     TELEFONO_SUSCRIPTOR: (record?.['telefonoSuscriptor'] as string) || '—',
     DIRECCION_SUSCRIPTOR: (record?.['direccionSuscriptor'] as string) || '—',
-    MUNICIPIO_SUSCRIPTOR: (record?.['municipioSuscriptor'] as string) || '—',
+    MUNICIPIO_SUSCRIPTOR:
+      (record?.['municipioSuscriptor'] as string) ||
+      (record?.['MUNICIPIO_SUSCRIPTOR'] as string) ||
+      (record?.['MUNICIPIO SUSCRIPTOR'] as string) ||
+      '—',
     OBSERVACION_PROCESO: (record?.['observacionProceso'] as string) || '—',
     OBSERVACION_DECISION: (record?.['observacionDecision'] as string) || '—',
-    CIRCUITO: (record?.['circuito'] as string) || '—',
+    CIRCUITO:
+      (record?.['circuito'] as string) ||
+      (record?.['CIRCUITO'] as string) ||
+      (record?.['Circuito'] as string) ||
+      '—',
     NOMBRE_CIRCUITO: (record?.['nombreCircuito'] as string) || '—',
-    ID_TRAFO: (record?.['idTrafo'] as string) || '—',
+    ID_TRAFO:
+      (record?.['idTrafo'] as string) ||
+      (record?.['ID_TRAFO'] as string) ||
+      (record?.['ID TRAFO'] as string) ||
+      (record?.['transformador'] as string) ||
+      (record?.['TRANSFORMADOR'] as string) ||
+      '—',
+    TRANSFORMADOR:
+      (record?.['transformador'] as string) ||
+      (record?.['TRANSFORMADOR'] as string) ||
+      (record?.['idTrafo'] as string) ||
+      (record?.['ID_TRAFO'] as string) ||
+      (record?.['ID TRAFO'] as string) ||
+      '—',
     NUMERO_MEDIDOR: (record?.['numeroMedidor'] as string) || '—',
     MARCA_MEDIDOR: (record?.['marcaMedidor'] as string) || '—',
     TIPO_MEDIDOR: (record?.['tipoMedidor'] as string) || '—',
@@ -155,12 +176,38 @@ export function replaceTemplateVariables(
     .replace(/\[CEDULA_SUSCRIPTOR\]/g, (record?.['cedulaSuscriptor'] as string) || '—')
     .replace(/\[TELEFONO_SUSCRIPTOR\]/g, (record?.['telefonoSuscriptor'] as string) || '—')
     .replace(/\[DIRECCION_SUSCRIPTOR\]/g, (record?.['direccionSuscriptor'] as string) || '—')
-    .replace(/\[MUNICIPIO_SUSCRIPTOR\]/g, (record?.['municipioSuscriptor'] as string) || '—')
+    .replace(
+      /\[MUNICIPIO_SUSCRIPTOR\]/g,
+      (record?.['municipioSuscriptor'] as string) ||
+        (record?.['MUNICIPIO_SUSCRIPTOR'] as string) ||
+        (record?.['MUNICIPIO SUSCRIPTOR'] as string) ||
+        '—'
+    )
     .replace(/\[OBSERVACION_PROCESO\]/g, (record?.['observacionProceso'] as string) || '—')
     .replace(/\[OBSERVACION_DECISION\]/g, (record?.['observacionDecision'] as string) || '—')
-    .replace(/\[CIRCUITO\]/g, (record?.['circuito'] as string) || '—')
+    .replace(
+      /\[CIRCUITO\]/g,
+      (record?.['circuito'] as string) || (record?.['CIRCUITO'] as string) || '—'
+    )
     .replace(/\[NOMBRE_CIRCUITO\]/g, (record?.['nombreCircuito'] as string) || '—')
-    .replace(/\[ID_TRAFO\]/g, (record?.['idTrafo'] as string) || '—')
+    .replace(
+      /\[ID_TRAFO\]/g,
+      (record?.['idTrafo'] as string) ||
+        (record?.['ID_TRAFO'] as string) ||
+        (record?.['ID TRAFO'] as string) ||
+        (record?.['transformador'] as string) ||
+        (record?.['TRANSFORMADOR'] as string) ||
+        '—'
+    )
+    .replace(
+      /\[TRANSFORMADOR\]/g,
+      (record?.['transformador'] as string) ||
+        (record?.['TRANSFORMADOR'] as string) ||
+        (record?.['idTrafo'] as string) ||
+        (record?.['ID_TRAFO'] as string) ||
+        (record?.['ID TRAFO'] as string) ||
+        '—'
+    )
     .replace(/\[NUMERO_MEDIDOR\]/g, (record?.['numeroMedidor'] as string) || '—')
     .replace(/\[MARCA_MEDIDOR\]/g, (record?.['marcaMedidor'] as string) || '—')
     .replace(/\[TIPO_MEDIDOR\]/g, (record?.['tipoMedidor'] as string) || '—')

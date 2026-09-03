@@ -225,6 +225,32 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     'CUENTA_ESSA',
     'NUMERO DE CUENTA',
   ]);
+  const municipioSuscriptorRaw = getExcelCellValue(row, [
+    'MUNICIPIO_SUSCRIPTOR',
+    'MUNICIPIO SUSCRIPTOR',
+    'MUNICIPIO_SUSC',
+    'MUNICIPIO SUC',
+    'MUNICIPIO_SUSCRITOR',
+    'CIUDAD_SUSCRIPTOR',
+    'CIUDAD SUSCRIPTOR',
+  ]);
+  const circuitoRaw = getExcelCellValue(row, [
+    'CIRCUITO',
+    'CIRCUITO_SUSCRIPTOR',
+    'CIRCUITO SUSCRIPTOR',
+    'CIRCUITO_ELECTRICO',
+    'CIRCUITO ELECTRICO',
+    'CODIGO_CIRCUITO',
+  ]);
+  const idTrafoRaw = getExcelCellValue(row, [
+    'ID_TRAFO',
+    'ID TRAFO',
+    'TRANSFORMADOR',
+    'TRAFO',
+    'ID_TRANSFORMADOR',
+    'CODIGO_TRAFO',
+    'ID_TRAFO_SUSCRIPTOR',
+  ]);
   const medioSolRaw = getExcelCellValue(row, [
     'MEDIO_SOLICITUD',
     'MEDIO SOLICITUD',
@@ -326,12 +352,37 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     estadoSemaforo: semaforo,
     diasPqr: pqrInfo.remainingDays,
     diasPqrLabel: pqrInfo.label,
+    // Campos solicitados para reemplazo en Word — mapeo directo Excel → Record
+    municipioSuscriptor: String(municipioSuscriptorRaw ?? ''),
+    circuito: String(circuitoRaw ?? ''),
+    idTrafo: String(idTrafoRaw ?? ''),
+    transformador: String(idTrafoRaw ?? ''),
   };
 
   // Sync alias cuenta for legacy compat
   if (base.numeroCuenta) {
     base.cuenta = base.numeroCuenta;
   }
+  // Asegurar alias en mayúsculas para compatibilidad con plantillas que usan [MUNICIPIO_SUSCRIPTOR] etc.
+  const rawMunSus =
+    (row as Record<string, unknown>)['MUNICIPIO_SUSCRIPTOR'] ??
+    (row as Record<string, unknown>)['MUNICIPIO SUSCRIPTOR'];
+  const rawCircuito =
+    (row as Record<string, unknown>)['CIRCUITO'] ?? (row as Record<string, unknown>)['Circuito'];
+  const rawTrafo =
+    (row as Record<string, unknown>)['ID_TRAFO'] ??
+    (row as Record<string, unknown>)['ID TRAFO'] ??
+    (row as Record<string, unknown>)['TRANSFORMADOR'];
+  (base as Record<string, unknown>)['MUNICIPIO_SUSCRIPTOR'] =
+    base.municipioSuscriptor || rawMunSus || '';
+  (base as Record<string, unknown>)['CIRCUITO'] = base.circuito || rawCircuito || '';
+  (base as Record<string, unknown>)['ID_TRAFO'] = base.idTrafo || rawTrafo || '';
+  (base as Record<string, unknown>)['TRANSFORMADOR'] =
+    base.transformador || base.idTrafo || rawTrafo || '';
+  (base as Record<string, unknown>)['MUNICIPIO SUSCRIPTOR'] = (base as Record<string, unknown>)[
+    'MUNICIPIO_SUSCRIPTOR'
+  ];
+  (base as Record<string, unknown>)['ID TRAFO'] = (base as Record<string, unknown>)['ID_TRAFO'];
 
   return base;
 }
@@ -481,6 +532,34 @@ export function crossReferenceSacAndMercurio(
       merc.cedulaSolicitante ||
       '';
 
+    // Campos solicitados para Word: MUNICIPIO_SUSCRIPTOR, CIRCUITO, ID_TRAFO/TRANSFORMADOR — EXCLUSIVAMENTE desde SAC
+    const municipioSuscriptor =
+      (bestSac &&
+      String((bestSac as Record<string, unknown>)['municipioSuscriptor'] ?? '').trim() !== ''
+        ? String((bestSac as Record<string, unknown>)['municipioSuscriptor'] ?? '').trim()
+        : undefined) ||
+      ((bestSac as Record<string, unknown> | undefined)?.['MUNICIPIO_SUSCRIPTOR'] as string) ||
+      ((bestSac as Record<string, unknown> | undefined)?.['MUNICIPIO SUSCRIPTOR'] as string) ||
+      '';
+
+    const circuito =
+      (bestSac && String((bestSac as Record<string, unknown>)['circuito'] ?? '').trim() !== ''
+        ? String((bestSac as Record<string, unknown>)['circuito'] ?? '').trim()
+        : undefined) ||
+      ((bestSac as Record<string, unknown> | undefined)?.['CIRCUITO'] as string) ||
+      '';
+
+    const idTrafoRawCross =
+      (bestSac && String((bestSac as Record<string, unknown>)['idTrafo'] ?? '').trim() !== ''
+        ? String((bestSac as Record<string, unknown>)['idTrafo'] ?? '').trim()
+        : undefined) ||
+      ((bestSac as Record<string, unknown> | undefined)?.['ID_TRAFO'] as string) ||
+      ((bestSac as Record<string, unknown> | undefined)?.['ID TRAFO'] as string) ||
+      ((bestSac as Record<string, unknown> | undefined)?.['TRANSFORMADOR'] as string) ||
+      ((bestSac as Record<string, unknown> | undefined)?.['transformador'] as string) ||
+      '';
+    const transformador = String(idTrafoRawCross ?? '').trim();
+
     const fechaVencimiento =
       (bestSac?.fechaVencimiento && bestSac.fechaVencimiento.trim() !== ''
         ? bestSac.fechaVencimiento
@@ -512,11 +591,22 @@ export function crossReferenceSacAndMercurio(
       departamentoSolicitante: String(departamentoSolicitante ?? '').trim(),
       municipioSolicitante: String(municipioSolicitante ?? '').trim(),
       correoSolicitante: String(correoSolicitante ?? '').trim(),
-      celularSolicitante: String(bestSac?.celularSolicitante ?? merc.celularSolicitante ?? '').trim(),
+      celularSolicitante: String(
+        bestSac?.celularSolicitante ?? merc.celularSolicitante ?? ''
+      ).trim(),
       cedulaSolicitante: String(cedulaSolicitante ?? '').trim(),
       numeroCuenta: String(numeroCuenta ?? '').trim(),
       cuenta: String(numeroCuenta ?? '').trim() || merc.cuenta,
       medioSolicitud: String(bestSac?.medioSolicitud ?? merc.medioSolicitud ?? '').trim(),
+      // Campos solicitados para Word
+      municipioSuscriptor: String(municipioSuscriptor ?? '').trim(),
+      circuito: String(circuito ?? '').trim(),
+      idTrafo: String(idTrafoRawCross ?? '').trim(),
+      transformador: String(transformador ?? '').trim(),
+      MUNICIPIO_SUSCRIPTOR: String(municipioSuscriptor ?? '').trim(),
+      CIRCUITO: String(circuito ?? '').trim(),
+      ID_TRAFO: String(idTrafoRawCross ?? '').trim(),
+      TRANSFORMADOR: String(transformador ?? '').trim(),
       procesoCreado: hasMatch ? 'Sí' : 'No',
       creadoEnSac: hasMatch ? 'Sí' : 'No',
       cantidadProcesos: count,
