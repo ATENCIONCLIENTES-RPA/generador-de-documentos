@@ -62,7 +62,11 @@ export function buildTemplateData(record: EssaRecord, profile?: Profile | null):
     DEPTO_SOLICITANTE: (record?.departamentoSolicitante as string) || '—',
     BARRIO_SOLICITANTE: (record?.['barrioSolicitante'] as string) || '—',
     MEDIO_SOLICITUD: (record?.['medioSolicitud'] as string) || '—',
-    NOMBRE_SUSCRIPTOR: (record?.['nombreSuscriptor'] as string) || '—',
+    NOMBRE_SUSCRIPTOR:
+      (record?.['nombreSuscriptor'] as string) ||
+      (record?.['NOMBRE_SUSCRIPTOR'] as string) ||
+      (record?.['NOMBRE SUSCRIPTOR'] as string) ||
+      '—',
     CEDULA_SUSCRIPTOR: (record?.['cedulaSuscriptor'] as string) || '—',
     TELEFONO_SUSCRIPTOR: (record?.['telefonoSuscriptor'] as string) || '—',
     DIRECCION_SUSCRIPTOR: (record?.['direccionSuscriptor'] as string) || '—',
@@ -172,7 +176,13 @@ export function replaceTemplateVariables(
     .replace(/\[DEPTO_SOLICITANTE\]/g, (record?.departamentoSolicitante as string) || '—')
     .replace(/\[BARRIO_SOLICITANTE\]/g, (record?.['barrioSolicitante'] as string) || '—')
     .replace(/\[MEDIO_SOLICITUD\]/g, (record?.['medioSolicitud'] as string) || '—')
-    .replace(/\[NOMBRE_SUSCRIPTOR\]/g, (record?.['nombreSuscriptor'] as string) || '—')
+    .replace(
+      /\[NOMBRE_SUSCRIPTOR\]/g,
+      (record?.['nombreSuscriptor'] as string) ||
+        (record?.['NOMBRE_SUSCRIPTOR'] as string) ||
+        (record?.['NOMBRE SUSCRIPTOR'] as string) ||
+        '—'
+    )
     .replace(/\[CEDULA_SUSCRIPTOR\]/g, (record?.['cedulaSuscriptor'] as string) || '—')
     .replace(/\[TELEFONO_SUSCRIPTOR\]/g, (record?.['telefonoSuscriptor'] as string) || '—')
     .replace(/\[DIRECCION_SUSCRIPTOR\]/g, (record?.['direccionSuscriptor'] as string) || '—')

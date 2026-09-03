@@ -381,7 +381,7 @@ export function DataView() {
   // ─── EMPTY STATE ──────────────────────────────────────────
   if (!records || records.length === 0) {
     return (
-    <div data-testid="data-view" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div data-testid="data-view" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <style>{dvStyles}</style>
         <div className="dv-empty-state" data-testid="dv-empty-state">
           <div className="dv-empty-icon">
@@ -435,7 +435,10 @@ export function DataView() {
 
   // ─── MAIN RENDER ──────────────────────────────────────────
   return (
-    <div data-testid="data-view" style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'visible' }}>
+    <div
+      data-testid="data-view"
+      style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'visible' }}
+    >
       <style>{dvStyles}</style>
       <style>{`
         [data-testid="data-view"]{gap:12px; height:auto !important}
@@ -603,6 +606,18 @@ export function DataView() {
 
         <div className={`dv-filter-body ${filtersOpen ? 'dv-filter-body--open' : ''}`}>
           {/* ── TEXT FILTERS ── */}
+          <div className="dv-filter-card dv-filter-card--search">
+            <div className="dv-filter-card-header">
+              <span>Buscar en todos los campos</span>
+            </div>
+            <Input
+              placeholder="Nombre, cuenta, radicado, proceso, cédula o correo"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              aria-label="Búsqueda global"
+              data-testid="dv-search"
+            />
+          </div>
           <div className="dv-filter-card dv-filter-card--referencia">
             <div className="dv-filter-card-header">
               <svg

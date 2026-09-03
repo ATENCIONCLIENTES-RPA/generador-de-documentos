@@ -225,6 +225,15 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     'CUENTA_ESSA',
     'NUMERO DE CUENTA',
   ]);
+  const nombreSuscriptorRaw = getExcelCellValue(row, [
+    'NOMBRE_SUSCRIPTOR',
+    'NOMBRE SUSCRIPTOR',
+    'NOMBRE_SUSCRITOR',
+    'NOMBRE DEL SUSCRIPTOR',
+    'NOMBRE_SUSCRIPTOR_SAC',
+    'SUSCRIPTOR_NOMBRE',
+    'SUSCRIPTOR',
+  ]);
   const municipioSuscriptorRaw = getExcelCellValue(row, [
     'MUNICIPIO_SUSCRIPTOR',
     'MUNICIPIO SUSCRIPTOR',
@@ -352,7 +361,8 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     estadoSemaforo: semaforo,
     diasPqr: pqrInfo.remainingDays,
     diasPqrLabel: pqrInfo.label,
-    // Campos solicitados para reemplazo en Word — mapeo directo Excel → Record
+    // Campos solicitados para reemplazo en Word — mapeo directo Excel SAC → Record
+    nombreSuscriptor: String(nombreSuscriptorRaw ?? ''),
     municipioSuscriptor: String(municipioSuscriptorRaw ?? ''),
     circuito: String(circuitoRaw ?? ''),
     idTrafo: String(idTrafoRaw ?? ''),
@@ -363,7 +373,10 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
   if (base.numeroCuenta) {
     base.cuenta = base.numeroCuenta;
   }
-  // Asegurar alias en mayúsculas para compatibilidad con plantillas que usan [MUNICIPIO_SUSCRIPTOR] etc.
+  // Asegurar alias en mayúsculas para compatibilidad con plantillas que usan [MUNICIPIO_SUSCRIPTOR] etc. — origen SAC
+  const rawNomSus =
+    (row as Record<string, unknown>)['NOMBRE_SUSCRIPTOR'] ??
+    (row as Record<string, unknown>)['NOMBRE SUSCRIPTOR'];
   const rawMunSus =
     (row as Record<string, unknown>)['MUNICIPIO_SUSCRIPTOR'] ??
     (row as Record<string, unknown>)['MUNICIPIO SUSCRIPTOR'];
@@ -373,6 +386,10 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     (row as Record<string, unknown>)['ID_TRAFO'] ??
     (row as Record<string, unknown>)['ID TRAFO'] ??
     (row as Record<string, unknown>)['TRANSFORMADOR'];
+  (base as Record<string, unknown>)['NOMBRE_SUSCRIPTOR'] = base.nombreSuscriptor || rawNomSus || '';
+  (base as Record<string, unknown>)['NOMBRE SUSCRIPTOR'] = (base as Record<string, unknown>)[
+    'NOMBRE_SUSCRIPTOR'
+  ];
   (base as Record<string, unknown>)['MUNICIPIO_SUSCRIPTOR'] =
     base.municipioSuscriptor || rawMunSus || '';
   (base as Record<string, unknown>)['CIRCUITO'] = base.circuito || rawCircuito || '';
@@ -532,7 +549,16 @@ export function crossReferenceSacAndMercurio(
       merc.cedulaSolicitante ||
       '';
 
-    // Campos solicitados para Word: MUNICIPIO_SUSCRIPTOR, CIRCUITO, ID_TRAFO/TRANSFORMADOR — EXCLUSIVAMENTE desde SAC
+    // Campos solicitados para Word: NOMBRE_SUSCRIPTOR, MUNICIPIO_SUSCRIPTOR, CIRCUITO, ID_TRAFO/TRANSFORMADOR — EXCLUSIVAMENTE desde SAC
+    const nombreSuscriptor =
+      (bestSac &&
+      String((bestSac as Record<string, unknown>)['nombreSuscriptor'] ?? '').trim() !== ''
+        ? String((bestSac as Record<string, unknown>)['nombreSuscriptor'] ?? '').trim()
+        : undefined) ||
+      ((bestSac as Record<string, unknown> | undefined)?.['NOMBRE_SUSCRIPTOR'] as string) ||
+      ((bestSac as Record<string, unknown> | undefined)?.['NOMBRE SUSCRIPTOR'] as string) ||
+      '';
+
     const municipioSuscriptor =
       (bestSac &&
       String((bestSac as Record<string, unknown>)['municipioSuscriptor'] ?? '').trim() !== ''
@@ -598,11 +624,13 @@ export function crossReferenceSacAndMercurio(
       numeroCuenta: String(numeroCuenta ?? '').trim(),
       cuenta: String(numeroCuenta ?? '').trim() || merc.cuenta,
       medioSolicitud: String(bestSac?.medioSolicitud ?? merc.medioSolicitud ?? '').trim(),
-      // Campos solicitados para Word
+      // Campos solicitados para Word — origen SAC
+      nombreSuscriptor: String(nombreSuscriptor ?? '').trim(),
       municipioSuscriptor: String(municipioSuscriptor ?? '').trim(),
       circuito: String(circuito ?? '').trim(),
       idTrafo: String(idTrafoRawCross ?? '').trim(),
       transformador: String(transformador ?? '').trim(),
+      NOMBRE_SUSCRIPTOR: String(nombreSuscriptor ?? '').trim(),
       MUNICIPIO_SUSCRIPTOR: String(municipioSuscriptor ?? '').trim(),
       CIRCUITO: String(circuito ?? '').trim(),
       ID_TRAFO: String(idTrafoRawCross ?? '').trim(),
