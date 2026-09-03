@@ -20,15 +20,11 @@ const MERCURIO_URL =
 const PLANTILLAS_URL =
   'https://epmco-my.sharepoint.com/:f:/r/personal/atencionclientes_essa_com_co/Documents/PLANTILAS_SOPORTE%20CLIENTES?d=wbb247310e4a14457bc93016440b8ecb0&csf=1&web=1&e=Cin5Ow';
 
-interface FolderTpl {
-  name: string;
-  size: number;
-}
-
 export function ConfigView() {
   const sacFile = useExcelStore((s) => s.sacFile);
   const mercurioFile = useExcelStore((s) => s.mercurioFile);
   const templateFolder = useExcelStore((s) => s.templateFolder);
+  const templateFolderPath = useExcelStore((s) => s.templateFolderPath);
   const setSacFile = useExcelStore((s) => s.setSacFile);
   const setMercurioFile = useExcelStore((s) => s.setMercurioFile);
   const setTemplateFolder = useExcelStore((s) => s.setTemplateFolder);
@@ -41,7 +37,6 @@ export function ConfigView() {
   const [dragSac, setDragSac] = useState(false);
   const [dragMercurio, setDragMercurio] = useState(false);
   const [dragFolder, setDragFolder] = useState(false);
-  const [folderTemplates, setFolderTemplates] = useState<FolderTpl[]>([]);
   const [folderName, setFolderName] = useState('');
 
   const sacRef = useRef<HTMLInputElement>(null);
@@ -63,6 +58,17 @@ export function ConfigView() {
       ease: 'power3.out',
     });
   }, []);
+
+  // Conservar y reflejar la ruta de la carpeta de plantillas almacenada en el store
+  useEffect(() => {
+    const storedPath = templateFolder?.folderPath ?? templateFolderPath ?? '';
+    if (storedPath && storedPath !== folderName) {
+      setFolderName(storedPath);
+    }
+    if (!storedPath && folderName && !templateFolder) {
+      // No hacer nada, folderName ya fue limpiado por reset
+    }
+  }, [templateFolder?.folderPath, templateFolderPath, folderName, templateFolder]);
 
   const handleSacFile = useCallback(
     async (file: File) => {
@@ -97,11 +103,14 @@ export function ConfigView() {
     async (files: FileList | File[]) => {
       const arr = Array.from(files);
       const docx = arr.filter((f) => f.name.toLowerCase().endsWith('.docx'));
-      const name =
-        (arr[0] as unknown as { webkitRelativePath?: string })?.webkitRelativePath?.split('/')[0] ||
-        'Plantillas';
-      setFolderName(name);
-      setFolderTemplates(docx.map((f) => ({ name: f.name, size: f.size })));
+      // Ruta conservada: webkitRelativePath brinda la ruta seleccionada por el usuario (p. ej. "Plantillas/plantilla.docx")
+      const rawPath =
+        (arr[0] as unknown as { webkitRelativePath?: string })?.webkitRelativePath || '';
+      const name = rawPath.split('/')[0] || 'Plantillas';
+      const folderPath = rawPath ? rawPath.split('/').slice(0, -1).join('/') || name : name;
+      setFolderName(folderPath);
+      // Actualizar inmediatamente la ruta en el store para conservarla incluso durante el loading
+      // y permitir reemplazo del valor previo
       if (docx.length === 0) {
         setTemplateFolder({
           file: null,
@@ -110,6 +119,7 @@ export function ConfigView() {
           stage: 'Sin plantillas válidas',
           error: 'No se encontraron plantillas .docx en la carpeta',
           recordCount: 0,
+          folderPath,
         });
         useTemplateStore.getState().clearTemplates();
         return;
@@ -128,6 +138,7 @@ export function ConfigView() {
         recordCount: 0,
         bytesProcessed: 0,
         totalBytes,
+        folderPath,
       });
 
       try {
@@ -143,12 +154,14 @@ export function ConfigView() {
             error: null,
             recordCount: i + 1,
             totalBytes,
+            folderPath,
           });
           const tpl = await fileToTemplate(f, i);
           templates.push(tpl);
           await new Promise((r) => setTimeout(r, 0));
         }
 
+        // Reemplazar plantillas previas por las más recientes — actualización del recurso
         useTemplateStore.getState().setTemplates(templates);
         if (templates.length > 0) useTemplateStore.getState().selectTemplate(templates[0].id);
 
@@ -161,6 +174,7 @@ export function ConfigView() {
           recordCount: docx.length,
           bytesProcessed: totalBytes,
           totalBytes,
+          folderPath,
         });
       } catch (e) {
         console.error('ConfigView: fileToTemplate failed', e);
@@ -171,7 +185,11 @@ export function ConfigView() {
           stage: 'Error al procesar plantillas',
           error: 'Error al procesar las plantillas DOCX',
           recordCount: 0,
+          folderPath,
         });
+      } finally {
+        // Permitir recargar la misma carpeta: resetear el input para que onChange vuelva a dispararse
+        if (folderRef.current) folderRef.current.value = '';
       }
     },
     [setTemplateFolder]
@@ -192,15 +210,25 @@ export function ConfigView() {
 
   const onSacSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) void handleSacFile(f);
+    if (f)
+      handleSacFile(f).finally(() => {
+        // Permitir volver a cargar el mismo archivo y que el sistema actualice con la info más reciente
+        if (e.target) e.target.value = '';
+      });
+    else if (e.target) e.target.value = '';
   };
   const onMercurioSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) void handleMercurioFile(f);
+    if (f)
+      handleMercurioFile(f).finally(() => {
+        if (e.target) e.target.value = '';
+      });
+    else if (e.target) e.target.value = '';
   };
   const onFolderSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) handleFolderFiles(files);
+    // handleFolderFiles ya resetea folderRef, pero asegurar reset para actualización
   };
 
   const readyCount =
@@ -223,7 +251,6 @@ export function ConfigView() {
   const handleCancelar = () => {
     clearAll();
     useTemplateStore.getState().clearTemplates();
-    setFolderTemplates([]);
     setFolderName('');
     if (sacRef.current) sacRef.current.value = '';
     if (mercurioRef.current) mercurioRef.current.value = '';
@@ -246,339 +273,385 @@ export function ConfigView() {
       `}</style>
 
       <div className="m2-scroll-area">
-      <div className="m2-hero" data-testid="m2-hero" ref={heroRef}>
-        <div
-          className="m2-blur"
-          style={{
-            width: 280,
-            height: 280,
-            background: 'radial-gradient(circle at 30% 30%, #bfdbfe 0%, transparent 62%)',
-            right: -40,
-            top: -60,
-          }}
-          aria-hidden
-        />
-        <div
-          className="m2-blur"
-          style={{
-            width: 220,
-            height: 220,
-            background: 'radial-gradient(circle at 30% 30%, #bbf7d0 0%, transparent 62%)',
-            left: -30,
-            bottom: -50,
-            opacity: 0.5,
-          }}
-          aria-hidden
-        />
-        <div
-          className="m2-blur"
-          style={{
-            width: 160,
-            height: 160,
-            background: 'radial-gradient(circle at 30% 30%, #e9d5ff 0%, transparent 62%)',
-            right: 120,
-            bottom: -30,
-            opacity: 0.32,
-          }}
-          aria-hidden
-        />
-
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div>
-            <Badge
-              variant="info"
-              style={{
-                background: '#fff',
-                borderColor: '#bfdbfe',
-                color: '#1e40af',
-                fontSize: '0.62rem',
-                letterSpacing: '0.07em',
-              }}
-            >
-              MÓDULO 2: CONFIGURACIÓN DE RECURSOS
-            </Badge>
-          </div>
-
+        <div className="m2-hero" data-testid="m2-hero" ref={heroRef}>
           <div
+            className="m2-blur"
             style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'space-between',
-              gap: 14,
-              flexWrap: 'wrap',
+              width: 280,
+              height: 280,
+              background: 'radial-gradient(circle at 30% 30%, #bfdbfe 0%, transparent 62%)',
+              right: -40,
+              top: -60,
             }}
-          >
+            aria-hidden
+          />
+          <div
+            className="m2-blur"
+            style={{
+              width: 220,
+              height: 220,
+              background: 'radial-gradient(circle at 30% 30%, #bbf7d0 0%, transparent 62%)',
+              left: -30,
+              bottom: -50,
+              opacity: 0.5,
+            }}
+            aria-hidden
+          />
+          <div
+            className="m2-blur"
+            style={{
+              width: 160,
+              height: 160,
+              background: 'radial-gradient(circle at 30% 30%, #e9d5ff 0%, transparent 62%)',
+              right: 120,
+              bottom: -30,
+              opacity: 0.32,
+            }}
+            aria-hidden
+          />
+
+          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
-              <h1
+              <Badge
+                variant="info"
                 style={{
-                  fontSize: '1.35rem',
-                  fontWeight: 900,
-                  color: '#0f172a',
-                  letterSpacing: '-0.02em',
-                  lineHeight: 1.15,
+                  background: '#fff',
+                  borderColor: '#bfdbfe',
+                  color: '#1e40af',
+                  fontSize: '0.62rem',
+                  letterSpacing: '0.07em',
                 }}
               >
-                Configuración de Recursos
-              </h1>
-              <p
-                style={{
-                  fontSize: '0.82rem',
-                  color: '#475569',
-                  marginTop: 4,
-                  maxWidth: 640,
-                  lineHeight: 1.45,
-                }}
-              >
-                Carga los archivos Excel de <strong style={{ color: '#004B93' }}>SAC</strong> y{' '}
-                <strong style={{ color: '#0284C7' }}>Mercurio</strong> y selecciona la carpeta de
-                plantillas Word. El flujo continúa cuando los tres recursos estén listos.
-              </p>
+                MÓDULO 2: CONFIGURACIÓN DE RECURSOS
+              </Badge>
             </div>
+
             <div
               style={{
                 display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                background: '#fff',
-                border: '1px solid #e2e8f0',
-                borderRadius: 999,
-                padding: '6px 10px',
-                boxShadow: 'var(--shadow-xs)',
-                alignSelf: 'flex-start',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                gap: 14,
+                flexWrap: 'wrap',
               }}
             >
+              <div>
+                <h1
+                  style={{
+                    fontSize: '1.35rem',
+                    fontWeight: 900,
+                    color: '#0f172a',
+                    letterSpacing: '-0.02em',
+                    lineHeight: 1.15,
+                  }}
+                >
+                  Configuración de Recursos
+                </h1>
+                <p
+                  style={{
+                    fontSize: '0.82rem',
+                    color: '#475569',
+                    marginTop: 4,
+                    maxWidth: 640,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Carga los archivos Excel de <strong style={{ color: '#004B93' }}>SAC</strong> y{' '}
+                  <strong style={{ color: '#0284C7' }}>Mercurio</strong> y selecciona la carpeta de
+                  plantillas Word. El flujo continúa cuando los tres recursos estén listos.
+                </p>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  background: '#fff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 999,
+                  padding: '6px 10px',
+                  boxShadow: 'var(--shadow-xs)',
+                  alignSelf: 'flex-start',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    color: 'var(--neutral-500)',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Progreso
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    color: readyCount === 3 ? '#15803d' : '#334155',
+                  }}
+                >
+                  {readyCount}/3
+                </span>
+                <span
+                  style={{
+                    width: 1,
+                    height: 14,
+                    background: 'var(--border)',
+                    display: 'inline-block',
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    color: readyCount === 3 ? '#15803d' : 'var(--neutral-600)',
+                  }}
+                >
+                  {progressPct}%
+                </span>
+              </div>
+            </div>
+
+            {/* progress track 3 segments 33.33% each */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+              <div
+                data-testid="m2-progress-track"
+                aria-label={`Progreso ${readyCount} de 3`}
+                style={{
+                  flex: 1,
+                  height: 10,
+                  background: '#fff',
+                  borderRadius: 999,
+                  border: '1px solid #e2e8f0',
+                  padding: 3,
+                  display: 'flex',
+                  gap: 6,
+                  boxShadow: 'inset 0 1px 2px rgba(15,23,42,0.06)',
+                }}
+              >
+                {[
+                  !!(sacFile?.file && !sacFile.loading && !sacFile.error),
+                  !!(mercurioFile?.file && !mercurioFile.loading && !mercurioFile.error),
+                  !!(
+                    templateFolder?.file &&
+                    !templateFolder.loading &&
+                    !templateFolder.error &&
+                    (templateFolder.recordCount > 0 || !!templateFolder.file)
+                  ),
+                ].map((filled, i) => (
+                  <div
+                    key={i}
+                    data-testid={`m2-segment-${i}`}
+                    className="m2-segment"
+                    style={{
+                      background: filled
+                        ? i === 0
+                          ? '#004B93'
+                          : i === 1
+                            ? '#0284C7'
+                            : '#76BC21'
+                        : '#f1f5f9',
+                      opacity: filled ? 1 : 0.85,
+                      boxShadow: filled ? '0 1px 6px rgba(0,0,0,0.12)' : 'none',
+                    }}
+                    aria-label={filled ? 'completado' : 'pendiente'}
+                  />
+                ))}
+              </div>
               <span
                 style={{
                   fontSize: '0.72rem',
-                  fontWeight: 700,
                   color: 'var(--neutral-500)',
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
                 }}
               >
-                Progreso
-              </span>
-              <span
-                style={{
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  color: readyCount === 3 ? '#15803d' : '#334155',
-                }}
-              >
-                {readyCount}/3
-              </span>
-              <span
-                style={{
-                  width: 1,
-                  height: 14,
-                  background: 'var(--border)',
-                  display: 'inline-block',
-                }}
-              />
-              <span
-                style={{
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  color: readyCount === 3 ? '#15803d' : 'var(--neutral-600)',
-                }}
-              >
-                {progressPct}%
+                33.33% por recurso
               </span>
             </div>
-          </div>
-
-          {/* progress track 3 segments 33.33% each */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-            <div
-              data-testid="m2-progress-track"
-              aria-label={`Progreso ${readyCount} de 3`}
-              style={{
-                flex: 1,
-                height: 10,
-                background: '#fff',
-                borderRadius: 999,
-                border: '1px solid #e2e8f0',
-                padding: 3,
-                display: 'flex',
-                gap: 6,
-                boxShadow: 'inset 0 1px 2px rgba(15,23,42,0.06)',
-              }}
-            >
-              {[
-                !!(sacFile?.file && !sacFile.loading && !sacFile.error),
-                !!(mercurioFile?.file && !mercurioFile.loading && !mercurioFile.error),
-                !!(
-                  templateFolder?.file &&
-                  !templateFolder.loading &&
-                  !templateFolder.error &&
-                  (templateFolder.recordCount > 0 || !!templateFolder.file)
-                ),
-              ].map((filled, i) => (
-                <div
-                  key={i}
-                  data-testid={`m2-segment-${i}`}
-                  className="m2-segment"
-                  style={{
-                    background: filled
-                      ? i === 0
-                        ? '#004B93'
-                        : i === 1
-                          ? '#0284C7'
-                          : '#76BC21'
-                      : '#f1f5f9',
-                    opacity: filled ? 1 : 0.85,
-                    boxShadow: filled ? '0 1px 6px rgba(0,0,0,0.12)' : 'none',
-                  }}
-                  aria-label={filled ? 'completado' : 'pendiente'}
-                />
-              ))}
-            </div>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                color: 'var(--neutral-500)',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              33.33% por recurso
-            </span>
           </div>
         </div>
-      </div>
 
-      {/* GRID */}
-      <div className="m2-grid" data-testid="m2-grid">
-        <ExcelUploadCard
-          title="Archivo SAC"
-          subtitle="Base principal de trámites — 119 columnas"
-          fileState={sacFile}
-          setFileState={setSacFile}
-          dragOver={dragSac}
-          setDragOver={setDragSac}
-          inputRef={sacRef}
-          onDrop={onSacDrop}
-          onSelect={onSacSelect}
-          accent="sac"
-          locationUrl={SAC_URL}
-          locationLabel="Consultar archivo SAC"
-        />
-        <ExcelUploadCard
-          title="Archivo Mercurio"
-          subtitle="Base complementaria de correspondencia"
-          fileState={mercurioFile}
-          setFileState={setMercurioFile}
-          dragOver={dragMercurio}
-          setDragOver={setDragMercurio}
-          inputRef={mercurioRef}
-          onDrop={onMercurioDrop}
-          onSelect={onMercurioSelect}
-          accent="mercurio"
-          locationUrl={MERCURIO_URL}
-          locationLabel="Consultar archivo Mercurio"
-        />
-
-        {/* folder full-width */}
-        <div style={{ gridColumn: '1 / -1' }}>
+        {/* GRID */}
+        <div className="m2-grid" data-testid="m2-grid">
           <ExcelUploadCard
-            title="Carpeta de Plantillas"
-            subtitle="Selecciona la carpeta que contiene los .docx — se listarán automáticamente"
-            fileState={templateFolder}
-            setFileState={(s) => {
-              setTemplateFolder(s);
-              if (!s) {
-                setFolderTemplates([]);
-                setFolderName('');
-                useTemplateStore.getState().clearTemplates();
-                if (folderRef.current) folderRef.current.value = '';
-              }
-            }}
-            dragOver={dragFolder}
-            setDragOver={setDragFolder}
-            inputRef={folderRef}
-            onDrop={onFolderDrop}
-            onSelect={onFolderSelect}
-            accent="folder"
-            locationUrl={PLANTILLAS_URL}
-            locationLabel="Consultar carpeta de Plantillas"
+            title="Archivo SAC"
+            subtitle="Base principal de trámites — 119 columnas"
+            fileState={sacFile}
+            setFileState={setSacFile}
+            dragOver={dragSac}
+            setDragOver={setDragSac}
+            inputRef={sacRef}
+            onDrop={onSacDrop}
+            onSelect={onSacSelect}
+            accent="sac"
+            locationUrl={SAC_URL}
+            locationLabel="Consultar archivo SAC"
+          />
+          <ExcelUploadCard
+            title="Archivo Mercurio"
+            subtitle="Base complementaria de correspondencia"
+            fileState={mercurioFile}
+            setFileState={setMercurioFile}
+            dragOver={dragMercurio}
+            setDragOver={setDragMercurio}
+            inputRef={mercurioRef}
+            onDrop={onMercurioDrop}
+            onSelect={onMercurioSelect}
+            accent="mercurio"
+            locationUrl={MERCURIO_URL}
+            locationLabel="Consultar archivo Mercurio"
           />
 
-
-        </div>
-      </div>
-
-      {/* bottom actions */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          background: '#fff',
-          border: '1px solid var(--border)',
-          borderRadius: 10,
-          padding: '10px 14px',
-          boxShadow: 'var(--shadow-xs)',
-          flexShrink: 0,
-        }}
-      >
-        <Button variant="ghost" onClick={handleCancelar} data-testid="m2-cancelar">
-          Cancelar
-        </Button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
-          {!allReady && (
-            <span
-              style={{
-                fontSize: '0.76rem',
-                color: 'var(--neutral-500)',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
+          {/* folder full-width */}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <ExcelUploadCard
+              title="Carpeta de Plantillas"
+              subtitle="Selecciona la carpeta que contiene los .docx — se listarán automáticamente"
+              fileState={templateFolder}
+              setFileState={(s) => {
+                setTemplateFolder(s);
+                if (!s) {
+                  setFolderName('');
+                  useTemplateStore.getState().clearTemplates();
+                  if (folderRef.current) folderRef.current.value = '';
+                }
               }}
-            >
+              dragOver={dragFolder}
+              setDragOver={setDragFolder}
+              inputRef={folderRef}
+              onDrop={onFolderDrop}
+              onSelect={onFolderSelect}
+              accent="folder"
+              locationUrl={PLANTILLAS_URL}
+              locationLabel="Consultar carpeta de Plantillas"
+            />
+            {(folderName || templateFolderPath || templateFolder?.folderPath) && (
+              <div
+                data-testid="m2-folder-path"
+                style={{
+                  marginTop: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: '0.76rem',
+                  color: '#334155',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 8,
+                  padding: '7px 10px',
+                }}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#64748b"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+                <span style={{ fontWeight: 700, color: '#475569' }}>Ruta:</span>
+                <span
+                  style={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1,
+                  }}
+                  title={folderName || templateFolderPath || templateFolder?.folderPath || ''}
+                >
+                  {folderName || templateFolderPath || templateFolder?.folderPath}
+                </span>
+                {templateFolder?.recordCount ? (
+                  <span style={{ fontWeight: 700, color: '#15803d', whiteSpace: 'nowrap' }}>
+                    {templateFolder.recordCount} plantillas
+                  </span>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* bottom actions */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 12,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            background: '#fff',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            padding: '10px 14px',
+            boxShadow: 'var(--shadow-xs)',
+            flexShrink: 0,
+          }}
+        >
+          <Button variant="ghost" onClick={handleCancelar} data-testid="m2-cancelar">
+            Cancelar
+          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+            {!allReady && (
               <span
                 style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 999,
-                  background: '#f59e0b',
-                  display: 'inline-block',
+                  fontSize: '0.76rem',
+                  color: 'var(--neutral-500)',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
                 }}
-                aria-hidden
-              />
-              Faltan recursos por cargar
-            </span>
-          )}
-          <Button
-            variant="primary"
-            disabled={!allReady}
-            onClick={handleContinuar}
-            data-testid="m2-continuar"
-            title={
-              !allReady ? 'Carga SAC, Mercurio y carpeta para continuar' : 'Continuar al Módulo 3'
-            }
-          >
-            Continuar al Módulo 3
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-              style={{ marginLeft: 6 }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 999,
+                    background: '#f59e0b',
+                    display: 'inline-block',
+                  }}
+                  aria-hidden
+                />
+                Faltan recursos por cargar
+              </span>
+            )}
+            <Button
+              variant="primary"
+              disabled={!allReady}
+              onClick={handleContinuar}
+              data-testid="m2-continuar"
+              title={
+                !allReady ? 'Carga SAC, Mercurio y carpeta para continuar' : 'Continuar al Módulo 3'
+              }
             >
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
-          </Button>
+              Continuar al Módulo 3
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+                style={{ marginLeft: 6 }}
+              >
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </Button>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );

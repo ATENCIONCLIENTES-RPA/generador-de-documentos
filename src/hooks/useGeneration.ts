@@ -43,9 +43,16 @@ function buildFileName(
   const base = (templateFileName ?? 'documento')
     .replace(/\.docx$/i, '')
     .replace(/[^a-zA-Z0-9_-]/g, '_');
-  const suffix = String(
-    record.numeroCuenta ?? record.cuenta ?? record.radicadoEntrada ?? fallbackId
-  ).replace(/[^a-zA-Z0-9_-]/g, '_');
+  // Nombre del documento: nombre de la plantilla + RADICADO_ENTRADA (no usar NUMERO_CUENTA)
+  const rawRadicado =
+    (record.radicadoEntrada as string) ||
+    ((record as unknown as Record<string, unknown>)['RADICADO_ENTRADA'] as string) ||
+    ((record as unknown as Record<string, unknown>)['RADICADO ENTRADA'] as string) ||
+    fallbackId;
+  const suffix =
+    String(rawRadicado)
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]/g, '_') || String(fallbackId).replace(/[^a-zA-Z0-9_-]/g, '_');
   return `${base}_${suffix}.docx`;
 }
 
@@ -134,7 +141,8 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
     [getTemplateForRecord, selectedTemplate]
   );
 
-  const canGenerate = visibleRecords.length > 0 && visibleRecords.every((r) => !!resolveTemplate(r));
+  const canGenerate =
+    visibleRecords.length > 0 && visibleRecords.every((r) => !!resolveTemplate(r));
 
   const processSequential = useCallback(
     async (
@@ -174,7 +182,12 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
         const tplFile = tpl?.file as File | undefined;
         const tplFileName = tpl?.fileName ?? 'doc';
         // mark generating
-        next[idx] = { ...next[idx], status: 'pending' as const, error: undefined, templateId: tpl?.id };
+        next[idx] = {
+          ...next[idx],
+          status: 'pending' as const,
+          error: undefined,
+          templateId: tpl?.id,
+        };
         setDocResults([...next]);
         setProgress(Math.round((idx / len) * 100));
 
@@ -249,7 +262,12 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
             type: next.length > 1 ? 'Masivo' : 'Individual',
             status: hasError ? 'Con errores' : 'Completado',
             recordsCount: next.length,
-            templateName: visibleRecords.length === 1 ? (resolveTemplate(visibleRecords[0])?.title ?? resolveTemplate(visibleRecords[0])?.fileName ?? 'Plantilla') : 'Múltiples plantillas',
+            templateName:
+              visibleRecords.length === 1
+                ? (resolveTemplate(visibleRecords[0])?.title ??
+                  resolveTemplate(visibleRecords[0])?.fileName ??
+                  'Plantilla')
+                : 'Múltiples plantillas',
           });
         } catch (e) {
           console.error('[useGeneration] onAddHistory failed', e);

@@ -110,6 +110,7 @@ const VAR_LABELS: Record<string, string> = {
   NOMBRE_FIRMANTE: 'Nombre del Firmante',
   CARGO_FIRMANTE: 'Cargo del Firmante',
   CORREO_FIRMANTE: 'Correo del Firmante',
+  DISTINTIVO: 'Distintivo',
   FIRMA_DOCUMENTO: 'Firma del Documento',
 };
 
@@ -150,6 +151,7 @@ const VAR_SOURCES: Record<string, string> = {
   NOMBRE_FIRMANTE: 'Perfil',
   CARGO_FIRMANTE: 'Perfil',
   CORREO_FIRMANTE: 'Perfil',
+  DISTINTIVO: 'Sistema',
   FIRMA_DOCUMENTO: 'Firma',
 };
 

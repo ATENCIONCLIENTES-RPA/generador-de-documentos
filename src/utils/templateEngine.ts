@@ -83,6 +83,7 @@ export function buildTemplateData(record: EssaRecord, profile?: Profile | null):
     NOMBRE_FIRMANTE: profile?.name || 'Funcionario ESSA',
     CARGO_FIRMANTE: profile?.position || 'Gestor ESSA',
     CORREO_FIRMANTE: profile?.email || 'notificaciones@essa.com.co',
+    DISTINTIVO: 'Señor(a)',
     // FIRMA_DOCUMENTO handled separately as image or empty string
     FIRMA_DOCUMENTO: '',
   };
@@ -171,6 +172,7 @@ export function replaceTemplateVariables(
     .replace(/\[NOMBRE_FIRMANTE\]/g, profile?.name || 'Funcionario ESSA')
     .replace(/\[CARGO_FIRMANTE\]/g, profile?.position || 'Gestor ESSA')
     .replace(/\[CORREO_FIRMANTE\]/g, profile?.email || 'notificaciones@essa.com.co')
+    .replace(/\[DISTINTIVO\]/g, 'Señor(a)')
     .replace(/\[FIRMA_DOCUMENTO\]/g, '');
 }
 
