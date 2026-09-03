@@ -354,66 +354,187 @@ export async function generateDocx(
     processedBuffer = templateBuffer;
   }
 
-  // Fallback cleanup: ensure NO remaining [VARIABLE] markers in any xml part.
-  // We load with PizZip and scrub remaining markers via paragraph-combined replacement
-  // and direct marker -> '—' replacement for headers/footers.
+  // Fallback cleanup + color enforcement: asegurar que NO queden marcadores y aplicar colores
+  // - Todos los campos en negro (000000)
+  // - CORREO_SOLICITANTE en azul (0000FF) y subrayado
   try {
     const zip = new PizZip(new Uint8Array(processedBuffer));
 
-    const scrubXml = (xml: string): string => {
-      // Strategy: combine paragraph texts, replace any remaining [VAR] via templateData or '—'
-      // This handles split markers across w:t nodes.
-      let outXml = xml.replace(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g, (paraContent: string) => {
+    const correoRaw = String(
+      (templateData as globalThis.Record<string, unknown>)['CORREO_SOLICITANTE'] ?? '—'
+    );
+    const correoEsc = escapeXml(correoRaw);
+
+    const processXml = (xml: string): string => {
+      // Procesar cada párrafo para aplicar colores y reemplazar marcadores remanentes
+      let outXml = xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (pBlock: string) => {
+        // Extraer pPr intacto para preservarlo
+        const pPrMatch = pBlock.match(/<w:pPr[\s\S]*?<\/w:pPr>/);
+        const pPr = pPrMatch ? pPrMatch[0] : '';
+        const pOpenMatch = pBlock.match(/^<w:p\b[^>]*>/);
+        const pOpen = pOpenMatch ? pOpenMatch[0] : '<w:p>';
+        const pClose = '</w:p>';
+
+        // Texto combinado decodificando w:t (manteniendo entidades tal cual vienen del xml)
         const texts: string[] = [];
-        paraContent.replace(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g, (_m: string, t: string) => {
+        pBlock.replace(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g, (_m: string, t: string) => {
           texts.push(t);
           return '';
         });
         const combined = texts.join('');
-        const markers = combined.match(/\[[A-Z0-9_]+\]/g);
-        if (!markers || markers.length === 0) return paraContent;
+        if (combined === '') return pBlock;
 
-        // Build replacement map
-        let replaced = combined;
-        for (const marker of markers) {
-          const key = marker.slice(1, -1);
-          const val = (templateData as globalThis.Record<string, unknown>)[key];
-          let rep: string;
-          if (val !== undefined && val !== null && val !== '' && typeof val !== 'object') {
-            rep = escapeXml(String(val));
-          } else if (
-            typeof val === 'object' &&
-            val !== null &&
-            (val as globalThis.Record<string, unknown>)._type === 'image'
-          ) {
-            // image already handled by easy-template-x, this shouldn't happen in fallback
-            rep = '';
-          } else {
-            rep = '—';
+        const hasMarker = /\[[A-Z0-9_]+\]/.test(combined);
+        const shouldColorCorreo = correoRaw !== '—' && correoRaw.trim() !== '' && correoRaw !== '—';
+        const hasCorreoValue =
+          shouldColorCorreo &&
+          ((correoEsc && combined.includes(correoEsc)) ||
+            (correoRaw && combined.includes(correoRaw)));
+
+        // Si no hay marcador ni valor de correo, verificar si hay otros campos para forzar negro
+        if (!hasMarker && !hasCorreoValue) {
+          // Detectar si el párrafo contiene algún otro valor de campo (para asegurar negro)
+          // Si no contiene marcadores ni correo, pero contiene otros valores, forzamos negro en sus runs
+          // Para no alterar párrafos 100% estáticos, solo tocamos si contiene algún valor de templateData
+          let containsOtherField = false;
+          for (const [k, v] of Object.entries(templateData as globalThis.Record<string, unknown>)) {
+            if (k === 'CORREO_SOLICITANTE' || k === 'FIRMA_DOCUMENTO') continue;
+            if (v === null || v === undefined || typeof v === 'object') continue;
+            const s = String(v).trim();
+            if (!s || s === '—') continue;
+            const esc = escapeXml(s);
+            if ((esc && combined.includes(esc)) || combined.includes(s)) {
+              containsOtherField = true;
+              break;
+            }
           }
-          replaced = replaced.split(marker).join(rep);
+          if (!containsOtherField) return pBlock;
+          // Forzar negro en todos los w:r de este párrafo que contengan campos
+          // Inyectar color negro en cada rPr
+          let newPBlock = pBlock;
+          // Añadir o reemplazar color en rPr existentes
+          newPBlock = newPBlock.replace(/<w:rPr[^>]*>[\s\S]*?<\/w:rPr>/g, (rPrBlock: string) => {
+            let inner = rPrBlock
+              .replace(/<w:color[^>]*\/>/g, '')
+              .replace(/<w:u[^>]*\/>/g, '')
+              .replace(/<w:u\b[^>]*>[\s\S]*?<\/w:u>/g, '');
+            // Insertar color negro antes del cierre
+            inner = inner.replace(/<\/w:rPr>/, '<w:color w:val="000000"/></w:rPr>');
+            return inner;
+          });
+          // Para w:r sin rPr, añadir uno con negro
+          newPBlock = newPBlock.replace(
+            /<w:r(\b[^>]*)>(?!\s*<w:rPr)/g,
+            '<w:r$1><w:rPr><w:color w:val="000000"/></w:rPr>'
+          );
+          return newPBlock;
         }
 
-        // Also handle any leftover generic [VAR] not in our map -> '—'
-        replaced = replaced.replace(/\[[A-Z0-9_]+\]/g, '—');
-        // Escape the replaced combined text already escaped above; but we pre-escaped vals so keep as is.
-        // However replaced contains '—' which is safe; no need to escape again.
+        // Extraer base de fuentes/tamaños del primer rPr para preservarlos
+        const firstRPrMatch = pBlock.match(/<w:rPr[^>]*>[\s\S]*?<\/w:rPr>/);
+        let baseFontInner = '';
+        if (firstRPrMatch) {
+          const full = firstRPrMatch[0];
+          const innerM = full.match(/<w:rPr[^>]*>([\s\S]*?)<\/w:rPr>/);
+          let inner = innerM ? innerM[1] : '';
+          // Limpiar colores y subrayados previos
+          inner = inner
+            .replace(/<w:color[^>]*\/>/g, '')
+            .replace(/<w:u[^>]*\/>/g, '')
+            .replace(/<w:u\b[^>]*>[\s\S]*?<\/w:u>/g, '');
+          baseFontInner = inner;
+        }
 
-        // Write replaced text to first w:t, empty the rest
-        let idx = 0;
-        return paraContent.replace(
-          /(<w:t(?:\s[^>]*)?>)([\s\S]*?)(<\/w:t>)/g,
-          (_m: string, open: string, _text: string, close: string) => {
-            if (idx === 0) {
-              idx++;
-              return open + replaced + close;
+        const rPrFor = (color: string, underline: boolean): string => {
+          let inner = baseFontInner;
+          inner += `<w:color w:val="${color}"/>`;
+          if (underline) inner += `<w:u w:val="single" w:color="${color}"/>`;
+          return `<w:rPr>${inner}</w:rPr>`;
+        };
+
+        // Caso 1: párrafo con marcadores remanentes -> reconstruir fragmentando por marcadores
+        if (hasMarker) {
+          const markerRegex = /\[[A-Z0-9_]+\]/g;
+          let lastPos = 0;
+          let m: RegExpExecArray | null;
+          const fragments: { text: string; isCorreo: boolean }[] = [];
+          while ((m = markerRegex.exec(combined)) !== null) {
+            if (m.index > lastPos) {
+              const staticPart = combined.slice(lastPos, m.index);
+              if (staticPart) fragments.push({ text: staticPart, isCorreo: false });
             }
-            return open + close;
+            const marker = m[0];
+            const key = marker.slice(1, -1);
+            const val = (templateData as globalThis.Record<string, unknown>)[key];
+            let rep: string;
+            if (val !== undefined && val !== null && val !== '' && typeof val !== 'object') {
+              rep = escapeXml(String(val));
+            } else if (
+              typeof val === 'object' &&
+              val !== null &&
+              (val as globalThis.Record<string, unknown>)._type === 'image'
+            ) {
+              rep = '';
+            } else {
+              rep = '—';
+            }
+            const isCorreoFrag = key === 'CORREO_SOLICITANTE' && rep !== '—' && rep.trim() !== '';
+            if (rep) fragments.push({ text: rep, isCorreo: isCorreoFrag });
+            lastPos = m.index + marker.length;
           }
-        );
+          if (lastPos < combined.length) {
+            const tail = combined.slice(lastPos).replace(/\[[A-Z0-9_]+\]/g, '—');
+            if (tail) fragments.push({ text: tail, isCorreo: false });
+          }
+          // Construir nuevos runs
+          let newRuns = '';
+          for (const frag of fragments) {
+            if (!frag.text) continue;
+            const color = frag.isCorreo ? '0000FF' : '000000';
+            const underline = frag.isCorreo;
+            newRuns += `<w:r>${rPrFor(color, underline)}<w:t xml:space="preserve">${frag.text}</w:t></w:r>`;
+          }
+          if (!newRuns)
+            newRuns = `<w:r>${rPrFor('000000', false)}<w:t xml:space="preserve">—</w:t></w:r>`;
+          return `${pOpen}${pPr}${newRuns}${pClose}`;
+        }
+
+        // Caso 2: párrafo sin marcadores pero con valor de correo ya insertado -> fragmentar por correo
+        if (hasCorreoValue) {
+          const delim = combined.includes(correoEsc) ? correoEsc : correoRaw;
+          const parts = combined.split(delim);
+          let newRuns = '';
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            if (part) {
+              newRuns += `<w:r>${rPrFor('000000', false)}<w:t xml:space="preserve">${part}</w:t></w:r>`;
+            }
+            if (i < parts.length - 1) {
+              newRuns += `<w:r>${rPrFor('0000FF', true)}<w:t xml:space="preserve">${correoEsc}</w:t></w:r>`;
+            }
+          }
+          if (!newRuns) {
+            newRuns = `<w:r>${rPrFor('0000FF', true)}<w:t xml:space="preserve">${correoEsc}</w:t></w:r>`;
+          }
+          return `${pOpen}${pPr}${newRuns}${pClose}`;
+        }
+
+        return pBlock;
       });
 
-      // Final sweep: any remaining literal markers (outside paragraphs, e.g. headers fallback)
+      // Eliminar controles estructurados (w:sdt) — conservar solo el contenido con su formato original
+      // Maneja tanto SDT de bloque (<w:p> dentro) como inline (<w:r> dentro)
+      outXml = outXml.replace(
+        /<w:sdt\b[^>]*>(?:<w:sdtPr[\s\S]*?<\/w:sdtPr>)?\s*<w:sdtContent\b[^>]*>([\s\S]*?)<\/w:sdtContent>\s*<\/w:sdt>/g,
+        '$1'
+      );
+      // Por si quedan SDT sin sdtPr explícito o con namespaces adicionales, segundo pase genérico
+      outXml = outXml.replace(
+        /<w:sdt[^>]*>[\s\S]*?<w:sdtContent[^>]*>([\s\S]*?)<\/w:sdtContent>[\s\S]*?<\/w:sdt>/g,
+        '$1'
+      );
+
+      // Barrido final: cualquier marcador suelto fuera de párrafos -> —
       outXml = outXml.replace(/\[[A-Z0-9_]+\]/g, '—');
       return outXml;
     };
@@ -426,12 +547,9 @@ export async function generateDocx(
       const file = zip.file(fname);
       if (!file) continue;
       const xml = file.asText();
-      if (!xml.includes('[')) continue;
-      // Only scrub if markers present to avoid unnecessary rewrite
-      const hasMarker = /\[[A-Z0-9_]+\]/.test(xml);
-      if (!hasMarker) continue;
-      const cleaned = scrubXml(xml);
-      zip.file(fname, cleaned);
+      const cleaned = processXml(xml);
+      // Solo reescribir si hubo cambios para evitar recompresión innecesaria, pero siempre procesamos por colores
+      if (cleaned !== xml) zip.file(fname, cleaned);
     }
 
     const outBuf = zip.generate({ type: 'arraybuffer' }) as ArrayBuffer;
@@ -439,7 +557,7 @@ export async function generateDocx(
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
   } catch (e) {
-    console.error('Fallback scrub failed', e);
+    console.error('Fallback scrub / color apply failed', e);
     return new Blob([processedBuffer], {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
