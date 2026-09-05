@@ -559,6 +559,47 @@ export function DataView() {
               </svg>
               Exportar Excel
             </button>
+            <a
+              className="dv-action-pill dv-action-pill--radicar"
+              href="https://epmco-my.sharepoint.com.mcas.ms/personal/atencionclientes_essa_com_co/Lists/DATOS_RADICACION_EXTERNA/AllItems.aspx"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="dv-enviar-radicar"
+              title="Enviar a Radicar en SharePoint – DATOS_RADICACION_EXTERNA"
+              aria-label="Enviar a Radicar – abre SharePoint en pestaña nueva"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M22 2L11 13" />
+                <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+              </svg>
+              Enviar a Radicar
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                style={{ opacity: 0.9, marginLeft: 1 }}
+              >
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
           </div>
         </div>
       </div>
@@ -1412,6 +1453,12 @@ const dvStyles = `
     gap: 8px;
     align-items: center;
     flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  @media (max-width: 640px) {
+    .dv-hero-content { flex-wrap: wrap; }
+    .dv-hero-actions { width: 100%; justify-content: flex-start; }
   }
 
   /* ── Action Pills ── */
@@ -1457,6 +1504,64 @@ const dvStyles = `
     background: #dcfce7;
     color: #166534;
     box-shadow: 0 2px 8px rgba(22,163,74,0.15);
+  }
+  .dv-action-pill--radicar {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    border-color: #1e3a8a;
+    background: linear-gradient(135deg, #0b2a5b 0%, #004B93 42%, #0e6ad1 100%);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(0,75,147,0.24), 0 0 0 1px rgba(255,255,255,0.14) inset, 0 1px 0 rgba(255,255,255,0.14) inset;
+    animation: dv-radicar-pulse 3s ease-in-out infinite;
+    text-decoration: none;
+  }
+  .dv-action-pill--radicar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.18) 42%, rgba(255,255,255,0.32) 50%, transparent 62%);
+    transform: translateX(-140%) skewX(-12deg);
+    animation: dv-radicar-shine 3.2s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .dv-action-pill--radicar::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.18);
+    pointer-events: none;
+    opacity: 0.9;
+  }
+  .dv-action-pill--radicar:hover {
+    background: linear-gradient(135deg, #0d335f 0%, #0054a6 42%, #1280e0 100%);
+    border-color: #1e3a8a;
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(0,75,147,0.32), 0 0 0 1px rgba(255,255,255,0.16) inset, 0 0 14px rgba(59,130,246,0.22);
+    transform: translateY(-1px);
+  }
+  .dv-action-pill--radicar:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 6px rgba(0,75,147,0.24), 0 0 0 1px rgba(255,255,255,0.12) inset;
+  }
+  .dv-action-pill--radicar:focus-visible {
+    outline: 2px solid #93c5fd;
+    outline-offset: 2px;
+  }
+  @keyframes dv-radicar-pulse {
+    0%, 100% { box-shadow: 0 2px 10px rgba(0,75,147,0.24), 0 0 0 1px rgba(255,255,255,0.14) inset, 0 1px 0 rgba(255,255,255,0.14) inset; }
+    50% { box-shadow: 0 4px 16px rgba(0,75,147,0.30), 0 0 0 1px rgba(255,255,255,0.16) inset, 0 0 14px rgba(59,130,246,0.20); }
+  }
+  @keyframes dv-radicar-shine {
+    0% { transform: translateX(-140%) skewX(-12deg); opacity: 0; }
+    12% { opacity: 1; }
+    45% { transform: translateX(140%) skewX(-12deg); opacity: 0; }
+    100% { transform: translateX(140%) skewX(-12deg); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dv-action-pill--radicar, .dv-action-pill--radicar::before { animation: none; }
+    .dv-action-pill--radicar:hover { transform: none; }
   }
   .dv-action-pill-badge {
     display: inline-flex;
