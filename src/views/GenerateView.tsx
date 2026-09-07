@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import * as docxPreview from 'docx-preview';
 import { useGeneration } from '@/hooks/useGeneration';
+import { useGenerationStore } from '@/store/generationStore';
 import { GenerationStageIndicator } from '@/components/features/GenerationStageIndicator';
 import { useProfileStore } from '@/store/profileStore';
 import { useDataStore } from '@/store/dataStore';
@@ -151,13 +152,11 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [docxRenderFailed, setDocxRenderFailed] = useState(false);
 
-  // zoom state for preview
-  const [zoom, setZoom] = useState(100);
-  const [docPage, setDocPage] = useState(1);
-  const [totalDocPages, setTotalDocPages] = useState(1);
-
-  // excluded documents (local to this session, does not modify dataStore)
-  const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
+  // excluded documents — persistidos en generationStore para que la eliminación se guarde
+  const excludedIdsList = useGenerationStore((s) => s.excludedIds);
+  const addExcludedId = useGenerationStore((s) => s.addExcludedId);
+  const clearGenerated = useGenerationStore((s) => s.clearGenerated);
+  const excludedIds = useMemo(() => new Set(excludedIdsList), [excludedIdsList]);
 
   // confirm modal state
   const [confirmRemove, setConfirmRemove] = useState<{
@@ -165,6 +164,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
     rid: string;
     name: string;
   }>({ open: false, rid: '', name: '' });
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   const {
     stage,
@@ -186,8 +186,6 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
   const previewRef = useRef<HTMLDivElement>(null);
   const docxContainerRef = useRef<HTMLDivElement>(null);
   const previewInnerRef = useRef<HTMLDivElement>(null);
-  const [docNaturalSize, setDocNaturalSize] = useState<{ w: number; h: number } | null>(null);
-
   // items combined with status — exclude removed docs
   const combined = useMemo(() => {
     return selectedRecords
@@ -269,11 +267,16 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
     if (!rid) return;
 
     const wasActive = activeItem?.rid === rid;
-    setExcludedIds((prev) => {
-      const next = new Set(prev);
-      next.add(rid);
-      return next;
-    });
+    // Persistir exclusión para que el documento permanezca eliminado
+    addExcludedId(rid);
+    // También remover el resultado generado asociado si existe, para mantener consistencia
+    const currentResults = useGenerationStore.getState().docResults;
+    const hasResult = currentResults.some((r) => r.id === rid || r.recordId === rid);
+    if (hasResult) {
+      useGenerationStore
+        .getState()
+        .setDocResults(currentResults.filter((r) => r.id !== rid && r.recordId !== rid));
+    }
 
     // if the removed doc was the active one, the useEffect on filtered.length
     // will auto-adjust activeIdx. If it was the last item, we need to go back.
@@ -284,7 +287,21 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
     }
 
     setConfirmRemove({ open: false, rid: '', name: '' });
-  }, [confirmRemove, activeItem, filtered.length]);
+  }, [confirmRemove, activeItem, filtered.length, addExcludedId]);
+
+  const handleClearGenerated = useCallback(() => {
+    // El botón "Limpiar" / "Borrar documentos generados" debe eliminar de forma permanente
+    // todos los documentos que aún aparecen en el listado (combined), no solo los resultados generados.
+    // Por eso agregamos todos los ids visibles a excludedIds antes de limpiar.
+    if (combined.length > 0) {
+      const idsToExclude = combined.map((c) => c.rid);
+      const store = useGenerationStore.getState();
+      idsToExclude.forEach((id) => store.addExcludedId(id));
+    }
+    clearGenerated();
+    setActiveIdx(0);
+    setConfirmClearOpen(false);
+  }, [clearGenerated, combined]);
 
   const handleGenerate = useCallback(async () => {
     if (!canGenerate) return;
@@ -386,7 +403,9 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           requestAnimationFrame(() => {
             if (!docxContainerRef.current) return;
             // Show all sections (no page-by-page)
-            const sections = docxContainerRef.current.querySelectorAll('section.docx, section[class*="docx"]');
+            const sections = docxContainerRef.current.querySelectorAll(
+              'section.docx, section[class*="docx"]'
+            );
             sections.forEach((sec) => {
               (sec as HTMLElement).style.display = 'block';
               (sec as HTMLElement).style.marginBottom = '18px';
@@ -395,7 +414,9 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         }
       } catch (e) {
         console.error('docx-preview render failed, fallback to text', e);
-        if (!cancelled) { setDocxRenderFailed(true); }
+        if (!cancelled) {
+          setDocxRenderFailed(true);
+        }
       }
     };
     void run();
@@ -572,25 +593,31 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 6px;
+          gap: 8px;
           background: var(--neutral-50);
           flex-shrink: 0;
+          flex-wrap: wrap;
         }
         .gv-card-title {
-          font-size: 0.8rem;
+          font-size: 0.78rem;
           font-weight: 800;
           color: var(--neutral-700);
           white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex: 1 1 auto;
+          min-width: 0;
         }
         .gv-card-count {
-          font-size: 0.7rem;
+          font-size: 0.68rem;
           font-weight: 700;
           color: var(--neutral-500);
           background: var(--bg-card);
           border: 1px solid var(--border);
           border-radius: 999px;
-          padding: 2px 8px;
+          padding: 2px 7px;
           white-space: nowrap;
+          flex-shrink: 0;
         }
 
         /* ── Sidebar list ── */
@@ -731,6 +758,34 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         .gv-nav-btn:disabled {
           opacity: 0.4;
           cursor: default;
+        }
+        .gv-clear-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 10px;
+          border-radius: 999px;
+          border: 1px solid #fca5a5;
+          background: #fff;
+          color: #dc2626;
+          font-size: 0.7rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 150ms var(--ease);
+          white-space: nowrap;
+          flex-shrink: 0;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .gv-clear-btn:hover {
+          background: #fef2f2;
+          border-color: #f87171;
+          color: #991b1b;
+          box-shadow: 0 2px 8px rgba(220,38,38,0.14);
+          transform: translateY(-1px);
+        }
+        .gv-clear-btn:active {
+          transform: translateY(0);
+          box-shadow: 0 1px 2px rgba(0,0,0,0.06);
         }
 
         /* ── Preview panel ── */
@@ -1007,10 +1062,54 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         {/* ── Sidebar ── */}
         <div className="gv-card" data-testid="gv-sidebar">
           <div className="gv-card-header">
-            <span className="gv-card-title">Documentos a generar</span>
-            <span className="gv-card-count" data-testid="gv-sidebar-count">
-              {filtered.length} / {combined.length}
-            </span>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                flex: '1 1 140px',
+                minWidth: 0,
+              }}
+            >
+              <span className="gv-card-title" style={{ flex: '1 1 auto', minWidth: 0 }}>
+                Documentos a generar
+              </span>
+              <span
+                className="gv-card-count"
+                data-testid="gv-sidebar-count"
+                style={{ flexShrink: 0 }}
+              >
+                {filtered.length} / {combined.length}
+              </span>
+            </div>
+            {(combined.length > 0 || docResults.length > 0 || excludedIds.size > 0) && (
+              <button
+                type="button"
+                className="gv-clear-btn"
+                onClick={() => setConfirmClearOpen(true)}
+                data-testid="gv-clear-list"
+                title="Borrar documentos generados y limpiar listado"
+                aria-label="Borrar documentos generados"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+                Limpiar
+              </button>
+            )}
           </div>
 
           <div className="gv-sidebar-list" data-testid="gv-sidebar-list">
@@ -1085,7 +1184,10 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
                         const tpl = tid ? allTemplates.find((t) => t.id === tid) : null;
                         if (!tpl) return null;
                         return (
-                          <span className="gv-sidebar-item-meta" style={{ color: '#004B93', fontWeight: 600 }}>
+                          <span
+                            className="gv-sidebar-item-meta"
+                            style={{ color: '#004B93', fontWeight: 600 }}
+                          >
                             {tpl.title || tpl.fileName}
                           </span>
                         );
@@ -1222,12 +1324,22 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
               No hay registros seleccionados
             </div>
           ) : (
-            <div className="gv-preview" data-testid="gv-preview" ref={previewRef} style={{ height: 500, overflowY: 'auto', overflowX: 'auto' }}>
-              <div style={{ display:'flex', justifyContent:'center', alignItems:'flex-start', padding:12, width:'100%' }}>
-                <div
-                  ref={previewInnerRef}
-                  className="gv-preview-inner"
-                >
+            <div
+              className="gv-preview"
+              data-testid="gv-preview"
+              ref={previewRef}
+              style={{ height: 500, overflowY: 'auto', overflowX: 'auto' }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'flex-start',
+                  padding: 12,
+                  width: '100%',
+                }}
+              >
+                <div ref={previewInnerRef} className="gv-preview-inner">
                   {/* docx-preview mount point */}
                   <div
                     ref={docxContainerRef}
@@ -1239,7 +1351,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
                   />
                   {/* fallback text if no file */}
                   {(!selectedTemplate?.file || docxRenderFailed) && (
-                    <div className="gv-fallback" style={{ maxWidth:560 }}>
+                    <div className="gv-fallback" style={{ maxWidth: 560 }}>
                       <div data-testid="gv-fallback-content" className="gv-fallback-text">
                         {previewContent || (
                           <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
@@ -1364,6 +1476,38 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
               Reintentar documentos con error ({counts.errores})
             </Button>
           )}
+          {(docResults.length > 0 || excludedIds.size > 0) && (
+            <Button
+              variant="ghost"
+              onClick={() => setConfirmClearOpen(true)}
+              data-testid="gv-clear-generated"
+              style={{
+                width: '100%',
+                color: '#991b1b',
+                borderColor: '#fecaca',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+              Borrar documentos generados
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1411,6 +1555,64 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             </Button>
             <Button variant="danger" onClick={confirmRemoveDoc} data-testid="gv-confirm-remove-btn">
               Sí, quitar
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Confirm clear modal ── */}
+      <Modal
+        open={confirmClearOpen}
+        onClose={() => setConfirmClearOpen(false)}
+        title="Borrar documentos generados"
+        width={420}
+      >
+        <div className="gv-confirm-body">
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div
+              className="gv-confirm-icon"
+              style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#dc2626' }}
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+            </div>
+            <div className="gv-confirm-text">
+              ¿Seguro que deseas <strong>borrar los documentos generados</strong> y limpiar el
+              listado?
+              <br />
+              <span style={{ fontSize: '0.8rem', color: 'var(--neutral-500)' }}>
+                Se eliminarán los resultados de generación y los documentos excluidos volverán a
+                estar disponibles. Esta acción se guarda automáticamente.
+              </span>
+            </div>
+          </div>
+          <div className="gv-confirm-actions">
+            <Button
+              variant="ghost"
+              onClick={() => setConfirmClearOpen(false)}
+              data-testid="gv-clear-cancel"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleClearGenerated}
+              data-testid="gv-confirm-clear-btn"
+            >
+              Sí, borrar todo
             </Button>
           </div>
         </div>

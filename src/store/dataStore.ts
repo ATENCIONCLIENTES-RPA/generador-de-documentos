@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Record as EssaRecord } from '@/types/record';
 import { crossReferenceSacAndMercurio, getEstadoSemaforo } from '@/utils/excelParser';
 import { calculatePqrBusinessDays, parseDateOnly } from '@/utils/businessDays';
+import { useGenerationStore } from '@/store/generationStore';
 
 export interface FilterState {
   search: string;
@@ -276,8 +277,17 @@ export const useDataStore = create<DataStore>((set, get) => ({
   toggleRow: (id) =>
     set((s) => {
       const next = new Set(s.selectedRows);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const wasSelected = next.has(id);
+      if (wasSelected) next.delete(id);
+      else {
+        next.add(id);
+        // Si el registro estaba excluido en Módulo 5 (borrado/limpiado), al volver a seleccionarlo debe reaparecer
+        try {
+          useGenerationStore.getState().removeExcludedId(id);
+        } catch {
+          // Store synchronization is best effort.
+        }
+      }
       return { selectedRows: next };
     }),
 
@@ -294,7 +304,17 @@ export const useDataStore = create<DataStore>((set, get) => ({
       if (allSelected) {
         ids.forEach((id) => next.delete(id));
       } else {
-        ids.forEach((id) => next.add(id));
+        ids.forEach((id) => {
+          const wasSelected = next.has(id);
+          next.add(id);
+          if (!wasSelected) {
+            try {
+              useGenerationStore.getState().removeExcludedId(id);
+            } catch {
+              // Store synchronization is best effort.
+            }
+          }
+        });
       }
       return { selectedRows: next };
     }),
@@ -345,9 +365,17 @@ export const useDataStore = create<DataStore>((set, get) => ({
     }),
 
   assignTemplate: (rowId, templateId) =>
-    set((s) => ({
-      templateAssignments: { ...s.templateAssignments, [rowId]: templateId },
-    })),
+    set((s) => {
+      // Al reasignar plantilla en Módulo 4, el registro debe volver a aparecer en Módulo 5 si estaba excluido
+      try {
+        useGenerationStore.getState().removeExcludedId(rowId);
+      } catch {
+        // Store synchronization is best effort.
+      }
+      return {
+        templateAssignments: { ...s.templateAssignments, [rowId]: templateId },
+      };
+    }),
 
   removeTemplateAssignment: (rowId) =>
     set((s) => {
@@ -383,4 +411,5 @@ export const useDataStore = create<DataStore>((set, get) => ({
 }));
 
 // expose for e2e seeding in dev
-if (typeof window !== 'undefined' && import.meta.env.DEV) (window as unknown as Record<string, unknown>).__dataStore = useDataStore;
+if (typeof window !== 'undefined' && import.meta.env.DEV)
+  (window as unknown as Record<string, unknown>).__dataStore = useDataStore;

@@ -113,7 +113,12 @@ function resetStores() {
   useProfileStore.setState({
     profile: { name: 'Func EssA', position: 'Gestor', email: 'a@essa.com.co', signatureUrl: null },
   });
-  useGenerationStore.setState({ stage: 'revision', progress: 0, docResults: [] });
+  useGenerationStore.setState({ stage: 'revision', progress: 0, docResults: [], excludedIds: [] });
+  try {
+    localStorage.removeItem('essa-generation');
+  } catch {
+    // Test cleanup is best effort.
+  }
 }
 
 describe('GenerateView — M5 unificado', () => {
