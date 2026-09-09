@@ -31,9 +31,7 @@ function xpathTexto(doc: Document | null, xpath: string): string {
     if (result.snapshotLength === 0) return '';
     const node = result.snapshotItem(0);
     if (!node) return '';
-    // @ts-expect-error - node can be Attr, Text, Element
-    if (node.textContent != null) return String((node as Node).textContent).trim();
-    // @ts-expect-error - XPath snapshot nodes expose stringValue in some implementations
+    if ((node as Node).textContent != null) return String((node as Node).textContent).trim();
     return String((node as unknown as { stringValue?: string }).stringValue ?? '').trim();
   } catch {
     return '';

@@ -826,8 +826,8 @@ export function DataView() {
                 setRadicarOpen(true);
               }}
               data-testid="dv-enviar-radicar"
-              title="Enviar a Radicar en SharePoint – DATOS_RADICACION_EXTERNA"
-              aria-label="Enviar a Radicar – abre formulario de radicación"
+              title="Gestionar datos para radicar – abre formulario de radicación"
+              aria-label="Gestionar datos para radicar – abre formulario de radicación"
             >
               <svg
                 width="14"
@@ -843,7 +843,7 @@ export function DataView() {
                 <path d="M22 2L11 13" />
                 <path d="M22 2L15 22L11 13L2 9L22 2Z" />
               </svg>
-              Enviar a Radicar
+              Gestionar datos para radicar
               <svg
                 width="11"
                 height="11"
