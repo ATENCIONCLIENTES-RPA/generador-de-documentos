@@ -22,13 +22,17 @@ export function Modal({
 }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
       if (e.key === 'Tab' && dialogRef.current) {
         const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
           'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
@@ -56,12 +60,14 @@ export function Modal({
       document.body.style.overflow = prev;
       document.removeEventListener('keydown', onKey);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
   const defaultSubtitle =
-    title === 'Editar registro' ? 'Revisa y actualiza la información del registro seleccionado' : subtitle;
+    title === 'Editar registro'
+      ? 'Revisa y actualiza la información del registro seleccionado'
+      : subtitle;
 
   return createPortal(
     <div
@@ -110,7 +116,8 @@ export function Modal({
           maxWidth: width,
           background: '#fff',
           borderRadius: 16,
-          boxShadow: '0 24px 48px rgba(15,23,42,.18), 0 8px 16px rgba(15,23,42,.12), var(--shadow-lg)',
+          boxShadow:
+            '0 24px 48px rgba(15,23,42,.18), 0 8px 16px rgba(15,23,42,.12), var(--shadow-lg)',
           border: '1px solid #e2e8f0',
           maxHeight: 'min(86vh, 760px)',
           display: 'flex',
@@ -148,7 +155,16 @@ export function Modal({
                   boxShadow: '0 1px 3px rgba(0,75,147,.08)',
                 }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#004B93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#004B93"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
@@ -156,12 +172,27 @@ export function Modal({
               <div style={{ minWidth: 0, flex: 1 }}>
                 <h2
                   id="essa-modal-title"
-                  style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.25, letterSpacing: '-0.015em', margin: 0 }}
+                  style={{
+                    fontSize: '1rem',
+                    fontWeight: 800,
+                    color: '#0f172a',
+                    lineHeight: 1.25,
+                    letterSpacing: '-0.015em',
+                    margin: 0,
+                  }}
                 >
                   {title}
                 </h2>
                 {defaultSubtitle && (
-                  <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '2px 0 0', lineHeight: 1.45, fontWeight: 500 }}>
+                  <p
+                    style={{
+                      fontSize: '0.78rem',
+                      color: '#64748b',
+                      margin: '2px 0 0',
+                      lineHeight: 1.45,
+                      fontWeight: 500,
+                    }}
+                  >
                     {defaultSubtitle}
                   </p>
                 )}
@@ -175,14 +206,36 @@ export function Modal({
               data-testid="modal-close"
               type="button"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           </div>
         )}
-        <div className="essa-modal-body" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: 20, display: 'flex', flexDirection: 'column', gap: 0, background: '#fff' }}>
+        <div
+          className="essa-modal-body"
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            padding: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0,
+            background: '#fff',
+          }}
+        >
           {children}
         </div>
       </div>
