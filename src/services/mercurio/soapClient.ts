@@ -195,6 +195,13 @@ export function manejarExcepcion(error: unknown, nombreServicio: string): Result
   const e = error as Error & { name?: string };
   let mensaje = '';
   const msg = String(e?.message ?? e);
+  const isGithubPages =
+    typeof window !== 'undefined' && window.location.hostname.includes('github.io');
+  const isCorsLike =
+    msg.toLowerCase().includes('failed to fetch') ||
+    msg.toLowerCase().includes('networkerror') ||
+    msg.toLowerCase().includes('load failed') ||
+    msg.toLowerCase().includes('network error');
 
   if (
     e?.name === 'AbortError' ||
@@ -202,12 +209,17 @@ export function manejarExcepcion(error: unknown, nombreServicio: string): Result
     msg.toLowerCase().includes('timeout')
   ) {
     mensaje = `${nombreServicio} superó el tiempo máximo de ${MERCURIO_CONFIG.timeoutMs / 1000} segundos.`;
-  } else if (
-    msg.toLowerCase().includes('failed to fetch') ||
-    msg.toLowerCase().includes('networkerror') ||
-    msg.toLowerCase().includes('load failed')
-  ) {
-    mensaje = `No fue posible conectarse a ${nombreServicio}. Verifica la red corporativa, VPN y URL. Detalle: ${msg}`;
+  } else if (isCorsLike) {
+    if (isGithubPages) {
+      mensaje =
+        `No fue posible conectarse a ${nombreServicio} desde GitHub Pages (https://${window.location.hostname}). ` +
+        `El navegador bloquea la petición cross-origin a la red interna EPM por CORS, aunque estés dentro de la VPN. ` +
+        `El script Python de VS Code funciona porque no es un navegador y hace conexión directa TCP sin CORS (vía requests). ` +
+        `Solución: ejecuta la app localmente con 'npm run dev' dentro de la VPN (usa el proxy Vite en /api/mercurio → epm-vapp47/vws04) o despliega la app en un servidor interno con proxy hacia Mercurio. ` +
+        `Detalle técnico: ${msg}`;
+    } else {
+      mensaje = `No fue posible conectarse a ${nombreServicio}. Verifica la red corporativa, VPN y URL. Si estás en VPN y la URL es alcanzable con el script Python, el fallo es por CORS del navegador (el servicio SOAP no envía Access-Control-Allow-Origin). Usa 'npm run dev' con el proxy configurado en vite.config.ts (/api/mercurio) o un backend proxy interno. Detalle: ${msg}`;
+    }
   } else if (e instanceof TypeError) {
     mensaje = `Error al consumir ${nombreServicio}: ${msg}`;
   } else {
