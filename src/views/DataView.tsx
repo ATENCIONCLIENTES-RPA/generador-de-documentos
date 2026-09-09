@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import autoAnimate from '@formkit/auto-animate';
 import * as XLSX from 'xlsx';
 import { useDataStore } from '@/store/dataStore';
@@ -10,8 +10,6 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import type { Record as EssaRecord } from '@/types/record';
-import { ejecutarFlujoRadicacion } from '@/services/mercurio/orchestrator';
-import type { ResultadoGeneral } from '@/services/mercurio/types';
 import { calculatePqrBusinessDays, parseDateOnly } from '@/utils/businessDays';
 import { getEstadoSemaforo } from '@/utils/excelParser';
 
@@ -189,23 +187,10 @@ export function DataView() {
   const [activeRecord, setActiveRecord] = useState<EssaRecord | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  // ── Enviar a Radicar modal state ──
+  // ── Enviar a Radicar modal state (simplificado: solo Referencia) ──
   const [radicarOpen, setRadicarOpen] = useState(false);
-  const [usuarioMercurio, setUsuarioMercurio] = useState('');
-  const [asunto, setAsunto] = useState('');
-  const [tipoDocumento, setTipoDocumento] = useState('');
-  const [respuestaFile, setRespuestaFile] = useState<File | null>(null);
-  const [respuestaError, setRespuestaError] = useState<string | null>(null);
-  const [anexosFiles, setAnexosFiles] = useState<File[]>([]);
-  const [radicarTouched, setRadicarTouched] = useState(false);
-  const [isDraggingRespuesta, setIsDraggingRespuesta] = useState(false);
-  const [isDraggingAnexos, setIsDraggingAnexos] = useState(false);
   const [referencia, setReferencia] = useState('');
-  const [confirmRadicarOpen, setConfirmRadicarOpen] = useState(false);
-  const [isRadicando, setIsRadicando] = useState(false);
-  const [resultadoRadicacion, setResultadoRadicacion] = useState<ResultadoGeneral | null>(null);
-  const respuestaInputRef = useRef<HTMLInputElement>(null);
-  const anexosInputRef = useRef<HTMLInputElement>(null);
+  const [radicarTouched, setRadicarTouched] = useState(false);
 
   const headerCbRef = useRef<HTMLInputElement>(null);
   const filterTagsRef = useRef<HTMLDivElement>(null);
@@ -495,146 +480,28 @@ export function DataView() {
     }
   }, [radicarOpen, autoReferencia]);
 
-  const isPdfFile = (f: File) =>
-    f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
-
-  const isRadicarValid = useMemo(() => {
-    const hasUsuario = usuarioMercurio.trim().length > 0;
-    const hasAsunto = ['2107', '2110', '2112'].includes(asunto);
-    const hasTipo = ['ES-002', 'ES7262'].includes(tipoDocumento);
-    const hasReferencia = referencia.trim().length > 0;
-    const hasRespuesta = respuestaFile !== null && isPdfFile(respuestaFile);
-    return hasUsuario && hasAsunto && hasTipo && hasReferencia && hasRespuesta;
-  }, [usuarioMercurio, asunto, tipoDocumento, referencia, respuestaFile]);
-
-  const handleRespuestaFiles = useCallback((files: FileList | File[]) => {
-    const arr = Array.from(files);
-    if (arr.length === 0) return;
-    const f = arr[0]!;
-    if (!isPdfFile(f)) {
-      setRespuestaError('Solo se permiten archivos PDF.');
-      return;
-    }
-    setRespuestaError(null);
-    setRespuestaFile(f);
-  }, []);
-
-  const handleAnexosFiles = useCallback((files: FileList | File[]) => {
-    const arr = Array.from(files);
-    if (arr.length === 0) return;
-    // Anexos: múltiples, sin restricción de tipo, pero mostramos validación si es necesario
-    setAnexosFiles((prev) => {
-      const combined = [...prev, ...arr];
-      // evitar duplicados por nombre+tamaño
-      const map = new Map<string, File>();
-      combined.forEach((f) => map.set(`${f.name}-${f.size}`, f));
-      return Array.from(map.values());
-    });
-  }, []);
+  const isRadicarValid = useMemo(() => referencia.trim().length > 0, [referencia]);
 
   const handleCloseRadicar = useCallback(() => {
     setRadicarOpen(false);
     setRadicarTouched(false);
-    setRespuestaError(null);
-    setConfirmRadicarOpen(false);
-    setIsRadicando(false);
-    // No limpiamos resultado aquí para permitir ver el mensaje si se reabre; se limpia al abrir de nuevo
   }, []);
 
   const handleConfirmRadicar = useCallback(() => {
     setRadicarTouched(true);
-    // Conversión a mayúsculas para Usuario de Mercurio al intentar enviar (si aún no se hizo en blur)
-    const normalizedUsuario = usuarioMercurio.trim().toUpperCase();
-    if (normalizedUsuario !== usuarioMercurio.trim()) {
-      setUsuarioMercurio(normalizedUsuario);
-    }
     const finalReferencia = formatReferenciaSentenceCase(referencia);
     if (finalReferencia !== referencia) {
       setReferencia(finalReferencia);
     }
-    const hasUsuario = normalizedUsuario.length > 0;
-    const hasAsunto = ['2107', '2110', '2112'].includes(asunto);
-    const hasTipo = ['ES-002', 'ES7262'].includes(tipoDocumento);
-    const hasReferencia = finalReferencia.trim().length > 0;
-    const hasRespuesta = respuestaFile !== null && isPdfFile(respuestaFile);
-    if (!hasUsuario || !hasAsunto || !hasTipo || !hasReferencia || !hasRespuesta) {
-      if (respuestaFile && !isPdfFile(respuestaFile))
-        setRespuestaError('Solo se permiten archivos PDF.');
-      return;
-    }
-    // Mostrar ventana de confirmación antes de ejecutar los servicios SOAP
-    setConfirmRadicarOpen(true);
-  }, [usuarioMercurio, asunto, tipoDocumento, referencia, respuestaFile]);
-
-  const handleExecuteRadicacion = useCallback(async () => {
-    const normalizedUsuario = usuarioMercurio.trim().toUpperCase();
-    const finalReferencia = formatReferenciaSentenceCase(referencia);
-    setIsRadicando(true);
-    setResultadoRadicacion(null);
-    try {
-      const resultado = await ejecutarFlujoRadicacion(
-        {
-          usuarioMercurio: normalizedUsuario,
-          asunto,
-          tipoDocumento,
-          referencia: finalReferencia,
-          respuestaFile: respuestaFile!,
-          anexosFiles,
-        },
-        { continuarAnexosSiFallaRespuesta: true }
-      );
-      setResultadoRadicacion(resultado);
-      // Cerrar modal de confirmación
-      setConfirmRadicarOpen(false);
-      if (resultado.radicacion.exitoso && resultado.radicacion.radicado) {
-        // Éxito: mantener modal abierto para mostrar mensaje, o cerrar y mostrar toast
-        // No cerramos el modal principal inmediatamente para mostrar el resultado
-      } else if (!resultado.radicacion.exitoso) {
-        // Error en servicio 1 se mostrará en el área de resultado
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      setResultadoRadicacion({
-        empresa: '890201230-1',
-        radicacion: {
-          exitoso: false,
-          radicado: '',
-          resultado_servicio: '',
-          codigo_transaccion: '',
-          descripcion_transaccion: '',
-          campo_error: '',
-          descripcion_campo: '',
-          archivo: '',
-          nombre_imagen: '',
-          mensaje: `Error inesperado: ${msg}`,
-          respuesta_soap: '',
-          codigo_http: 0,
-          motivo_http: '',
-          intentos_realizados: 0,
-        },
-        documento_respuesta: {
-          exitoso: false,
-          radicado: '',
-          resultado_servicio: '',
-          codigo_transaccion: '',
-          descripcion_transaccion: '',
-          campo_error: '',
-          descripcion_campo: '',
-          archivo: '',
-          nombre_imagen: '',
-          mensaje: 'No ejecutado.',
-          respuesta_soap: '',
-          codigo_http: 0,
-          motivo_http: '',
-          intentos_realizados: 0,
-        },
-        anexos: [],
-      });
-      setConfirmRadicarOpen(false);
-    } finally {
-      setIsRadicando(false);
-    }
-  }, [usuarioMercurio, asunto, tipoDocumento, referencia, respuestaFile, anexosFiles]);
+    if (!finalReferencia.trim()) return;
+    window.open(
+      'https://epmco-my.sharepoint.com.mcas.ms/personal/atencionclientes_essa_com_co/Lists/DATOS_RADICACION_EXTERNA/AllItems.aspx',
+      '_blank',
+      'noopener,noreferrer'
+    );
+    setRadicarOpen(false);
+    setRadicarTouched(false);
+  }, [referencia]);
 
   // ─── EMPTY STATE ──────────────────────────────────────────
   if (!records || records.length === 0) {
@@ -822,7 +689,6 @@ export function DataView() {
               className="dv-action-pill dv-action-pill--radicar"
               onClick={() => {
                 setRadicarTouched(false);
-                setRespuestaError(null);
                 setRadicarOpen(true);
               }}
               data-testid="dv-enviar-radicar"
@@ -1604,136 +1470,6 @@ export function DataView() {
         width={680}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Usuario de Mercurio */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                color: '#0f172a',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              Usuario de Mercurio <span style={{ color: '#dc2626' }}>*</span>
-            </label>
-            <input
-              type="text"
-              value={usuarioMercurio}
-              onChange={(e) => setUsuarioMercurio(e.target.value)}
-              onBlur={() => setUsuarioMercurio((v) => v.toUpperCase())}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-              }}
-              placeholder="ATENCIONCLIENTES"
-              data-testid="radicar-usuario"
-              autoComplete="off"
-              spellCheck={false}
-              style={{
-                height: 40,
-                borderRadius: 10,
-                border: `1px solid ${radicarTouched && !usuarioMercurio.trim() ? '#fca5a5' : '#cbd5e1'}`,
-                background: radicarTouched && !usuarioMercurio.trim() ? '#fef2f2' : '#fff',
-                padding: '0 12px',
-                fontSize: '0.875rem',
-                outline: 'none',
-                transition: 'all 150ms',
-                textTransform: usuarioMercurio ? 'uppercase' : 'none',
-              }}
-            />
-            {radicarTouched && !usuarioMercurio.trim() && (
-              <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>
-                Este campo es obligatorio.
-              </span>
-            )}
-          </div>
-
-          {/* Asunto y Tipo en dos columnas */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label
-                style={{
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  color: '#0f172a',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                Asunto <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <select
-                value={asunto}
-                onChange={(e) => setAsunto(e.target.value)}
-                data-testid="radicar-asunto"
-                style={{
-                  height: 40,
-                  borderRadius: 10,
-                  border: `1px solid ${radicarTouched && !['2107', '2110', '2112'].includes(asunto) ? '#fca5a5' : '#cbd5e1'}`,
-                  background:
-                    radicarTouched && !['2107', '2110', '2112'].includes(asunto)
-                      ? '#fef2f2'
-                      : '#fff',
-                  padding: '0 12px',
-                  fontSize: '0.875rem',
-                  outline: 'none',
-                }}
-              >
-                <option value="">Seleccione una opción</option>
-                <option value="2107">2107</option>
-                <option value="2110">2110</option>
-                <option value="2112">2112</option>
-              </select>
-              {radicarTouched && !['2107', '2110', '2112'].includes(asunto) && (
-                <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>
-                  Seleccione un asunto.
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label
-                style={{
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  color: '#0f172a',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                Tipo de documento <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <select
-                value={tipoDocumento}
-                onChange={(e) => setTipoDocumento(e.target.value)}
-                data-testid="radicar-tipo"
-                style={{
-                  height: 40,
-                  borderRadius: 10,
-                  border: `1px solid ${radicarTouched && !['ES-002', 'ES7262'].includes(tipoDocumento) ? '#fca5a5' : '#cbd5e1'}`,
-                  background:
-                    radicarTouched && !['ES-002', 'ES7262'].includes(tipoDocumento)
-                      ? '#fef2f2'
-                      : '#fff',
-                  padding: '0 12px',
-                  fontSize: '0.875rem',
-                  outline: 'none',
-                }}
-              >
-                <option value="">Seleccione una opción</option>
-                <option value="ES-002">ES-002</option>
-                <option value="ES7262">ES7262</option>
-              </select>
-              {radicarTouched && !['ES-002', 'ES7262'].includes(tipoDocumento) && (
-                <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>
-                  Seleccione un tipo.
-                </span>
-              )}
-            </div>
-          </div>
-
           {/* Referencia — editable con formato oración, correo en minúsculas */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>
@@ -1748,9 +1484,9 @@ export function DataView() {
               onBlur={() => setReferencia((prev) => formatReferenciaSentenceCase(prev))}
               placeholder="La referencia se genera automáticamente con los datos del registro. Puede editarla libremente: modificar, agregar o eliminar información."
               data-testid="radicar-referencia"
-              rows={4}
+              rows={5}
               style={{
-                minHeight: 88,
+                minHeight: 110,
                 borderRadius: 10,
                 border: `1px solid ${radicarTouched && !referencia.trim() ? '#fca5a5' : '#cbd5e1'}`,
                 background: radicarTouched && !referencia.trim() ? '#fef2f2' : '#fff',
@@ -1771,507 +1507,7 @@ export function DataView() {
                 La referencia no puede estar vacía.
               </span>
             )}
-            <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
-              Se construye con: NOMBRE_SOLICITANTE → DEPTO, MUNICIPIO → DIRECCION → CORREO (solo
-              valores con información). Formato oración aplicado automáticamente; correo permanece
-              en minúsculas.
-            </span>
           </div>
-
-          {/* Subir respuesta */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                color: '#0f172a',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              Subir respuesta <span style={{ color: '#dc2626' }}>*</span>{' '}
-              <span style={{ fontWeight: 500, color: '#64748b', fontSize: '0.72rem' }}>
-                (PDF, único archivo)
-              </span>
-            </label>
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDraggingRespuesta(true);
-              }}
-              onDragLeave={() => setIsDraggingRespuesta(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDraggingRespuesta(false);
-                handleRespuestaFiles(e.dataTransfer.files);
-              }}
-              onClick={() => respuestaInputRef.current?.click()}
-              data-testid="radicar-drop-respuesta"
-              style={{
-                border: `1.5px dashed ${respuestaError ? '#fca5a5' : isDraggingRespuesta ? '#0ea5e9' : '#cbd5e1'}`,
-                background: isDraggingRespuesta
-                  ? '#f0f9ff'
-                  : respuestaError
-                    ? '#fef2f2'
-                    : '#f8fafc',
-                borderRadius: 12,
-                padding: 14,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                cursor: 'pointer',
-                textAlign: 'center',
-                transition: 'all 150ms',
-              }}
-            >
-              <input
-                ref={respuestaInputRef}
-                type="file"
-                accept="application/pdf,.pdf"
-                style={{ display: 'none' }}
-                onChange={(e) => e.target.files && handleRespuestaFiles(e.target.files)}
-                data-testid="radicar-input-respuesta"
-              />
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: isDraggingRespuesta ? '#e0f2fe' : '#fff',
-                  border: '1px solid #e2e8f0',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: isDraggingRespuesta ? '#0284c7' : '#64748b',
-                }}
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="12" y1="18" x2="12" y2="12" />
-                  <polyline points="9 15 12 12 15 15" />
-                </svg>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f172a' }}>
-                  {respuestaFile
-                    ? respuestaFile.name
-                    : 'Arrastra tu PDF aquí o haz clic para buscar'}
-                </span>
-                <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                  {respuestaFile
-                    ? `${(respuestaFile.size / 1024).toFixed(1)} KB — haz clic para reemplazar`
-                    : 'Solo PDF, máximo un archivo'}
-                </span>
-              </div>
-              {respuestaFile && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setRespuestaFile(null);
-                    setRespuestaError(null);
-                    if (respuestaInputRef.current) respuestaInputRef.current.value = '';
-                  }}
-                  style={{
-                    marginTop: 4,
-                    fontSize: '0.72rem',
-                    color: '#dc2626',
-                    background: '#fff',
-                    border: '1px solid #fecaca',
-                    borderRadius: 999,
-                    padding: '3px 10px',
-                    cursor: 'pointer',
-                    fontWeight: 700,
-                  }}
-                  data-testid="radicar-remove-respuesta"
-                >
-                  Eliminar
-                </button>
-              )}
-            </div>
-            {(respuestaError || (radicarTouched && !respuestaFile)) && (
-              <span style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600 }}>
-                {respuestaError ?? 'Debe cargar la respuesta en PDF.'}
-              </span>
-            )}
-          </div>
-
-          {/* Anexos */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>
-              Anexos{' '}
-              <span style={{ fontWeight: 500, color: '#64748b', fontSize: '0.72rem' }}>
-                (opcional, múltiples archivos)
-              </span>
-            </label>
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDraggingAnexos(true);
-              }}
-              onDragLeave={() => setIsDraggingAnexos(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDraggingAnexos(false);
-                handleAnexosFiles(e.dataTransfer.files);
-              }}
-              onClick={() => anexosInputRef.current?.click()}
-              data-testid="radicar-drop-anexos"
-              style={{
-                border: `1.5px dashed ${isDraggingAnexos ? '#0ea5e9' : '#cbd5e1'}`,
-                background: isDraggingAnexos ? '#f0f9ff' : '#f8fafc',
-                borderRadius: 12,
-                padding: 14,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                cursor: 'pointer',
-                textAlign: 'center',
-                transition: 'all 150ms',
-              }}
-            >
-              <input
-                ref={anexosInputRef}
-                type="file"
-                multiple
-                style={{ display: 'none' }}
-                onChange={(e) => e.target.files && handleAnexosFiles(e.target.files)}
-                data-testid="radicar-input-anexos"
-              />
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: isDraggingAnexos ? '#e0f2fe' : '#fff',
-                  border: '1px solid #e2e8f0',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: isDraggingAnexos ? '#0284c7' : '#64748b',
-                }}
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                  <line x1="12" y1="13" x2="12" y2="17" />
-                  <polyline points="9 15 12 13 15 15" />
-                </svg>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f172a' }}>
-                  Arrastra tus anexos aquí o haz clic para buscar
-                </span>
-                <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                  Puedes agregar varios archivos. Se mostrarán abajo.
-                </span>
-              </div>
-            </div>
-            {anexosFiles.length > 0 && (
-              <div
-                style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 2 }}
-                data-testid="radicar-anexos-list"
-              >
-                {anexosFiles.map((f, i) => (
-                  <div
-                    key={`${f.name}-${f.size}-${i}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 8,
-                      background: '#fff',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: 10,
-                      padding: '8px 10px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                      <div
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 8,
-                          background: '#f1f5f9',
-                          border: '1px solid #e2e8f0',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#475569',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                        >
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                          <polyline points="14 2 14 8 20 8" />
-                        </svg>
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: '0.78rem',
-                            fontWeight: 600,
-                            color: '#0f172a',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            maxWidth: 260,
-                          }}
-                          title={f.name}
-                        >
-                          {f.name}
-                        </div>
-                        <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
-                          {(f.size / 1024).toFixed(1)} KB
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setAnexosFiles((prev) => prev.filter((_, idx) => idx !== i))}
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: 8,
-                        border: '1px solid #e2e8f0',
-                        background: '#fff',
-                        color: '#64748b',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                      }}
-                      data-testid={`radicar-remove-anexo-${i}`}
-                      aria-label={`Eliminar ${f.name}`}
-                    >
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Resultado de la radicación */}
-          {isRadicando && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '10px 12px',
-                background: '#eff6ff',
-                border: '1px solid #bfdbfe',
-                borderRadius: 10,
-                fontSize: '0.82rem',
-                color: '#1e40af',
-                fontWeight: 600,
-              }}
-            >
-              <span
-                style={
-                  {
-                    width: 14,
-                    height: 14,
-                    border: '2px solid #bfdbfe',
-                    borderTopColor: '#1e40af',
-                    borderRadius: '50%',
-                    display: 'inline-block',
-                    animation: 'spin 0.8s linear infinite',
-                  } as CSSProperties
-                }
-                aria-hidden
-              />
-              Enviando solicitud a Mercurio, por favor espere...
-            </div>
-          )}
-          {resultadoRadicacion && !isRadicando && (
-            <div
-              data-testid="radicar-resultado"
-              style={{
-                padding: '12px 14px',
-                borderRadius: 10,
-                border: `1px solid ${resultadoRadicacion.radicacion.exitoso ? '#bbf7d0' : '#fecaca'}`,
-                background: resultadoRadicacion.radicacion.exitoso ? '#f0fdf4' : '#fef2f2',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-              }}
-            >
-              {resultadoRadicacion.radicacion.exitoso ? (
-                <>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      fontWeight: 800,
-                      color: '#15803d',
-                      fontSize: '0.85rem',
-                    }}
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#15803d"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    Solicitud enviada correctamente a radicación.
-                  </div>
-                  <div style={{ fontSize: '0.84rem', color: '#166534', fontWeight: 700 }}>
-                    Número de radicado: {resultadoRadicacion.radicacion.radicado}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.75rem',
-                      color: resultadoRadicacion.documento_respuesta.exitoso
-                        ? '#15803d'
-                        : '#991b1b',
-                      background: '#fff',
-                      border: `1px solid ${resultadoRadicacion.documento_respuesta.exitoso ? '#bbf7d0' : '#fecaca'}`,
-                      borderRadius: 8,
-                      padding: '6px 8px',
-                    }}
-                  >
-                    {resultadoRadicacion.documento_respuesta.exitoso
-                      ? `Documento de respuesta: Correcto (${resultadoRadicacion.documento_respuesta.intentos_realizados} intento(s))`
-                      : `Documento de respuesta — Falló: ${resultadoRadicacion.documento_respuesta.mensaje}`}
-                  </div>
-                  {resultadoRadicacion.anexos.length > 0 && (
-                    <div
-                      style={{
-                        fontSize: '0.75rem',
-                        color: '#475569',
-                        background: '#fff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: 8,
-                        padding: '6px 8px',
-                      }}
-                    >
-                      Anexos: {resultadoRadicacion.anexos.filter((a) => a.exitoso).length} /{' '}
-                      {resultadoRadicacion.anexos.length} correctos
-                      {resultadoRadicacion.anexos.some((a) => !a.exitoso) && (
-                        <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-                          {resultadoRadicacion.anexos
-                            .filter((a) => !a.exitoso)
-                            .map((a, i) => (
-                              <li key={i} style={{ color: '#dc2626' }}>
-                                {a.archivo || a.nombre_imagen}: {a.mensaje}
-                              </li>
-                            ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
-                  {!resultadoRadicacion.documento_respuesta.exitoso && (
-                    <div style={{ fontSize: '0.72rem', color: '#991b1b' }}>
-                      Servicio que falló: Documento de respuesta — revise el detalle acima.{' '}
-                      {resultadoRadicacion.anexos.length > 0 &&
-                      !resultadoRadicacion.anexos.every((a) => a.exitoso)
-                        ? 'Algunos anexos también fallaron.'
-                        : ''}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      fontWeight: 800,
-                      color: '#991b1b',
-                      fontSize: '0.85rem',
-                    }}
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#dc2626"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="12" />
-                      <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                    Error en el servicio de radicación
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.78rem',
-                      color: '#7f1d1d',
-                      background: '#fff',
-                      border: '1px solid #fecaca',
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {resultadoRadicacion.radicacion.mensaje}
-                    {resultadoRadicacion.radicacion.campo_error &&
-                      ` | Campo: ${resultadoRadicacion.radicacion.campo_error}`}
-                    {resultadoRadicacion.radicacion.descripcion_campo &&
-                      ` — ${resultadoRadicacion.radicacion.descripcion_campo}`}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: '#991b1b' }}>
-                    No se ejecutaron los servicios de respuesta ni anexos. Corrija los datos e
-                    intente nuevamente.
-                  </div>
-                </>
-              )}
-            </div>
-          )}
 
           {/* Footer buttons */}
           <div
@@ -2284,167 +1520,42 @@ export function DataView() {
               marginTop: 4,
             }}
           >
-            <Button
-              variant="ghost"
-              onClick={handleCloseRadicar}
-              data-testid="radicar-cancelar"
-              disabled={isRadicando}
-            >
+            <Button variant="ghost" onClick={handleCloseRadicar} data-testid="radicar-cancelar">
               Cancelar
             </Button>
             <Button
               variant="primary"
-              disabled={!isRadicarValid || isRadicando}
+              disabled={!isRadicarValid}
               onClick={() => {
                 setRadicarTouched(true);
                 if (!isRadicarValid) return;
                 handleConfirmRadicar();
               }}
               data-testid="radicar-enviar"
-              title={
-                !isRadicarValid
-                  ? 'Complete los campos obligatorios y cargue la respuesta en PDF'
-                  : 'Enviar a Radicar'
-              }
-              style={{ minWidth: 148, opacity: !isRadicarValid || isRadicando ? 0.6 : 1 }}
+              title={!isRadicarValid ? 'Complete la referencia' : 'Enviar a Radicar'}
+              style={{ minWidth: 148, opacity: !isRadicarValid ? 0.6 : 1 }}
             >
-              {isRadicando ? 'Enviando...' : 'Enviar a Radicar'}
-              {!isRadicando && (
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ marginLeft: 6 }}
-                >
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                  <polyline points="12 5 19 12 12 19" />
-                </svg>
-              )}
+              Enviar a Radicar
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ marginLeft: 6 }}
+              >
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
             </Button>
           </div>
         </div>
       </Modal>
 
       {/* Modal de confirmación — ¿Está seguro de que desea enviar esta solicitud a radicar? */}
-      <Modal
-        open={confirmRadicarOpen}
-        onClose={() => !isRadicando && setConfirmRadicarOpen(false)}
-        title="Confirmar radicación"
-        subtitle="¿Está seguro de que desea enviar esta solicitud a radicar?"
-        width={420}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: '#eff6ff',
-                border: '1px solid #bfdbfe',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#004B93',
-                flexShrink: 0,
-              }}
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#004B93"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p
-                style={{
-                  fontSize: '0.875rem',
-                  color: '#0f172a',
-                  fontWeight: 600,
-                  margin: 0,
-                  lineHeight: 1.4,
-                }}
-              >
-                ¿Está seguro de que desea enviar esta solicitud a radicar?
-              </p>
-              <p
-                style={{
-                  fontSize: '0.78rem',
-                  color: '#64748b',
-                  margin: '6px 0 0',
-                  lineHeight: 1.5,
-                }}
-              >
-                Se ejecutarán los 3 servicios SOAP de Mercurio en orden. Esta acción no se puede
-                deshacer.
-              </p>
-              <div
-                style={{
-                  marginTop: 8,
-                  padding: '8px 10px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 8,
-                  fontSize: '0.72rem',
-                  color: '#475569',
-                  lineHeight: 1.4,
-                }}
-              >
-                <div>
-                  <strong>Usuario:</strong> {usuarioMercurio.toUpperCase() || '—'}
-                </div>
-                <div>
-                  <strong>Asunto:</strong> {asunto || '—'} &nbsp; <strong>Tipo:</strong>{' '}
-                  {tipoDocumento || '—'}
-                </div>
-                <div
-                  style={{ whiteSpace: 'pre-wrap', marginTop: 4, maxHeight: 60, overflowY: 'auto' }}
-                >
-                  <strong>Referencia:</strong>{' '}
-                  {referencia
-                    ? referencia.split('\n').slice(0, 2).join(' — ') +
-                      (referencia.split('\n').length > 2 ? ' …' : '')
-                    : '—'}
-                </div>
-                <div>
-                  <strong>Respuesta:</strong> {respuestaFile?.name || '—'}{' '}
-                  {anexosFiles.length > 0 && `+ ${anexosFiles.length} anexo(s)`}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button
-              variant="ghost"
-              onClick={() => setConfirmRadicarOpen(false)}
-              disabled={isRadicando}
-              data-testid="radicar-confirm-cancel"
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleExecuteRadicacion}
-              disabled={isRadicando}
-              data-testid="radicar-confirm-accept"
-            >
-              {isRadicando ? 'Enviando...' : 'Aceptar'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }
