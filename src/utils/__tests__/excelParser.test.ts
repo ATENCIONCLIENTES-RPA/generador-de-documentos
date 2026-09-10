@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import * as XLSX from 'xlsx';
 import {
   parseExcelFile,
@@ -110,7 +110,7 @@ describe('excelParser', () => {
       {
         'No. Radicado': '2026-RAD-001',
         'Fecha Radicación': '07/05/2026 16:18:56.53',
-        'NUMERO_CUENTA': '10001',
+        NUMERO_CUENTA: '10001',
       },
       0
     );
@@ -119,7 +119,7 @@ describe('excelParser', () => {
       {
         'No. Radicado': '2026-RAD-999',
         'Fecha Radicación': '10/05/2026 10:00:00',
-        'NUMERO_CUENTA': '10002',
+        NUMERO_CUENTA: '10002',
       },
       1
     );
@@ -139,5 +139,48 @@ describe('excelParser', () => {
     expect(result[1]!.procesoCreado).toBe('No');
     expect(result[1]!.cantidadProcesos).toBe(0);
     expect(result[1]!.estadoSemaforo).toBe('rojo');
+  });
+
+  it('crossReference preserva duplicados SAC con mismo RADICADO pero diferente NUMERO_PROCESO', () => {
+    const sac1 = buildRecord(
+      {
+        RADICADO_ENTRADA: '20260320042471',
+        NUMERO_PROCESO: '72470832',
+        NUMERO_CUENTA: '123',
+        NOMBRE_SOLICITANTE: 'Test1',
+      },
+      0
+    );
+    const sac2 = buildRecord(
+      {
+        RADICADO_ENTRADA: '20260320042471',
+        NUMERO_PROCESO: '72318955',
+        NUMERO_CUENTA: '123',
+        NOMBRE_SOLICITANTE: 'Test2',
+      },
+      1
+    );
+    const mercurio1 = buildRecord(
+      {
+        'No. Radicado': '20260320042471',
+        'Fecha Radicación': '01/01/2024 10:00:00',
+        NUMERO_CUENTA: '123',
+      },
+      0
+    );
+
+    // Con 1 mercurio y 2 sac duplicados, deben preservarse ambos sac
+    const result = crossReferenceSacAndMercurio([mercurio1], [sac1, sac2]);
+    expect(result).toHaveLength(2);
+    const procesos = result.map((r) => r.numeroProceso);
+    expect(procesos).toContain('72470832');
+    expect(procesos).toContain('72318955');
+
+    // Sin mercurio, también deben preservarse ambos
+    const result2 = crossReferenceSacAndMercurio([], [sac1, sac2]);
+    expect(result2).toHaveLength(2);
+    expect(result2.map((r) => r.numeroProceso)).toEqual(
+      expect.arrayContaining(['72470832', '72318955'])
+    );
   });
 });

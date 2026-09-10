@@ -429,7 +429,7 @@ export function crossReferenceSacAndMercurio(
   }
 
   const sacByRadicado = new Map<string, EssaRecord[]>();
-  const matchedSacKeys = new Set<string>();
+  const matchedSacIds = new Set<string>();
 
   for (const sac of sacRecords) {
     const rawRad =
@@ -457,8 +457,9 @@ export function crossReferenceSacAndMercurio(
     const matches = key ? sacByRadicado.get(key) || [] : [];
     const count = matches.length;
     const hasMatch = count > 0;
-    const bestSac = matches[0];
-    if (hasMatch && key) matchedSacKeys.add(key);
+    // Preservar duplicados: usar el primer SAC no usado previamente para este radicado
+    const bestSac = matches.find((s) => !matchedSacIds.has(s.rowId)) ?? matches[0];
+    if (bestSac) matchedSacIds.add(bestSac.rowId);
 
     const numeroProceso = (bestSac?.numeroProceso || merc.numeroProceso || '').trim();
     const observacionProceso =
@@ -644,16 +645,10 @@ export function crossReferenceSacAndMercurio(
     };
   });
 
-  // Append SAC records that had no matching Mercurio entry
+  // Append SAC records que no fueron usados como bestSac — por rowId para preservar duplicados con mismo radicado
   const unmatchedSac: EssaRecord[] = [];
   for (const sac of sacRecords) {
-    const rawRad =
-      sac.radicadoEntrada ||
-      (sac as Record<string, unknown>)['RADICADO_ENTRADA'] ||
-      (sac as Record<string, unknown>)['No. Radicado'] ||
-      (sac as Record<string, unknown>)['NO_RADICADO'];
-    const key = normalizeRadicadoKey(rawRad);
-    if (key && !matchedSacKeys.has(key)) {
+    if (!matchedSacIds.has(sac.rowId)) {
       unmatchedSac.push(sac);
     }
   }
