@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import autoAnimate from '@formkit/auto-animate';
 import * as XLSX from 'xlsx';
 import { useDataStore } from '@/store/dataStore';
+import { useExcelStore } from '@/store/excelStore';
 import { useNavigationStore } from '@/store/navigationStore';
 import { useDebouncedSearch } from '@/hooks/useDebouncedSearch';
 import { useSelection } from '@/hooks/useSelection';
@@ -395,6 +396,23 @@ export function DataView() {
   ].filter(Boolean).length;
 
   const hasAnyFilter = activeFilterCount > 0 || showOnlySelected;
+
+  const mercurioFileForPqr = useExcelStore((s) => s.mercurioFile);
+  const mercurioRecsForPqr = useDataStore((s) => s.mercurioRecords);
+  const hasMercurio = useMemo(() => {
+    const fileOk =
+      !!mercurioFileForPqr &&
+      !mercurioFileForPqr.loading &&
+      !mercurioFileForPqr.error &&
+      mercurioFileForPqr.recordCount > 0;
+    return fileOk || mercurioRecsForPqr.length > 0;
+  }, [mercurioFileForPqr, mercurioRecsForPqr]);
+
+  useEffect(() => {
+    if (!hasMercurio && filterState.diasPqrFiltro !== 'todos') {
+      setFilter({ diasPqrFiltro: 'todos' });
+    }
+  }, [hasMercurio, filterState.diasPqrFiltro]);
 
   const handleClearFilters = () => {
     setSearchInput('');
@@ -888,22 +906,24 @@ export function DataView() {
                   <option value="rojo">Sin proceso</option>
                 </select>
               </div>
-              <div className="dv-filter-select-group">
-                <label className="dv-filter-label">Días PQR</label>
-                <select
-                  className="dv-select"
-                  value={filterState.diasPqrFiltro || 'todos'}
-                  onChange={(e) => setFilter({ diasPqrFiltro: e.target.value })}
-                  aria-label="Filtro Días PQR"
-                  data-testid="dv-filter-dias-pqr"
-                >
-                  <option value="todos">Todos</option>
-                  <option value="menor5">&lt; 5 días hábiles</option>
-                  <option value="urgente">Urgente (≤ 3 días)</option>
-                  <option value="vence_hoy">Vence hoy</option>
-                  <option value="vencido">Vencidos (&lt; 0 días)</option>
-                </select>
-              </div>
+              {hasMercurio && (
+                <div className="dv-filter-select-group">
+                  <label className="dv-filter-label">Días PQR</label>
+                  <select
+                    className="dv-select"
+                    value={filterState.diasPqrFiltro || 'todos'}
+                    onChange={(e) => setFilter({ diasPqrFiltro: e.target.value })}
+                    aria-label="Filtro Días PQR"
+                    data-testid="dv-filter-dias-pqr"
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="menor5">&lt; 5 días hábiles</option>
+                    <option value="urgente">Urgente (≤ 3 días)</option>
+                    <option value="vence_hoy">Vence hoy</option>
+                    <option value="vencido">Vencidos (&lt; 0 días)</option>
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
@@ -992,17 +1012,19 @@ export function DataView() {
                   </button>
                 </span>
               )}
-              {filterState.diasPqrFiltro && filterState.diasPqrFiltro !== 'todos' && (
-                <span className="dv-tag" data-testid="dv-tag-dias-pqr">
-                  PQR: {filterState.diasPqrFiltro}
-                  <button
-                    onClick={() => setFilter({ diasPqrFiltro: 'todos' })}
-                    aria-label="Quitar filtro días pqr"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
+              {hasMercurio &&
+                filterState.diasPqrFiltro &&
+                filterState.diasPqrFiltro !== 'todos' && (
+                  <span className="dv-tag" data-testid="dv-tag-dias-pqr">
+                    PQR: {filterState.diasPqrFiltro}
+                    <button
+                      onClick={() => setFilter({ diasPqrFiltro: 'todos' })}
+                      aria-label="Quitar filtro días pqr"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
               {showOnlySelected && (
                 <span className="dv-tag dv-tag--green" data-testid="dv-tag-seleccionados">
                   Solo seleccionados
@@ -1096,7 +1118,7 @@ export function DataView() {
                 <th className="dv-th">Estado</th>
                 <th className="dv-th">Fecha</th>
                 <th className="dv-th">Tipo Proceso</th>
-                <th className="dv-th dv-th--center">PQR</th>
+                {hasMercurio && <th className="dv-th dv-th--center">PQR</th>}
                 <th className="dv-th">Cuenta</th>
                 <th className="dv-th">Solicitante</th>
                 <th className="dv-th">Radicado</th>
@@ -1108,7 +1130,7 @@ export function DataView() {
             <tbody ref={tbodyRef}>
               {pageRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="dv-empty-row">
+                  <td colSpan={hasMercurio ? 11 : 10} className="dv-empty-row">
                     <div className="dv-empty-row-content">
                       <svg
                         width="32"
@@ -1245,21 +1267,23 @@ export function DataView() {
                         {tipoProc}
                       </td>
 
-                      <td className="dv-td dv-td--center">
-                        <span
-                          className={`dv-pqr ${
-                            pqr.isExpired
-                              ? 'dv-pqr--vencido'
-                              : pqr.remainingDays <= 3
-                                ? 'dv-pqr--urgente'
-                                : 'dv-pqr--ok'
-                          }`}
-                          data-testid={`dv-pqr-${r.rowId}`}
-                          title={pqr.dueDateStr ? `Vence: ${pqr.dueDateStr}` : undefined}
-                        >
-                          {pqr.label}
-                        </span>
-                      </td>
+                      {hasMercurio && (
+                        <td className="dv-td dv-td--center">
+                          <span
+                            className={`dv-pqr ${
+                              pqr.isExpired
+                                ? 'dv-pqr--vencido'
+                                : pqr.remainingDays <= 3
+                                  ? 'dv-pqr--urgente'
+                                  : 'dv-pqr--ok'
+                            }`}
+                            data-testid={`dv-pqr-${r.rowId}`}
+                            title={pqr.dueDateStr ? `Vence: ${pqr.dueDateStr}` : undefined}
+                          >
+                            {pqr.label}
+                          </span>
+                        </td>
+                      )}
 
                       <td className="dv-td dv-td--mono">
                         {String(r.numeroCuenta ?? r.cuenta ?? '—')}

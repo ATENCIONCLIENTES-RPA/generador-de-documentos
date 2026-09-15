@@ -38,6 +38,9 @@ export function ConfigView() {
   const [dragMercurio, setDragMercurio] = useState(false);
   const [dragFolder, setDragFolder] = useState(false);
   const [folderName, setFolderName] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
+  const folderFilesRef = useRef<File[]>([]);
 
   const sacRef = useRef<HTMLInputElement>(null);
   const mercurioRef = useRef<HTMLInputElement>(null);
@@ -109,6 +112,7 @@ export function ConfigView() {
       const name = rawPath.split('/')[0] || 'Plantillas';
       const folderPath = rawPath ? rawPath.split('/').slice(0, -1).join('/') || name : name;
       setFolderName(folderPath);
+      folderFilesRef.current = docx;
       // Actualizar inmediatamente la ruta en el store para conservarla incluso durante el loading
       // y permitir reemplazo del valor previo
       if (docx.length === 0) {
@@ -231,16 +235,19 @@ export function ConfigView() {
     // handleFolderFiles ya resetea folderRef, pero asegurar reset para actualización
   };
 
-  const readyCount =
-    (sacFile?.file && !sacFile.loading && !sacFile.error ? 1 : 0) +
-    (mercurioFile?.file && !mercurioFile.loading && !mercurioFile.error ? 1 : 0) +
-    (templateFolder?.file &&
+  const isSacReady = sacFile?.file && !sacFile.loading && !sacFile.error ? 1 : 0;
+  const isMercurioReady =
+    mercurioFile?.file && !mercurioFile.loading && !mercurioFile.error ? 1 : 0;
+  const isFolderReady =
+    templateFolder?.file &&
     !templateFolder.loading &&
     !templateFolder.error &&
     (templateFolder.recordCount > 0 || !!templateFolder.file)
       ? 1
-      : 0);
-  const progressPct = Math.round((readyCount / 3) * 100);
+      : 0;
+  const readyCount = isSacReady + isFolderReady;
+  const totalRequired = 2;
+  const progressPct = Math.round((readyCount / totalRequired) * 100);
 
   const handleContinuar = () => {
     if (!allReady) return;
@@ -252,10 +259,89 @@ export function ConfigView() {
     clearAll();
     useTemplateStore.getState().clearTemplates();
     setFolderName('');
+    folderFilesRef.current = [];
     if (sacRef.current) sacRef.current.value = '';
     if (mercurioRef.current) mercurioRef.current.value = '';
     if (folderRef.current) folderRef.current.value = '';
     goTo('inicio');
+  };
+
+  const handleActualizarDatos = async () => {
+    if (isUpdating) return;
+    const hasAnyResource = !!(sacFile?.file || mercurioFile?.file || templateFolder?.file);
+    if (!hasAnyResource) {
+      setUpdateMessage('No hay recursos cargados para actualizar');
+      setTimeout(() => setUpdateMessage(null), 2500);
+      return;
+    }
+    setIsUpdating(true);
+    setUpdateMessage(null);
+    try {
+      const tasks: Promise<void>[] = [];
+
+      if (sacFile?.file) {
+        tasks.push(
+          (async () => {
+            try {
+              const records = await parseWithProgress(sacFile.file as File, setSacFile);
+              if (records.length > 0) setSacRecords(records);
+            } catch {
+              // error ya reflejado en el store
+            }
+          })()
+        );
+      }
+
+      if (mercurioFile?.file) {
+        tasks.push(
+          (async () => {
+            try {
+              const records = await parseWithProgress(
+                mercurioFile.file as File,
+                setMercurioFile,
+                undefined,
+                parseMercurioFile
+              );
+              if (records.length > 0) setMercurioRecords(records);
+            } catch {
+              // handled
+            }
+          })()
+        );
+      }
+
+      if (folderFilesRef.current.length > 0) {
+        tasks.push(
+          (async () => {
+            try {
+              await handleFolderFiles(folderFilesRef.current);
+            } catch {
+              // handled inside
+            }
+          })()
+        );
+      } else if (templateFolder?.file && folderFilesRef.current.length === 0) {
+        // Si no hay referencia de FileList pero hay templates en store, revalidar estado
+        setUpdateMessage(
+          'Carpeta sin referencia de archivos — vuelva a seleccionar la carpeta si agregó archivos'
+        );
+      }
+
+      await Promise.allSettled(tasks);
+
+      const hasError = !!(sacFile?.error || mercurioFile?.error || templateFolder?.error);
+      if (hasError) {
+        setUpdateMessage('Actualización completada con advertencias');
+      } else {
+        setUpdateMessage('Recursos actualizados correctamente');
+      }
+      setTimeout(() => setUpdateMessage(null), 3000);
+    } catch {
+      setUpdateMessage('Error al actualizar los recursos');
+      setTimeout(() => setUpdateMessage(null), 3000);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -270,6 +356,16 @@ export function ConfigView() {
         .m2-card{padding:14px !important;gap:10px !important}
         .m2-drop{padding:14px 12px !important;min-height:118px !important;gap:8px !important}
         .m2-drop--completed{min-height:118px !important}
+        .m2-cancelar-btn:hover:not(:disabled) { background: #f8fafc !important; border-color: #cbd5e1 !important; color: #0f172a !important; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(15,23,42,0.06) !important; }
+        .m2-cancelar-btn:hover .m2-cancelar-icon { background: #e2e8f0 !important; transform: rotate(90deg); }
+        .m2-cancelar-btn:active:not(:disabled) { transform: translateY(0) scale(0.97) !important; }
+        .m2-actualizar-btn:hover:not(:disabled) { border-color: #93c5fd !important; background: #eff6ff !important; color: #0f172a !important; box-shadow: 0 2px 10px rgba(14,106,209,0.12) !important; transform: translateY(-1px); }
+        .m2-actualizar-btn:hover:not(:disabled) .m2-actualizar-icon { background: #dbeafe !important; border-color: #bfdbfe !important; transform: rotate(180deg); }
+        .m2-actualizar-btn:active:not(:disabled) { transform: translateY(0) scale(0.97) !important; }
+        .m2-actualizar-btn:disabled { cursor: not-allowed !important; }
+        .m2-actualizar-icon, .m2-cancelar-icon { transition: transform 300ms ease, background 200ms ease, border-color 200ms ease; }
+        .m2-actualizar-icon--spin { animation: m2-spin 0.9s linear infinite; }
+        @keyframes m2-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
 
       <div className="m2-scroll-area">
@@ -356,9 +452,14 @@ export function ConfigView() {
                     lineHeight: 1.45,
                   }}
                 >
-                  Carga los archivos Excel de <strong style={{ color: '#004B93' }}>SAC</strong> y{' '}
-                  <strong style={{ color: '#0284C7' }}>Mercurio</strong> y selecciona la carpeta de
-                  plantillas Word. El flujo continúa cuando los tres recursos estén listos.
+                  Carga el archivo Excel de <strong style={{ color: '#004B93' }}>SAC</strong>{' '}
+                  <span style={{ color: '#64748b', fontWeight: 600 }}>(obligatorio)</span>,
+                  selecciona la carpeta de plantillas Word{' '}
+                  <span style={{ color: '#64748b', fontWeight: 600 }}>(obligatorio)</span> y,
+                  opcionalmente, el archivo de{' '}
+                  <strong style={{ color: '#0284C7' }}>Mercurio</strong> para habilitar la columna{' '}
+                  <strong style={{ color: '#0284C7' }}>PQR</strong>. El flujo continúa cuando los
+                  recursos obligatorios estén listos.
                 </p>
               </div>
               <div
@@ -389,10 +490,10 @@ export function ConfigView() {
                   style={{
                     fontSize: '0.78rem',
                     fontWeight: 800,
-                    color: readyCount === 3 ? '#15803d' : '#334155',
+                    color: readyCount === totalRequired ? '#15803d' : '#334155',
                   }}
                 >
-                  {readyCount}/3
+                  {readyCount}/{totalRequired}
                 </span>
                 <span
                   style={{
@@ -406,7 +507,7 @@ export function ConfigView() {
                   style={{
                     fontSize: '0.78rem',
                     fontWeight: 800,
-                    color: readyCount === 3 ? '#15803d' : 'var(--neutral-600)',
+                    color: readyCount === totalRequired ? '#15803d' : 'var(--neutral-600)',
                   }}
                 >
                   {progressPct}%
@@ -414,11 +515,11 @@ export function ConfigView() {
               </div>
             </div>
 
-            {/* progress track 3 segments 33.33% each */}
+            {/* progress track 2 segmentos obligatorios (50% c/u) + Mercurio opcional no cuenta para progreso */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
               <div
                 data-testid="m2-progress-track"
-                aria-label={`Progreso ${readyCount} de 3`}
+                aria-label={`Progreso ${readyCount} de ${totalRequired}`}
                 style={{
                   flex: 1,
                   height: 10,
@@ -433,7 +534,6 @@ export function ConfigView() {
               >
                 {[
                   !!(sacFile?.file && !sacFile.loading && !sacFile.error),
-                  !!(mercurioFile?.file && !mercurioFile.loading && !mercurioFile.error),
                   !!(
                     templateFolder?.file &&
                     !templateFolder.loading &&
@@ -446,13 +546,7 @@ export function ConfigView() {
                     data-testid={`m2-segment-${i}`}
                     className="m2-segment"
                     style={{
-                      background: filled
-                        ? i === 0
-                          ? '#004B93'
-                          : i === 1
-                            ? '#0284C7'
-                            : '#76BC21'
-                        : '#f1f5f9',
+                      background: filled ? (i === 0 ? '#004B93' : '#76BC21') : '#f1f5f9',
                       opacity: filled ? 1 : 0.85,
                       boxShadow: filled ? '0 1px 6px rgba(0,0,0,0.12)' : 'none',
                     }}
@@ -468,8 +562,36 @@ export function ConfigView() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                33.33% por recurso
+                50% por recurso requerido
               </span>
+              {isMercurioReady ? (
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    color: '#0284C7',
+                    fontWeight: 700,
+                    background: '#f0f9ff',
+                    border: '1px solid #bae6fd',
+                    borderRadius: 999,
+                    padding: '2px 7px',
+                    whiteSpace: 'nowrap',
+                  }}
+                  data-testid="m2-mercurio-opcional-ok"
+                >
+                  Mercurio OK
+                </span>
+              ) : (
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    color: '#64748b',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Mercurio opcional
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -492,7 +614,7 @@ export function ConfigView() {
           />
           <ExcelUploadCard
             title="Archivo Mercurio"
-            subtitle="Base complementaria de correspondencia"
+            subtitle="Base complementaria de correspondencia — Opcional (habilita columna PQR)"
             fileState={mercurioFile}
             setFileState={setMercurioFile}
             dragOver={dragMercurio}
@@ -515,6 +637,7 @@ export function ConfigView() {
                 setTemplateFolder(s);
                 if (!s) {
                   setFolderName('');
+                  folderFilesRef.current = [];
                   useTemplateStore.getState().clearTemplates();
                   if (folderRef.current) folderRef.current.value = '';
                 }
@@ -596,9 +719,158 @@ export function ConfigView() {
             flexShrink: 0,
           }}
         >
-          <Button variant="ghost" onClick={handleCancelar} data-testid="m2-cancelar">
-            Cancelar
-          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={handleCancelar}
+              data-testid="m2-cancelar"
+              className="m2-cancelar-btn"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '7px 14px',
+                borderRadius: 999,
+                border: '1px solid #e2e8f0',
+                background: '#fff',
+                color: '#475569',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 200ms ease',
+                boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 16,
+                  height: 16,
+                  borderRadius: 999,
+                  background: '#f1f5f9',
+                  transition: 'all 200ms ease',
+                }}
+                className="m2-cancelar-icon"
+              >
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ display: 'block' }}
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </span>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleActualizarDatos}
+              disabled={
+                isUpdating || (!sacFile?.file && !mercurioFile?.file && !templateFolder?.file)
+              }
+              data-testid="m2-actualizar"
+              title="Volver a cargar y sincronizar los recursos configurados"
+              className="m2-actualizar-btn"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '7px 16px',
+                borderRadius: 999,
+                border: '1px solid #bfdbfe',
+                background: isUpdating ? '#f0f9ff' : '#fff',
+                color: isUpdating ? '#64748b' : '#0f172a',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: isUpdating ? 'wait' : 'pointer',
+                opacity:
+                  isUpdating || (!sacFile?.file && !mercurioFile?.file && !templateFolder?.file)
+                    ? 0.6
+                    : 1,
+                transition: 'all 200ms ease',
+                boxShadow: isUpdating
+                  ? '0 1px 2px rgba(15,23,42,0.04)'
+                  : '0 1px 3px rgba(15,23,42,0.06)',
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 18,
+                  height: 18,
+                  borderRadius: 999,
+                  background: isUpdating ? '#e0f2fe' : '#eff6ff',
+                  border: '1px solid #dbeafe',
+                  transition: 'all 300ms ease',
+                  transform: isUpdating ? 'rotate(360deg)' : 'rotate(0deg)',
+                }}
+                className={isUpdating ? 'm2-actualizar-icon--spin' : 'm2-actualizar-icon'}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#0284C7"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ display: 'block' }}
+                >
+                  <path d="M21 12a9 9 0 1 1-9-9" stroke="#0284C7" />
+                  <polyline points="21 3 21 9 15 9" stroke="#0284C7" />
+                  <path d="M3 12a9 9 0 1 0 9 9" stroke="#0f172a" opacity="0.9" />
+                  <polyline points="3 21 3 15 9 15" stroke="#0f172a" opacity="0.9" />
+                </svg>
+              </span>
+              {isUpdating ? 'Actualizando...' : 'Actualizar Datos'}
+            </button>
+            {isUpdating && (
+              <span
+                style={{
+                  width: 14,
+                  height: 14,
+                  border: '2px solid #e2e8f0',
+                  borderTopColor: '#0f172a',
+                  borderRadius: 999,
+                  display: 'inline-block',
+                  animation: 'm2-spin 0.8s linear infinite',
+                }}
+                aria-hidden
+              />
+            )}
+            {updateMessage && (
+              <span
+                data-testid="m2-update-message"
+                style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  color: updateMessage.includes('correctamente') ? '#15803d' : '#b45309',
+                  background: updateMessage.includes('correctamente') ? '#f0fdf4' : '#fffbeb',
+                  border: `1px solid ${updateMessage.includes('correctamente') ? '#bbf7d0' : '#fde68a'}`,
+                  borderRadius: 999,
+                  padding: '4px 10px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {updateMessage.includes('correctamente') ? '✓ ' : ''}
+                {updateMessage}
+              </span>
+            )}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
             {!allReady && (
               <span
@@ -621,7 +893,7 @@ export function ConfigView() {
                   }}
                   aria-hidden
                 />
-                Faltan recursos por cargar
+                Faltan recursos obligatorios (SAC y Plantillas)
               </span>
             )}
             <Button
@@ -630,7 +902,9 @@ export function ConfigView() {
               onClick={handleContinuar}
               data-testid="m2-continuar"
               title={
-                !allReady ? 'Carga SAC, Mercurio y carpeta para continuar' : 'Continuar al Módulo 3'
+                !allReady
+                  ? 'Carga SAC y carpeta de plantillas para continuar (Mercurio es opcional)'
+                  : 'Continuar al Módulo 3'
               }
             >
               Continuar al Módulo 3

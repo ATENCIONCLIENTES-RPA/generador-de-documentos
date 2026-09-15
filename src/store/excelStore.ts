@@ -33,12 +33,14 @@ function computeAllReady(
   mercurio: ExcelFileState | null,
   folder: ExcelFileState | null
 ): boolean {
-  if (!sac || !mercurio || !folder) return false;
-  if (sac.loading || mercurio.loading || folder.loading) return false;
-  if (sac.error || mercurio.error || folder.error) return false;
-  if (!sac.file || !mercurio.file) return false;
-  // templateFolder may store File or folder pseudo-file; consider presence of file or recordCount>0 as ready
+  // Mercurio es opcional: solo SAC y carpeta de plantillas son obligatorios
+  if (!sac || !folder) return false;
+  if (sac.loading || folder.loading) return false;
+  if (sac.error || folder.error) return false;
+  if (!sac.file) return false;
   if (!folder.file && folder.recordCount === 0) return false;
+  // Si Mercurio está presente y cargando, esperar; si tiene error, no bloquear (opcional)
+  if (mercurio?.loading) return false;
   return true;
 }
 
