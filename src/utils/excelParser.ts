@@ -292,6 +292,17 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     'OBSERVACIONES',
   ]);
 
+  const observacionDecisionRaw = getExcelCellValue(row, [
+    'OBSERVACION_DECISION',
+    'OBSERVACION DECISION',
+    'OBSERVACION_DE_DECISION',
+    'OBSERVACION_DECISIÓN',
+    'OBSERVACION DECISIÓN',
+    'OBSERVACION_DECISION_SAC',
+    'DECISION',
+    'OBS_DECISION',
+  ]);
+
   const tipoProcRaw = getExcelCellValue(row, [
     'PROCESO',
     'TIPO_PROCESO',
@@ -323,6 +334,7 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
   const numeroProceso = String(numeroProcRaw ?? '').trim();
   const observacionProceso = String(observacionProcRaw ?? '').trim();
   const observacionRevision = String(observacionRevRaw ?? '').trim();
+  const observacionDecision = String(observacionDecisionRaw ?? '').trim();
   const tipoProceso = String(tipoProcRaw ?? '').trim();
   const descripcionTipoProceso = String(descTipoProcRaw ?? '').trim();
   const usuarioResponsableInsumo = String(usuarioRespInsumoRaw ?? '').trim();
@@ -351,6 +363,7 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     medioSolicitud: String(medioSolRaw ?? ''),
     observacionProceso,
     observacionRevision,
+    observacionDecision,
     tipoProceso,
     descripcionTipoProceso,
     usuarioResponsableInsumo,
@@ -382,10 +395,20 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     (row as Record<string, unknown>)['MUNICIPIO SUSCRIPTOR'];
   const rawCircuito =
     (row as Record<string, unknown>)['CIRCUITO'] ?? (row as Record<string, unknown>)['Circuito'];
+  const rawObsDecision =
+    (row as Record<string, unknown>)['OBSERVACION_DECISION'] ??
+    (row as Record<string, unknown>)['OBSERVACION DECISION'] ??
+    (row as Record<string, unknown>)['OBSERVACION_DECISIÓN'] ??
+    (row as Record<string, unknown>)['OBSERVACION DECISIÓN'];
   const rawTrafo =
     (row as Record<string, unknown>)['ID_TRAFO'] ??
     (row as Record<string, unknown>)['ID TRAFO'] ??
     (row as Record<string, unknown>)['TRANSFORMADOR'];
+  (base as Record<string, unknown>)['OBSERVACION_DECISION'] =
+    base.observacionDecision || rawObsDecision || '';
+  (base as Record<string, unknown>)['OBSERVACION DECISION'] = (base as Record<string, unknown>)[
+    'OBSERVACION_DECISION'
+  ];
   (base as Record<string, unknown>)['NOMBRE_SUSCRIPTOR'] = base.nombreSuscriptor || rawNomSus || '';
   (base as Record<string, unknown>)['NOMBRE SUSCRIPTOR'] = (base as Record<string, unknown>)[
     'NOMBRE_SUSCRIPTOR'
@@ -470,6 +493,20 @@ export function crossReferenceSacAndMercurio(
       bestSac?.observacionRevision !== undefined && bestSac.observacionRevision !== ''
         ? bestSac.observacionRevision
         : merc.observacionRevision || '';
+
+    const observacionDecision =
+      bestSac?.observacionDecision !== undefined &&
+      String(bestSac.observacionDecision).trim() !== ''
+        ? String(bestSac.observacionDecision).trim()
+        : ((bestSac as Record<string, unknown> | undefined)?.['OBSERVACION_DECISION'] as string) ||
+          ((bestSac as Record<string, unknown> | undefined)?.['OBSERVACION DECISION'] as string) ||
+          String(
+            merc.observacionDecision ??
+              (merc as Record<string, unknown>)['OBSERVACION_DECISION'] ??
+              (merc as Record<string, unknown>)['OBSERVACION DECISION'] ??
+              ''
+          ).trim() ||
+          '';
 
     const tipoProceso =
       bestSac?.tipoProceso ||
@@ -608,6 +645,7 @@ export function crossReferenceSacAndMercurio(
       numeroProceso,
       observacionProceso,
       observacionRevision,
+      observacionDecision: String(observacionDecision ?? '').trim(),
       fechaVencimiento: String(fechaVencimiento ?? '').trim(),
       tipoProceso: String(tipoProceso ?? '').trim(),
       descripcionTipoProceso: String(descripcionTipoProceso ?? '').trim(),
@@ -636,6 +674,8 @@ export function crossReferenceSacAndMercurio(
       CIRCUITO: String(circuito ?? '').trim(),
       ID_TRAFO: String(idTrafoRawCross ?? '').trim(),
       TRANSFORMADOR: String(transformador ?? '').trim(),
+      OBSERVACION_DECISION: String(observacionDecision ?? '').trim(),
+      'OBSERVACION DECISION': String(observacionDecision ?? '').trim(),
       procesoCreado: hasMatch ? 'Sí' : 'No',
       creadoEnSac: hasMatch ? 'Sí' : 'No',
       cantidadProcesos: count,

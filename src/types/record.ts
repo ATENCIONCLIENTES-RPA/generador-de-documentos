@@ -25,6 +25,7 @@ export interface Record {
   cantidadProcesos?: number;
   observacionProceso?: string;
   observacionRevision?: string;
+  observacionDecision?: string;
   diasPqr?: number;
   diasPqrLabel?: string;
   estadoSemaforo?: 'verde' | 'violeta' | 'rojo' | 'tiene_insumos' | 'no_tiene_insumos' | string;

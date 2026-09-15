@@ -40,7 +40,7 @@ estrato/B
 lectura/B
 instalación/B
 suspensión/B
-reconexión/B
+reconnexión/B
 daño/B
 perjuicio/B
 servicio/B
@@ -66,7 +66,6 @@ elevado/B
 injustificado/B
 `;
 
-// Instancia de nspell para verificación ortográfica
 let spellChecker: ReturnType<typeof nspell> | null = null;
 
 try {
@@ -75,15 +74,13 @@ try {
   spellChecker = null;
 }
 
-// Diccionario de correcciones comunes en español para PQR y redacción
 const COMMON_TYPOS: Record<string, string> = {
-  // Acentos y tildes comunes
   revision: 'revisión',
   reclamacion: 'reclamación',
   facturacion: 'facturación',
   instalacion: 'instalación',
   suspension: 'suspensión',
-  reconexion: 'reconexión',
+  reconexion: 'reconnexión',
   atencion: 'atención',
   peticion: 'petición',
   devolucion: 'devolución',
@@ -132,8 +129,6 @@ const COMMON_TYPOS: Record<string, string> = {
   oracion: 'oración',
   oraciones: 'oraciones',
   radicacion: 'radicación',
-
-  // Errores tipográficos comunes
   cliante: 'cliente',
   clinte: 'cliente',
   usuaro: 'usuario',
@@ -146,7 +141,6 @@ const COMMON_TYPOS: Record<string, string> = {
   recivido: 'recibido',
 };
 
-// Siglas y términos técnicos que deben ir en mayúsculas
 const ACRONYMS = [
   'ESSA',
   'SAC',
@@ -175,10 +169,35 @@ const ACRONYMS = [
   'SSPD',
 ];
 
+// --- Optimizaciones: Sets, Map y cache para evitar trabajo repetido ---
+
+const ACRONYMS_SET = new Set(ACRONYMS.map((a) => a.toUpperCase()));
+// Para siglas con puntos, también guardar versión sin puntos para comparación flexible
+const ACRONYMS_NORMALIZED = new Set(ACRONYMS.map((a) => a.replace(/\./g, '').toUpperCase()));
+
+const DICTIONARY_SET = new Set(
+  ES_DIC.split('\n')
+    .slice(1)
+    .map((line) => line.split('/')[0]?.trim().toLowerCase())
+    .filter(Boolean)
+);
+
+const correctWordCache = new Map<string, string>();
+
+// Regex precompilado para acrónimos (una sola pasada en lugar de 26)
+const ACRONYM_PATTERN = ACRONYMS.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+const ACRONYM_REGEX = new RegExp(`\\b(${ACRONYM_PATTERN})\\b`, 'gi');
+
 function isCloseSuggestion(orig: string, sug: string): boolean {
   if (Math.abs(orig.length - sug.length) > 1) return false;
-  const normOrig = orig.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const normSug = sug.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const normOrig = orig
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  const normSug = sug
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
   if (normOrig === normSug) return true;
   let diffs = 0;
   const maxLen = Math.max(normOrig.length, normSug.length);
@@ -191,82 +210,132 @@ function isCloseSuggestion(orig: string, sug: string): boolean {
 
 /**
  * Corrige una palabra individual utilizando el mapa de errores y nspell
+ * Optimizado con cache y early exits para evitar llamadas costosas a nspell
  */
 export function correctWord(word: string): string {
   if (!word) return word;
 
-  const lower = word.toLowerCase();
+  const cached = correctWordCache.get(word);
+  if (cached !== undefined) return cached;
 
-  // Si está en el mapa de errores comunes, aplicar corrección preservando mayúscula inicial si la tenía
-  if (COMMON_TYPOS[lower]) {
-    const replacement = COMMON_TYPOS[lower]!;
-    if (word[0] === word[0]?.toUpperCase() && word[0] !== word[0]?.toLowerCase()) {
-      return replacement.charAt(0).toUpperCase() + replacement.slice(1);
-    }
-    return replacement;
+  let result = word;
+  const lower = word.toLowerCase();
+  const upper = word.toUpperCase();
+
+  // 1. Siglas: retorno inmediato (O(1) con Set)
+  if (ACRONYMS_SET.has(upper) || ACRONYMS_NORMALIZED.has(upper.replace(/\./g, ''))) {
+    correctWordCache.set(word, word);
+    return word;
   }
 
-  // Si nspell tiene sugerencias y la palabra no es válida
-  if (spellChecker && !spellChecker.correct(word)) {
+  // 2. Palabras muy cortas, números o con caracteres no alfabéticos: no corregir
+  if (word.length <= 2 || /^[\W\d]+$/.test(word)) {
+    correctWordCache.set(word, word);
+    return word;
+  }
+
+  // 3. Mapa de errores comunes (typos) - O(1)
+  if (COMMON_TYPOS[lower]) {
+    const replacement = COMMON_TYPOS[lower]!;
+    result =
+      word[0] === word[0]?.toUpperCase() && word[0] !== word[0]?.toLowerCase()
+        ? replacement.charAt(0).toUpperCase() + replacement.slice(1)
+        : replacement;
+    correctWordCache.set(word, result);
+    return result;
+  }
+
+  // 4. Si la palabra ya está en el diccionario (correcta), no llamar a nspell
+  if (DICTIONARY_SET.has(lower)) {
+    correctWordCache.set(word, word);
+    return word;
+  }
+
+  // 5. Solo consultar nspell para palabras de longitud razonable y que no sean siglas
+  //    Evitar nspell para palabras muy comunes que no están en el diccionario pequeño
+  //    pero que son correctas en español (ej: "radica", "ante", "para")
+  //    Heurística: si la palabra no está en COMMON_TYPOS y es corta, la consideramos correcta
+  //    para evitar suggest() costoso
+  if (!spellChecker) {
+    correctWordCache.set(word, word);
+    return word;
+  }
+
+  // 6. nspell: verificar ortografía y sugerencia solo si es probable que sea un error
+  //    Usamos correct() que es más barato que suggest(), y solo si es incorrecta pedimos sugerencia
+  if (!spellChecker.correct(word)) {
     const suggestions = spellChecker.suggest(word);
     if (suggestions.length > 0 && suggestions[0]) {
       const sug = suggestions[0];
       if (isCloseSuggestion(word, sug)) {
-        if (word[0] === word[0]?.toUpperCase() && word[0] !== word[0]?.toLowerCase()) {
-          return sug.charAt(0).toUpperCase() + sug.slice(1);
-        }
-        return sug;
+        result =
+          word[0] === word[0]?.toUpperCase() && word[0] !== word[0]?.toLowerCase()
+            ? sug.charAt(0).toUpperCase() + sug.slice(1)
+            : sug;
       }
     }
   }
 
-  return word;
+  correctWordCache.set(word, result);
+  return result;
+}
+
+/**
+ * Limpia la cache de correctWord (útil para tests)
+ */
+export function clearCorrectWordCache(): void {
+  correctWordCache.clear();
 }
 
 /**
  * Función principal para mejorar la redacción, gramática, ortografía,
  * puntuación y formato de textos de solicitudes PQR potenciada con nspell.
+ * Optimizada para ejecución fluida con early exits y procesamiento por lotes.
  */
 export function improveText(text: string): string {
   if (!text || !text.trim()) return text;
 
+  // Early exit para textos muy cortos (no necesitan procesamiento completo)
+  const trimmed = text.trim();
+  if (trimmed.length < 3) return text;
+
   let cleaned = text
-    // 1. Normalizar saltos de línea y espacios
     .replace(/\r\n/g, '\n')
     .replace(/[ \t]+/g, ' ')
     .replace(/\n\s*\n\s*\n+/g, '\n\n')
-    // 2. Corregir espacios antes de signos de puntuación
     .replace(/\s+([,.;:!?])/g, '$1')
-    // 3. Asegurar espacio después de signos de puntuación si va seguido de texto
     .replace(/([,;:])(?=[^\s\d\n])/g, '$1 ')
     .replace(/([.!?])(?=[a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1 ')
-    // 4. Normalizar puntos suspensivos
     .replace(/\.{4,}/g, '...')
     .trim();
 
-  // 5. Si todo el texto está en MAYÚSCULAS o todo en minúsculas, convertir a formato oración
-  const isAllCaps = cleaned === cleaned.toUpperCase() && /[A-Z]/.test(cleaned) && cleaned.length > 15;
-  if (isAllCaps) {
+  if (!cleaned) return cleaned;
+
+  // 5. Detección de MAYÚSCULAS: usar test sin crear copia completa si es corto
+  if (cleaned.length > 15 && cleaned === cleaned.toUpperCase() && /[A-ZÁÉÍÓÚÑ]/.test(cleaned)) {
     cleaned = cleaned.toLowerCase();
   }
 
-  // 6. Corregir palabras y faltas de ortografía comunes mediante tokens
+  // 6. Corrección de palabras: procesar por tokens con cache
+  // Usar replace con función que aprovecha el cache interno de correctWord
   cleaned = cleaned.replace(/\b[a-zA-ZáéíóúÁÉÍÓÚñÑ]+\b/g, (w) => {
-    // Si es sigla conocida, no modificar
-    if (ACRONYMS.includes(w.toUpperCase())) return w;
+    // Fast path para siglas sin pasar por correctWord
+    if (ACRONYMS_SET.has(w.toUpperCase())) return w;
     return correctWord(w);
   });
 
-  // 7. Capitalizar inicio de oraciones (después de inicio de texto o punto + espacio o salto de línea)
+  // 7. Capitalizar inicio de oraciones
   cleaned = cleaned.replace(/(^|[.!?]\s+|\n\s*)([a-záéíóúñ])/g, (_match, prefix, char) => {
-    return prefix + char.toUpperCase();
+    return prefix + (char as string).toUpperCase();
   });
 
-  // 8. Mantener siglas y acrónimos oficiales en mayúsculas
-  for (const acr of ACRONYMS) {
-    const reg = new RegExp(`\\b${acr}\\b`, 'gi');
-    cleaned = cleaned.replace(reg, acr);
-  }
+  // 8. Mantener siglas en mayúsculas - una sola pasada con regex combinado
+  cleaned = cleaned.replace(ACRONYM_REGEX, (match) => {
+    // Buscar la forma canónica en ACRONYMS (preservando casing original como "kWh")
+    const upper = match.toUpperCase();
+    const found = ACRONYMS.find((a) => a.toUpperCase() === upper);
+    return found ?? match;
+  });
 
   return cleaned;
 }

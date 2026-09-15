@@ -356,6 +356,18 @@ export const useDataStore = create<DataStore>((set, get) => ({
         (updated as globalThis.Record<string, unknown>)['OBSERVACION_REVISION'] =
           patch.observacionRevision;
       }
+      if (
+        patch.observacionDecision !== undefined ||
+        (patch as Record<string, unknown>)['OBSERVACION_DECISION'] !== undefined
+      ) {
+        const val =
+          patch.observacionDecision ??
+          (patch as Record<string, unknown>)['OBSERVACION_DECISION'] ??
+          (patch as Record<string, unknown>)['OBSERVACION DECISION'];
+        (updated as globalThis.Record<string, unknown>)['OBSERVACION_DECISION'] = val;
+        (updated as globalThis.Record<string, unknown>)['OBSERVACION DECISION'] = val;
+        (updated as EssaRecord).observacionDecision = val as string;
+      }
 
       const nextRecords = [...s.records];
       nextRecords[idx] = updated;

@@ -19,6 +19,22 @@ export function escapeXml(str: unknown): string {
     .replace(/'/g, '&apos;');
 }
 
+function enforceArial11Inner(inner: string): string {
+  let out = inner
+    .replace(/<w:rFonts[^>]*\/>/g, '')
+    .replace(/<w:rFonts[^>]*>[\s\S]*?<\/w:rFonts>/g, '');
+  out = out.replace(/<w:sz[^>]*\/>/g, '').replace(/<w:szCs[^>]*\/>/g, '');
+  out += `<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="Arial"/><w:sz w:val="22"/><w:szCs w:val="22"/>`;
+  return out;
+}
+
+function toTitleCaseDireccion(str: string): string {
+  if (!str || str === '—' || !str.trim()) return str;
+  const lower = str.toLowerCase();
+  // Capitaliza primera letra de cada palabra (delimitada por espacio o guion), soporta caracteres unicode
+  return lower.replace(/(^\p{L}|\s\p{L}|-\p{L})/gu, (m) => m.toUpperCase());
+}
+
 // ---------------------------------------------------------------------------
 // TemplateData helpers
 // ---------------------------------------------------------------------------
@@ -47,7 +63,8 @@ export function buildTemplateData(record: EssaRecord, profile?: Profile | null):
     FECHA_RAD_SALIDA: fechaRadSalidaHoy,
     NUMERO_CUENTA: cuenta || '—',
     CORREO_SOLICITANTE: (record?.correoSolicitante as string) || '—',
-    DIRECCION_SOLICITANTE: (record?.direccionSolicitante as string) || '—',
+    'CORREO SOLICITANTE': (record?.correoSolicitante as string) || '—',
+    DIRECCION_SOLICITANTE: toTitleCaseDireccion((record?.direccionSolicitante as string) || '—'),
     CEDULA_SOLICITANTE: (record?.cedulaSolicitante as string) || '—',
     TELEFONO_SOLICITANTE:
       (record?.['celularSolicitante'] as string) ||
@@ -157,7 +174,11 @@ export function replaceTemplateVariables(
     .replace(/\[FECHA_RAD_SALIDA\]/g, fechaRadSalidaHoy)
     .replace(/\[NUMERO_CUENTA\]/g, cuenta || '—')
     .replace(/\[CORREO_SOLICITANTE\]/g, (record?.correoSolicitante as string) || '—')
-    .replace(/\[DIRECCION_SOLICITANTE\]/g, (record?.direccionSolicitante as string) || '—')
+    .replace(/\[CORREO SOLICITANTE\]/g, (record?.correoSolicitante as string) || '—')
+    .replace(
+      /\[DIRECCION_SOLICITANTE\]/g,
+      toTitleCaseDireccion((record?.direccionSolicitante as string) || '—')
+    )
     .replace(/\[CEDULA_SOLICITANTE\]/g, (record?.cedulaSolicitante as string) || '—')
     .replace(
       /\[TELEFONO_SOLICITANTE\]/g,
@@ -350,6 +371,7 @@ export async function generateDocx(
   }
 
   // Ensure every placeholder resolves to '—' when missing — via scopeDataResolver + fallback
+  // Soporta [CORREO SOLICITANTE] con espacio y [CORREO_SOLICITANTE] con guion bajo como equivalentes
   const handler = new TemplateHandler({
     delimiters: { tagStart: '[', tagEnd: ']' },
     scopeDataResolver: (args: unknown) => {
@@ -358,13 +380,23 @@ export async function generateDocx(
         strPath: string[];
         path: unknown[];
       };
-      const lastKey = a.strPath[a.strPath.length - 1] ?? '';
-      // try direct lookup in current scope data, then global templateData
+      const rawKey = a.strPath[a.strPath.length - 1] ?? '';
+      const lastKey = rawKey.trim();
+      const normalizedKey = lastKey.replace(/\s+/g, '_').toUpperCase();
+      // try direct lookup in current scope data, then global templateData — probando original y normalizado
       let val: unknown = undefined;
       if (a.data && lastKey in a.data)
         val = (a.data as globalThis.Record<string, unknown>)[lastKey];
+      if (val === undefined && normalizedKey in a.data)
+        val = (a.data as globalThis.Record<string, unknown>)[normalizedKey];
       if (val === undefined && lastKey in (templateData as globalThis.Record<string, unknown>)) {
         val = (templateData as globalThis.Record<string, unknown>)[lastKey];
+      }
+      if (
+        val === undefined &&
+        normalizedKey in (templateData as globalThis.Record<string, unknown>)
+      ) {
+        val = (templateData as globalThis.Record<string, unknown>)[normalizedKey];
       }
       // Preserve image objects, handle missing string values
       if (
@@ -441,7 +473,7 @@ export async function generateDocx(
         const combined = texts.join('');
         if (combined === '') return pBlock;
 
-        const hasMarker = /\[[A-Z0-9_]+\]/.test(combined);
+        const hasMarker = /\[[A-Z0-9_ ]+\]/.test(combined);
         const shouldColorCorreo = correoRaw !== '—' && correoRaw.trim() !== '' && correoRaw !== '—';
         const hasCorreoValue =
           shouldColorCorreo &&
@@ -466,23 +498,24 @@ export async function generateDocx(
             }
           }
           if (!containsOtherField) return pBlock;
-          // Forzar negro en todos los w:r de este párrafo que contengan campos
-          // Inyectar color negro en cada rPr
+          // Forzar negro y Arial 11 en todos los w:r de este párrafo que contengan campos
           let newPBlock = pBlock;
-          // Añadir o reemplazar color en rPr existentes
+          // Añadir o reemplazar color en rPr existentes y forzar Arial 11
           newPBlock = newPBlock.replace(/<w:rPr[^>]*>[\s\S]*?<\/w:rPr>/g, (rPrBlock: string) => {
-            let inner = rPrBlock
+            const innerMatch = rPrBlock.match(/<w:rPr[^>]*>([\s\S]*?)<\/w:rPr>/);
+            let inner = innerMatch ? innerMatch[1] : '';
+            inner = inner
               .replace(/<w:color[^>]*\/>/g, '')
               .replace(/<w:u[^>]*\/>/g, '')
               .replace(/<w:u\b[^>]*>[\s\S]*?<\/w:u>/g, '');
-            // Insertar color negro antes del cierre
-            inner = inner.replace(/<\/w:rPr>/, '<w:color w:val="000000"/></w:rPr>');
-            return inner;
+            inner = enforceArial11Inner(inner);
+            inner += '<w:color w:val="000000"/>';
+            return `<w:rPr>${inner}</w:rPr>`;
           });
-          // Para w:r sin rPr, añadir uno con negro
+          // Para w:r sin rPr, añadir uno con negro y Arial 11
           newPBlock = newPBlock.replace(
             /<w:r(\b[^>]*)>(?!\s*<w:rPr)/g,
-            '<w:r$1><w:rPr><w:color w:val="000000"/></w:rPr>'
+            '<w:r$1><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="Arial"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="000000"/></w:rPr>'
           );
           return newPBlock;
         }
@@ -494,24 +527,28 @@ export async function generateDocx(
           const full = firstRPrMatch[0];
           const innerM = full.match(/<w:rPr[^>]*>([\s\S]*?)<\/w:rPr>/);
           let inner = innerM ? innerM[1] : '';
-          // Limpiar colores y subrayados previos
+          // Limpiar colores, subrayados y fuentes previas para forzar Arial 11
           inner = inner
             .replace(/<w:color[^>]*\/>/g, '')
             .replace(/<w:u[^>]*\/>/g, '')
             .replace(/<w:u\b[^>]*>[\s\S]*?<\/w:u>/g, '');
-          baseFontInner = inner;
+          baseFontInner = enforceArial11Inner(inner);
+        } else {
+          baseFontInner = enforceArial11Inner('');
         }
 
         const rPrFor = (color: string, underline: boolean): string => {
           let inner = baseFontInner;
+          // inner ya contiene Arial 11, solo añadir color y subrayado
           inner += `<w:color w:val="${color}"/>`;
           if (underline) inner += `<w:u w:val="single" w:color="${color}"/>`;
           return `<w:rPr>${inner}</w:rPr>`;
         };
 
         // Caso 1: párrafo con marcadores remanentes -> reconstruir fragmentando por marcadores
+        // Soporta tanto [CORREO_SOLICITANTE] como [CORREO SOLICITANTE] (espacio o guion bajo)
         if (hasMarker) {
-          const markerRegex = /\[[A-Z0-9_]+\]/g;
+          const markerRegex = /\[[A-Z0-9_ ]+\]/g;
           let lastPos = 0;
           let m: RegExpExecArray | null;
           const fragments: { text: string; isCorreo: boolean }[] = [];
@@ -521,8 +558,11 @@ export async function generateDocx(
               if (staticPart) fragments.push({ text: staticPart, isCorreo: false });
             }
             const marker = m[0];
-            const key = marker.slice(1, -1);
-            const val = (templateData as globalThis.Record<string, unknown>)[key];
+            const rawKey = marker.slice(1, -1);
+            const normalizedKey = rawKey.trim().replace(/\s+/g, '_').toUpperCase();
+            const val =
+              (templateData as globalThis.Record<string, unknown>)[rawKey] ??
+              (templateData as globalThis.Record<string, unknown>)[normalizedKey];
             let rep: string;
             if (val !== undefined && val !== null && val !== '' && typeof val !== 'object') {
               rep = escapeXml(String(val));
@@ -535,12 +575,13 @@ export async function generateDocx(
             } else {
               rep = '—';
             }
-            const isCorreoFrag = key === 'CORREO_SOLICITANTE' && rep !== '—' && rep.trim() !== '';
+            const isCorreoFrag =
+              normalizedKey === 'CORREO_SOLICITANTE' && rep !== '—' && rep.trim() !== '';
             if (rep) fragments.push({ text: rep, isCorreo: isCorreoFrag });
             lastPos = m.index + marker.length;
           }
           if (lastPos < combined.length) {
-            const tail = combined.slice(lastPos).replace(/\[[A-Z0-9_]+\]/g, '—');
+            const tail = combined.slice(lastPos).replace(/\[[A-Z0-9_ ]+\]/g, '—');
             if (tail) fragments.push({ text: tail, isCorreo: false });
           }
           // Construir nuevos runs
@@ -592,7 +633,7 @@ export async function generateDocx(
       );
 
       // Barrido final: cualquier marcador suelto fuera de párrafos -> —
-      outXml = outXml.replace(/\[[A-Z0-9_]+\]/g, '—');
+      outXml = outXml.replace(/\[[A-Z0-9_ ]+\]/g, '—');
       return outXml;
     };
 
@@ -607,6 +648,35 @@ export async function generateDocx(
       const cleaned = processXml(xml);
       // Solo reescribir si hubo cambios para evitar recompresión innecesaria, pero siempre procesamos por colores
       if (cleaned !== xml) zip.file(fname, cleaned);
+    }
+
+    // Forzar Arial 11 en styles.xml para que el documento por defecto use esa fuente
+    const stylesFile = zip.file('word/styles.xml');
+    if (stylesFile) {
+      let stylesXml = stylesFile.asText();
+      const originalStyles = stylesXml;
+      // Reemplazar cualquier definición de fuente/tamaño por Arial 11
+      stylesXml = stylesXml.replace(
+        /<w:rFonts[^>]*\/>/g,
+        '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="Arial"/>'
+      );
+      stylesXml = stylesXml.replace(/<w:sz\s+w:val="[^"]*"\s*\/>/g, '<w:sz w:val="22"/>');
+      stylesXml = stylesXml.replace(/<w:szCs\s+w:val="[^"]*"\s*\/>/g, '<w:szCs w:val="22"/>');
+      // Asegurar que docDefaults tenga Arial 11 si existe
+      if (stylesXml.includes('<w:docDefaults>')) {
+        stylesXml = stylesXml.replace(
+          /<w:rPrDefault>\s*<w:rPr>([\s\S]*?)<\/w:rPr>\s*<\/w:rPrDefault>/,
+          (match, inner) => {
+            let newInner = inner
+              .replace(/<w:rFonts[^>]*\/>/g, '')
+              .replace(/<w:sz[^>]*\/>/g, '')
+              .replace(/<w:szCs[^>]*\/>/g, '');
+            newInner = enforceArial11Inner(newInner);
+            return `<w:rPrDefault><w:rPr>${newInner}</w:rPr></w:rPrDefault>`;
+          }
+        );
+      }
+      if (stylesXml !== originalStyles) zip.file('word/styles.xml', stylesXml);
     }
 
     const outBuf = zip.generate({ type: 'arraybuffer' }) as ArrayBuffer;

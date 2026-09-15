@@ -126,7 +126,7 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
     setDraft({ ...draft, [key]: value } as EssaRecord);
   };
 
-  const handleImproveText = () => {
+  const handleImproveText = useCallback(async () => {
     if (!draft) return;
     const currentText = String(
       draft.observacionProceso ??
@@ -135,19 +135,52 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
         ''
     );
 
-    if (!currentText.trim()) return;
+    if (!currentText.trim() || isImproving) return;
 
-    const improved = improveText(currentText);
-    setDraft({
-      ...draft,
-      observacionProceso: improved,
-      OBSERVACION_PROCESO: improved,
-      descripcion: improved,
-    } as EssaRecord);
+    setIsImproving(true);
+    setImprovedSuccess(false);
 
-    setImprovedSuccess(true);
-    setTimeout(() => setImprovedSuccess(false), 2500);
-  };
+    // Yield para permitir que el spinner se pinte antes del trabajo pesado
+    await new Promise<void>((resolve) => {
+      if (typeof requestAnimationFrame !== 'undefined') {
+        requestAnimationFrame(() => setTimeout(resolve, 16));
+      } else {
+        setTimeout(resolve, 16);
+      }
+    });
+
+    try {
+      const improved = await new Promise<string>((resolve) => {
+        const doWork = () => resolve(improveText(currentText));
+        const ric = (
+          window as unknown as {
+            requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+          }
+        ).requestIdleCallback;
+        if (typeof ric === 'function') {
+          ric(doWork, { timeout: 120 });
+        } else {
+          setTimeout(doWork, 0);
+        }
+      });
+
+      setDraft((prev) =>
+        prev
+          ? ({
+              ...prev,
+              observacionProceso: improved,
+              OBSERVACION_PROCESO: improved,
+              descripcion: improved,
+            } as EssaRecord)
+          : prev
+      );
+
+      setImprovedSuccess(true);
+      setTimeout(() => setImprovedSuccess(false), 2500);
+    } finally {
+      setIsImproving(false);
+    }
+  }, [draft, isImproving]);
 
   if (!open) return null;
 
@@ -409,6 +442,31 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
                   placeholder="Observaciones de revisión (OBSERVACION_REVISION)…"
                   rows={3}
                   data-testid="rem-textarea-observaciones"
+                />
+              </div>
+              <div className="rem-desc-group">
+                <label className="rem-desc-label">Observación de la decisión</label>
+                <textarea
+                  className="rem-textarea"
+                  value={String(
+                    draft.observacionDecision ??
+                      (draft as Record<string, unknown>)['OBSERVACION_DECISION'] ??
+                      (draft as Record<string, unknown>)['OBSERVACION DECISION'] ??
+                      ''
+                  )}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!draft) return;
+                    setDraft({
+                      ...draft,
+                      observacionDecision: val,
+                      OBSERVACION_DECISION: val,
+                      'OBSERVACION DECISION': val,
+                    } as EssaRecord);
+                  }}
+                  placeholder="Observación de la decisión (OBSERVACION_DECISION)…"
+                  rows={3}
+                  data-testid="rem-textarea-decision"
                 />
               </div>
             </div>

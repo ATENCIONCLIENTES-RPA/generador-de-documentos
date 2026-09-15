@@ -159,12 +159,15 @@ const VAR_SOURCES: Record<string, string> = {
 
 export function extractTemplateVariables(content: string | null | undefined): Variable[] {
   if (!content) return [];
-  const regex = /\[([A-Z0-9_]+)\]/g;
+  const regex = /\[([A-Z0-9_ ]+)\]/g;
   const found = new Set<string>();
   let m: RegExpExecArray | null;
   while ((m = regex.exec(content)) !== null) {
-    const key = m[1];
-    if (key) found.add(key);
+    const rawKey = m[1];
+    if (rawKey) {
+      const key = rawKey.trim().replace(/\s+/g, '_').toUpperCase();
+      if (key) found.add(key);
+    }
   }
   const vars: Variable[] = [];
   for (const key of found) {
