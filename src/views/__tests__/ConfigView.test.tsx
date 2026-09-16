@@ -50,7 +50,7 @@ describe('ConfigView allReady gate', () => {
     render(<ConfigView />);
     const btn = screen.getByTestId('m2-continuar');
     expect(btn).toBeDisabled();
-    expect(screen.getByText(/Faltan recursos por cargar/)).toBeInTheDocument();
+    expect(screen.getByText(/Faltan recursos obligatorios/)).toBeInTheDocument();
   });
 
   it('muestra hero y grid genial', () => {
@@ -62,27 +62,20 @@ describe('ConfigView allReady gate', () => {
     expect(screen.getByText('Archivo Mercurio')).toBeInTheDocument();
     expect(screen.getByText('Carpeta de Plantillas')).toBeInTheDocument();
     expect(screen.getByTestId('m2-progress-track')).toBeInTheDocument();
-    // 3 segments
+    // 2 segmentos obligatorios (Mercurio es opcional y no cuenta)
     expect(screen.getByTestId('m2-segment-0')).toBeInTheDocument();
     expect(screen.getByTestId('m2-segment-1')).toBeInTheDocument();
-    expect(screen.getByTestId('m2-segment-2')).toBeInTheDocument();
+    expect(screen.queryByTestId('m2-segment-2')).not.toBeInTheDocument();
   });
 
   it('habilita Continuar cuando allReady es true', () => {
-    // set all three resources ready via store directly
+    // Mercurio es opcional: solo SAC + carpeta son obligatorios
     const sac = {
       file: new File(['a'], 'sac.xlsx'),
       loading: false,
       progress: 100,
       error: null,
       recordCount: 5,
-    };
-    const mercurio = {
-      file: new File(['b'], 'mercurio.xlsx'),
-      loading: false,
-      progress: 100,
-      error: null,
-      recordCount: 3,
     };
     const folder = {
       file: new File(['c'], 'Plantillas'),
@@ -93,13 +86,35 @@ describe('ConfigView allReady gate', () => {
     };
 
     useExcelStore.getState().setSacFile(sac);
-    useExcelStore.getState().setMercurioFile(mercurio);
     useExcelStore.getState().setTemplateFolder(folder);
 
     render(<ConfigView />);
     const btn = screen.getByTestId('m2-continuar');
     expect(btn).toBeEnabled();
-    expect(screen.queryByText(/Faltan recursos por cargar/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Faltan recursos obligatorios/)).not.toBeInTheDocument();
+  });
+
+  it('habilita Continuar aunque Mercurio no esté cargado (opcional)', () => {
+    const sac = {
+      file: new File(['a'], 'sac.xlsx'),
+      loading: false,
+      progress: 100,
+      error: null,
+      recordCount: 5,
+    };
+    const folder = {
+      file: new File(['c'], 'Plantillas'),
+      loading: false,
+      progress: 100,
+      error: null,
+      recordCount: 4,
+    };
+    useExcelStore.getState().setSacFile(sac);
+    useExcelStore.getState().setTemplateFolder(folder);
+    // sin Mercurio
+    render(<ConfigView />);
+    expect(screen.getByTestId('m2-continuar')).toBeEnabled();
+    expect(screen.getByText(/Mercurio opcional/)).toBeInTheDocument();
   });
 
   it('deshabilita Continuar si algún recurso tiene error o loading', () => {

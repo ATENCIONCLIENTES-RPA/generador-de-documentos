@@ -64,8 +64,8 @@ import { improveText } from '@/utils/textEnhancer';
 export function RecordEditModal({ open, record, onClose, onSave }: Props) {
   const [draft, setDraft] = useState<EssaRecord | null>(null);
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
-  const [isImproving, setIsImproving] = useState(false);
-  const [improvedSuccess, setImprovedSuccess] = useState(false);
+  const [improvingField, setImprovingField] = useState<string | null>(null);
+  const [improvedField, setImprovedField] = useState<string | null>(null);
   const originalRef = useRef<EssaRecord | null>(null);
 
   useEffect(() => {
@@ -74,15 +74,15 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
       setDraft(copy);
       originalRef.current = { ...record } as EssaRecord;
       setShowUnsavedWarning(false);
-      setIsImproving(false);
-      setImprovedSuccess(false);
+      setImprovingField(null);
+      setImprovedField(null);
     } else if (!open) {
       const t = window.setTimeout(() => {
         setDraft(null);
         originalRef.current = null;
         setShowUnsavedWarning(false);
-        setIsImproving(false);
-        setImprovedSuccess(false);
+        setImprovingField(null);
+        setImprovedField(null);
       }, 180);
       return () => window.clearTimeout(t);
     }
@@ -126,61 +126,95 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
     setDraft({ ...draft, [key]: value } as EssaRecord);
   };
 
-  const handleImproveText = useCallback(async () => {
-    if (!draft) return;
-    const currentText = String(
-      draft.observacionProceso ??
-        (draft as Record<string, unknown>)['OBSERVACION_PROCESO'] ??
-        (draft as Record<string, unknown>)['descripcion'] ??
-        ''
-    );
-
-    if (!currentText.trim() || isImproving) return;
-
-    setIsImproving(true);
-    setImprovedSuccess(false);
-
-    // Yield para permitir que el spinner se pinte antes del trabajo pesado
-    await new Promise<void>((resolve) => {
-      if (typeof requestAnimationFrame !== 'undefined') {
-        requestAnimationFrame(() => setTimeout(resolve, 16));
-      } else {
-        setTimeout(resolve, 16);
+  const handleImproveText = useCallback(
+    async (field: 'observacionProceso' | 'observacionRevision' | 'observacionDecision') => {
+      if (!draft) return;
+      let currentText = '';
+      if (field === 'observacionProceso') {
+        currentText = String(
+          draft.observacionProceso ??
+            (draft as Record<string, unknown>)['OBSERVACION_PROCESO'] ??
+            (draft as Record<string, unknown>)['descripcion'] ??
+            ''
+        );
+      } else if (field === 'observacionRevision') {
+        currentText = String(
+          draft.observacionRevision ??
+            (draft as Record<string, unknown>)['OBSERVACION_REVISION'] ??
+            (draft as Record<string, unknown>)['observaciones'] ??
+            ''
+        );
+      } else if (field === 'observacionDecision') {
+        currentText = String(
+          draft.observacionDecision ??
+            (draft as Record<string, unknown>)['OBSERVACION_DECISION'] ??
+            (draft as Record<string, unknown>)['OBSERVACION DECISION'] ??
+            ''
+        );
       }
-    });
 
-    try {
-      const improved = await new Promise<string>((resolve) => {
-        const doWork = () => resolve(improveText(currentText));
-        const ric = (
-          window as unknown as {
-            requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-          }
-        ).requestIdleCallback;
-        if (typeof ric === 'function') {
-          ric(doWork, { timeout: 120 });
+      if (!currentText.trim() || improvingField) return;
+
+      setImprovingField(field);
+      setImprovedField(null);
+
+      await new Promise<void>((resolve) => {
+        if (typeof requestAnimationFrame !== 'undefined') {
+          requestAnimationFrame(() => setTimeout(resolve, 16));
         } else {
-          setTimeout(doWork, 0);
+          setTimeout(resolve, 16);
         }
       });
 
-      setDraft((prev) =>
-        prev
-          ? ({
+      try {
+        const improved = await new Promise<string>((resolve) => {
+          const doWork = () => resolve(improveText(currentText));
+          const ric = (
+            window as unknown as {
+              requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+            }
+          ).requestIdleCallback;
+          if (typeof ric === 'function') {
+            ric(doWork, { timeout: 120 });
+          } else {
+            setTimeout(doWork, 0);
+          }
+        });
+
+        setDraft((prev) => {
+          if (!prev) return prev;
+          if (field === 'observacionProceso') {
+            return {
               ...prev,
               observacionProceso: improved,
               OBSERVACION_PROCESO: improved,
               descripcion: improved,
-            } as EssaRecord)
-          : prev
-      );
+            } as EssaRecord;
+          }
+          if (field === 'observacionRevision') {
+            return {
+              ...prev,
+              observacionRevision: improved,
+              OBSERVACION_REVISION: improved,
+              observaciones: improved,
+            } as EssaRecord;
+          }
+          return {
+            ...prev,
+            observacionDecision: improved,
+            OBSERVACION_DECISION: improved,
+            'OBSERVACION DECISION': improved,
+          } as EssaRecord;
+        });
 
-      setImprovedSuccess(true);
-      setTimeout(() => setImprovedSuccess(false), 2500);
-    } finally {
-      setIsImproving(false);
-    }
-  }, [draft, isImproving]);
+        setImprovedField(field);
+        setTimeout(() => setImprovedField((prev) => (prev === field ? null : prev)), 2500);
+      } finally {
+        setImprovingField(null);
+      }
+    },
+    [draft, improvingField]
+  );
 
   if (!open) return null;
 
@@ -350,18 +384,18 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
                   <label className="rem-desc-label">Descripción de la solicitud</label>
                   <button
                     type="button"
-                    className={`rem-btn-improve ${improvedSuccess ? 'rem-btn-improve--success' : ''}`}
-                    onClick={handleImproveText}
-                    disabled={isImproving}
+                    className={`rem-btn-improve ${improvedField === 'observacionProceso' ? 'rem-btn-improve--success' : ''}`}
+                    onClick={() => handleImproveText('observacionProceso')}
+                    disabled={improvingField !== null}
                     data-testid="rem-btn-mejorar-texto"
                     title="Revisar y mejorar redacción, ortografía y formato"
                   >
-                    {isImproving ? (
+                    {improvingField === 'observacionProceso' ? (
                       <>
                         <span className="rem-improve-spinner" />
                         Mejorando…
                       </>
-                    ) : improvedSuccess ? (
+                    ) : improvedField === 'observacionProceso' ? (
                       <>
                         <svg
                           width="12"
@@ -420,7 +454,56 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
                 />
               </div>
               <div className="rem-desc-group">
-                <label className="rem-desc-label">Observación del insumo</label>
+                <div className="rem-desc-header">
+                  <label className="rem-desc-label">Observación del insumo</label>
+                  <button
+                    type="button"
+                    className={`rem-btn-improve ${improvedField === 'observacionRevision' ? 'rem-btn-improve--success' : ''}`}
+                    onClick={() => handleImproveText('observacionRevision')}
+                    disabled={improvingField !== null}
+                    data-testid="rem-btn-mejorar-texto-insumo"
+                    title="Revisar y mejorar redacción, ortografía y formato"
+                  >
+                    {improvingField === 'observacionRevision' ? (
+                      <>
+                        <span className="rem-improve-spinner" />
+                        Mejorando…
+                      </>
+                    ) : improvedField === 'observacionRevision' ? (
+                      <>
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        ¡Mejorado!
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                        </svg>
+                        Mejorar texto
+                      </>
+                    )}
+                  </button>
+                </div>
                 <textarea
                   className="rem-textarea"
                   value={String(
@@ -445,7 +528,56 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
                 />
               </div>
               <div className="rem-desc-group">
-                <label className="rem-desc-label">Observación de la decisión</label>
+                <div className="rem-desc-header">
+                  <label className="rem-desc-label">Observación de la decisión</label>
+                  <button
+                    type="button"
+                    className={`rem-btn-improve ${improvedField === 'observacionDecision' ? 'rem-btn-improve--success' : ''}`}
+                    onClick={() => handleImproveText('observacionDecision')}
+                    disabled={improvingField !== null}
+                    data-testid="rem-btn-mejorar-texto-decision"
+                    title="Revisar y mejorar redacción, ortografía y formato"
+                  >
+                    {improvingField === 'observacionDecision' ? (
+                      <>
+                        <span className="rem-improve-spinner" />
+                        Mejorando…
+                      </>
+                    ) : improvedField === 'observacionDecision' ? (
+                      <>
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        ¡Mejorado!
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                        </svg>
+                        Mejorar texto
+                      </>
+                    )}
+                  </button>
+                </div>
                 <textarea
                   className="rem-textarea"
                   value={String(

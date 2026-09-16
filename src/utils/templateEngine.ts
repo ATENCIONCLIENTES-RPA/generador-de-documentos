@@ -93,7 +93,22 @@ export function buildTemplateData(record: EssaRecord, profile?: Profile | null):
       (record?.['MUNICIPIO SUSCRIPTOR'] as string) ||
       '—',
     OBSERVACION_PROCESO: (record?.['observacionProceso'] as string) || '—',
+    OBSERVACION_REVISION:
+      (record?.['observacionRevision'] as string) ||
+      (record?.['OBSERVACION_REVISION'] as string) ||
+      (record?.['OBSERVACION REVISION'] as string) ||
+      '—',
+    'OBSERVACION REVISION':
+      (record?.['observacionRevision'] as string) ||
+      (record?.['OBSERVACION_REVISION'] as string) ||
+      (record?.['OBSERVACION REVISION'] as string) ||
+      '—',
     OBSERVACION_DECISION: (record?.['observacionDecision'] as string) || '—',
+    'OBSERVACION DECISION':
+      (record?.['observacionDecision'] as string) ||
+      (record?.['OBSERVACION_DECISION'] as string) ||
+      (record?.['OBSERVACION DECISION'] as string) ||
+      '—',
     CIRCUITO:
       (record?.['circuito'] as string) ||
       (record?.['CIRCUITO'] as string) ||
@@ -215,7 +230,28 @@ export function replaceTemplateVariables(
         '—'
     )
     .replace(/\[OBSERVACION_PROCESO\]/g, (record?.['observacionProceso'] as string) || '—')
+    .replace(
+      /\[OBSERVACION_REVISION\]/g,
+      (record?.['observacionRevision'] as string) ||
+        (record?.['OBSERVACION_REVISION'] as string) ||
+        (record?.['OBSERVACION REVISION'] as string) ||
+        '—'
+    )
+    .replace(
+      /\[OBSERVACION REVISION\]/g,
+      (record?.['observacionRevision'] as string) ||
+        (record?.['OBSERVACION_REVISION'] as string) ||
+        (record?.['OBSERVACION REVISION'] as string) ||
+        '—'
+    )
     .replace(/\[OBSERVACION_DECISION\]/g, (record?.['observacionDecision'] as string) || '—')
+    .replace(
+      /\[OBSERVACION DECISION\]/g,
+      (record?.['observacionDecision'] as string) ||
+        (record?.['OBSERVACION_DECISION'] as string) ||
+        (record?.['OBSERVACION DECISION'] as string) ||
+        '—'
+    )
     .replace(
       /\[CIRCUITO\]/g,
       (record?.['circuito'] as string) || (record?.['CIRCUITO'] as string) || '—'

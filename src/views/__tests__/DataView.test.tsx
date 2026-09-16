@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import DataView from '@/views/DataView';
 import { useDataStore } from '@/store/dataStore';
+import { useExcelStore } from '@/store/excelStore';
 import { useNavigationStore } from '@/store/navigationStore';
 import type { Record as EssaRecord } from '@/types/record';
 
@@ -30,6 +31,14 @@ function makeRecord(overrides: Partial<EssaRecord> & { rowId: string }): EssaRec
 function resetStores() {
   useDataStore.setState({
     records: [],
+    mercurioRecords: [
+      {
+        rowId: 'merc_0',
+        id: 1,
+        radicadoEntrada: 'RAD-M',
+        fechaSolicitud: '2026-01-10',
+      } as EssaRecord,
+    ],
     selectedRows: new Set<string>(),
     filterState: {
       search: '',
@@ -47,6 +56,15 @@ function resetStores() {
     currentPage: 1,
     pageSize: 10,
     editingRecord: null,
+  });
+  useExcelStore.setState({
+    mercurioFile: {
+      file: new File(['a'], 'mercurio.xlsx'),
+      loading: false,
+      progress: 100,
+      error: null,
+      recordCount: 1,
+    },
   });
   useNavigationStore.setState({ currentStep: 'datos', completed: new Set() });
 }
@@ -451,6 +469,27 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     expect(screen.getByTestId('dv-pqr-row_test_verde')).toBeInTheDocument();
   });
 
+  it('oculta columna PQR cuando Mercurio no está cargado', async () => {
+    const recs = [
+      makeRecord({
+        rowId: 'row_test_sinmerc',
+        id: 1,
+        numeroProceso: 'PRC-001',
+        radicadoEntrada: 'RAD-001',
+      }),
+    ];
+    useDataStore.getState().setRecords(recs);
+    // Simular ausencia de Mercurio
+    useDataStore.setState({ mercurioRecords: [] });
+    useExcelStore.setState({ mercurioFile: null });
+    render(<DataView />);
+    expect(screen.queryByText('PQR')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dv-pqr-row_test_sinmerc')).not.toBeInTheDocument();
+    // resto de columnas siguen operando (usar getAllByText por labels duplicados)
+    expect(screen.getAllByText('Estado').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Tipo Proceso')).toBeInTheDocument();
+  });
+
   it('modal de edición: botón "Mejorar texto" mejora la redacción y guarda cambios', async () => {
     const recs = [
       makeRecord({
@@ -466,26 +505,28 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
 
     fireEvent.click(screen.getByTestId('dv-edit-row_test_modal'));
     expect(await screen.findByText('Descripción de la solicitud')).toBeInTheDocument();
-    expect(screen.getByText(/Observaci/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Observaci/).length).toBeGreaterThanOrEqual(2);
 
     const descTextarea = screen.getByTestId('rem-textarea-descripcion') as HTMLTextAreaElement;
     expect(descTextarea.value).toBe(
       'el cliente solicita revision del medidor , no esta de acuerdo con el cobro .'
     );
 
-    // Clic en botón "Mejorar texto"
+    // Clic en botón "Mejorar texto" (async con rAF + idle, avanzar timers)
     const btnMejorar = screen.getByTestId('rem-btn-mejorar-texto');
     expect(btnMejorar).toBeInTheDocument();
     fireEvent.click(btnMejorar);
 
-    act(() => {
-      vi.advanceTimersByTime(400);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
     });
 
     // El texto mejorado debe haber capitalizado, acentuado y corregido puntuación
-    expect(descTextarea.value).toBe(
-      'El cliente solicita revisión del medidor, no está de acuerdo con el cobro.'
-    );
+    await waitFor(() => {
+      expect(descTextarea.value).toBe(
+        'El cliente solicita revisión del medidor, no está de acuerdo con el cobro.'
+      );
+    });
 
     fireEvent.click(screen.getByTestId('rem-save'));
     await waitFor(() => {

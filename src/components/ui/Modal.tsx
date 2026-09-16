@@ -9,6 +9,10 @@ interface Props {
   children: ReactNode;
   width?: number | string;
   closeOnOverlay?: boolean;
+  /** Icono personalizado para el encabezado (por defecto, lápiz de edición) */
+  icon?: ReactNode;
+  /** Variante visual del encabezado. `brand` usa gradiente institucional ESSA. */
+  variant?: 'default' | 'brand';
 }
 
 export function Modal({
@@ -19,6 +23,8 @@ export function Modal({
   children,
   width = 560,
   closeOnOverlay = true,
+  icon,
+  variant = 'default',
 }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -104,6 +110,14 @@ export function Modal({
         .essa-modal-close:hover{ background:#f8fafc; border-color:#cbd5e1; color:#0f172a; box-shadow: 0 2px 8px rgba(15,23,42,.08); transform: translateY(-1px) }
         .essa-modal-close:active{ transform: scale(.96) }
         .essa-modal-close:focus-visible{ outline:none; box-shadow: var(--ring); border-color: var(--essa-primary) }
+        .essa-modal-close--brand{
+          width:36px; height:36px; border-radius:10px; border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.14);
+          display:inline-flex; align-items:center; justify-content:center; color:#fff;
+          cursor:pointer; flex-shrink:0; transition: all 160ms var(--ease);
+        }
+        .essa-modal-close--brand:hover{ background:rgba(255,255,255,.26); transform: translateY(-1px) }
+        .essa-modal-close--brand:active{ transform: scale(.96) }
+        .essa-modal-close--brand:focus-visible{ outline:2px solid #fff; outline-offset:2px }
         .essa-modal-body{ scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent }
         .essa-modal-body::-webkit-scrollbar{ width:6px }
         .essa-modal-body::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:999px }
@@ -127,71 +141,141 @@ export function Modal({
       >
         {title && (
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'space-between',
-              gap: 16,
-              padding: '18px 20px 16px',
-              borderBottom: '1px solid #f1f5f9',
-              background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-              flexShrink: 0,
-            }}
+            style={
+              variant === 'brand'
+                ? {
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 16,
+                    padding: '16px 18px',
+                    background: 'linear-gradient(120deg, #0b2a5b 0%, #004B93 55%, #0e6ad1 100%)',
+                    borderBottom: '3px solid #76BC21',
+                    flexShrink: 0,
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }
+                : {
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
+                    gap: 16,
+                    padding: '18px 20px 16px',
+                    borderBottom: '1px solid #f1f5f9',
+                    background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+                    flexShrink: 0,
+                  }
+            }
           >
-            <div style={{ display: 'flex', gap: 12, minWidth: 0, flex: 1 }}>
+            {variant === 'brand' && (
               <div
                 aria-hidden
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 10,
-                  background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                  border: '1px solid #bfdbfe',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#004B93',
-                  flexShrink: 0,
-                  boxShadow: '0 1px 3px rgba(0,75,147,.08)',
+                  position: 'absolute',
+                  width: 220,
+                  height: 220,
+                  borderRadius: 999,
+                  right: -50,
+                  top: -90,
+                  background: 'radial-gradient(circle, rgba(255,255,255,.16) 0%, transparent 65%)',
+                  pointerEvents: 'none',
                 }}
+              />
+            )}
+            <div style={{ display: 'flex', gap: 12, minWidth: 0, flex: 1, alignItems: 'center' }}>
+              <div
+                aria-hidden
+                style={
+                  variant === 'brand'
+                    ? {
+                        width: 42,
+                        height: 42,
+                        borderRadius: 12,
+                        background: 'rgba(255,255,255,.14)',
+                        border: '1px solid rgba(255,255,255,.35)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fff',
+                        flexShrink: 0,
+                        boxShadow: '0 2px 8px rgba(0,0,0,.18)',
+                      }
+                    : {
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                        border: '1px solid #bfdbfe',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#004B93',
+                        flexShrink: 0,
+                        boxShadow: '0 1px 3px rgba(0,75,147,.08)',
+                      }
+                }
               >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#004B93"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
+                {icon ?? (
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                )}
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <h2
                   id="essa-modal-title"
-                  style={{
-                    fontSize: '1rem',
-                    fontWeight: 800,
-                    color: '#0f172a',
-                    lineHeight: 1.25,
-                    letterSpacing: '-0.015em',
-                    margin: 0,
-                  }}
+                  style={
+                    variant === 'brand'
+                      ? {
+                          fontSize: '1.05rem',
+                          fontWeight: 800,
+                          color: '#fff',
+                          lineHeight: 1.25,
+                          letterSpacing: '-0.015em',
+                          margin: 0,
+                          textShadow: '0 1px 2px rgba(0,0,0,.2)',
+                        }
+                      : {
+                          fontSize: '1rem',
+                          fontWeight: 800,
+                          color: '#0f172a',
+                          lineHeight: 1.25,
+                          letterSpacing: '-0.015em',
+                          margin: 0,
+                        }
+                  }
                 >
                   {title}
                 </h2>
                 {defaultSubtitle && (
                   <p
-                    style={{
-                      fontSize: '0.78rem',
-                      color: '#64748b',
-                      margin: '2px 0 0',
-                      lineHeight: 1.45,
-                      fontWeight: 500,
-                    }}
+                    style={
+                      variant === 'brand'
+                        ? {
+                            fontSize: '0.76rem',
+                            color: 'rgba(255,255,255,.85)',
+                            margin: '2px 0 0',
+                            lineHeight: 1.45,
+                            fontWeight: 500,
+                          }
+                        : {
+                            fontSize: '0.78rem',
+                            color: '#64748b',
+                            margin: '2px 0 0',
+                            lineHeight: 1.45,
+                            fontWeight: 500,
+                          }
+                    }
                   >
                     {defaultSubtitle}
                   </p>
@@ -202,7 +286,7 @@ export function Modal({
               aria-label="Cerrar modal"
               title="Cerrar (Esc)"
               onClick={onClose}
-              className="essa-modal-close"
+              className={variant === 'brand' ? 'essa-modal-close--brand' : 'essa-modal-close'}
               data-testid="modal-close"
               type="button"
             >
