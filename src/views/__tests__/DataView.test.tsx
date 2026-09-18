@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
-import DataView from '@/views/DataView';
+import DataView, { buildReferencia } from '@/views/DataView';
 import { useDataStore } from '@/store/dataStore';
 import { useExcelStore } from '@/store/excelStore';
 import { useNavigationStore } from '@/store/navigationStore';
@@ -98,6 +98,37 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+  });
+
+  it('genera Referencia con encabezados equivalentes del registro importado', () => {
+    const record = makeRecord({
+      rowId: 'row_reference_headers',
+      nombreSolicitante: '',
+      direccionSolicitante: '',
+      departamentoSolicitante: '',
+      municipioSolicitante: '',
+      correoSolicitante: '',
+      celularSolicitante: '',
+      numeroCuenta: '',
+      cuenta: '',
+      numeroProceso: '',
+      radicadoEntrada: '',
+      fechaSolicitud: '',
+      'Nombre Solicitante': 'Ana Gómez',
+      'DIRECCION-SOLICITANTE': 'Carrera 10 # 20-30',
+      'Municipio Solicitante': 'Bucaramanga',
+      'DEPTO SOLICITANTE': 'Santander',
+      'Correo Solicitante': 'ANA@EXAMPLE.COM',
+      'Numero Cuenta': '12345',
+      'Numero Proceso': 'PROC-99',
+      'Radicado Entrada': 'RAD-99',
+      'Fecha Solicitud': '2026-08-17',
+    });
+
+    expect(buildReferencia(record)).toContain('Ana Gómez');
+    expect(buildReferencia(record)).toContain('Carrera 10 # 20-30');
+    expect(buildReferencia(record)).toContain('ana@example.com');
+    expect(buildReferencia(record)).toContain('Cuenta No. 12345');
   });
 
   it('muestra placeholder cuando no hay registros', () => {

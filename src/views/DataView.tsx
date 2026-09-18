@@ -12,7 +12,7 @@ import Input from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import type { Record as EssaRecord } from '@/types/record';
 import { calculatePqrBusinessDays, parseDateOnly, formatDateToSpanish } from '@/utils/businessDays';
-import { getEstadoSemaforo } from '@/utils/excelParser';
+import { getEstadoSemaforo, getExcelCellValue } from '@/utils/excelParser';
 
 const PAGE_SIZE = 10;
 
@@ -60,12 +60,8 @@ function getStateOrder(record: EssaRecord): number {
 }
 
 function readRecordField(record: EssaRecord, keys: string[]): string {
-  const rec = record as unknown as Record<string, unknown>;
-  for (const k of keys) {
-    const v = rec[k];
-    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
-  }
-  return '';
+  const value = getExcelCellValue(record, keys);
+  return value === undefined || value === null ? '' : String(value).trim();
 }
 
 function isValidReferenciaValue(v: string): boolean {
