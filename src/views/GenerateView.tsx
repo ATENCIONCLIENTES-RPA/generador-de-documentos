@@ -7,10 +7,24 @@ import { useProfileStore } from '@/store/profileStore';
 import { useDataStore } from '@/store/dataStore';
 import { useTemplateStore } from '@/store/templateStore';
 import { generateDocx, buildTemplateData, replaceTemplateVariables } from '@/utils/templateEngine';
+import { formatDateToSpanish } from '@/utils/businessDays';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import type { Record as EssaRecord } from '@/types/record';
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeRegExpStr(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 // ---------------------------------------------------------------------------
 // Helper: same logic used by useGeneration to retrieve signature blob
@@ -352,6 +366,38 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
     }
     return raw;
   }, [selectedTemplate, activeRecord, profile.name, profile.position, profile.email]);
+
+  // Vista previa con formato: [RADICADO_SALIDA]/[FECHA_RAD_SALIDA] -> Arial 10,
+  // textos/números 7200 y 7280 -> Arial 7 (igual que en el Word generado).
+  const previewHtml = useMemo(() => {
+    if (!previewContent) return '';
+    let html = escapeHtml(previewContent);
+    const radicadoVal = String(
+      (activeRecord?.['RADICADO_SALIDA'] as string) ??
+        (activeRecord?.radicadoSalida as string) ??
+        ''
+    ).trim();
+    const fechaVal = (formatDateToSpanish(new Date()) || '').trim();
+    if (radicadoVal && radicadoVal !== '—') {
+      const esc = escapeRegExpStr(escapeHtml(radicadoVal));
+      html = html.replace(
+        new RegExp(esc, 'g'),
+        `<span style="font-family: Arial, sans-serif; font-size: 10pt;">${escapeHtml(radicadoVal)}</span>`
+      );
+    }
+    if (fechaVal && fechaVal !== '—') {
+      const esc = escapeRegExpStr(escapeHtml(fechaVal));
+      html = html.replace(
+        new RegExp(esc, 'g'),
+        `<span style="font-family: Arial, sans-serif; font-size: 10pt;">${escapeHtml(fechaVal)}</span>`
+      );
+    }
+    html = html.replace(
+      /(7200|7280)/g,
+      '<span style="font-family: Arial, sans-serif; font-size: 7pt;">$1</span>'
+    );
+    return html;
+  }, [previewContent, activeRecord]);
 
   // docx-preview rendering
   useEffect(() => {
@@ -1352,8 +1398,12 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
                   {/* fallback text if no file */}
                   {(!selectedTemplate?.file || docxRenderFailed) && (
                     <div className="gv-fallback" style={{ maxWidth: 560 }}>
-                      <div data-testid="gv-fallback-content" className="gv-fallback-text">
-                        {previewContent || (
+                      <div
+                        data-testid="gv-fallback-content"
+                        className="gv-fallback-text"
+                        dangerouslySetInnerHTML={previewHtml ? { __html: previewHtml } : undefined}
+                      >
+                        {!previewHtml && (
                           <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
                             Sin contenido disponible
                           </span>

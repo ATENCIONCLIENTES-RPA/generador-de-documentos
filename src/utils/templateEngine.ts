@@ -19,13 +19,33 @@ export function escapeXml(str: unknown): string {
     .replace(/'/g, '&apos;');
 }
 
-function enforceArial11Inner(inner: string): string {
+// Tamaños Word (half-points): 20 = 10pt, 22 = 11pt, 14 = 7pt
+const SZ_RADICADO_FECHA = '20';
+const SZ_DEFAULT = '22';
+const SZ_SMALL_7200 = '14';
+
+function enforceArialSizedInner(inner: string, szVal: string): string {
   let out = inner
     .replace(/<w:rFonts[^>]*\/>/g, '')
     .replace(/<w:rFonts[^>]*>[\s\S]*?<\/w:rFonts>/g, '');
   out = out.replace(/<w:sz[^>]*\/>/g, '').replace(/<w:szCs[^>]*\/>/g, '');
-  out += `<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="Arial"/><w:sz w:val="22"/><w:szCs w:val="22"/>`;
+  out += `<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="Arial"/><w:sz w:val="${szVal}"/><w:szCs w:val="${szVal}"/>`;
   return out;
+}
+
+function enforceArial11Inner(inner: string): string {
+  return enforceArialSizedInner(inner, SZ_DEFAULT);
+}
+
+function szForField(normalizedKey: string): string {
+  if (normalizedKey === 'RADICADO_SALIDA' || normalizedKey === 'FECHA_RAD_SALIDA') {
+    return SZ_RADICADO_FECHA;
+  }
+  return SZ_DEFAULT;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function toTitleCaseDireccion(str: string): string {
@@ -489,6 +509,28 @@ export async function generateDocx(
       (templateData as globalThis.Record<string, unknown>)['CORREO_SOLICITANTE'] ?? '—'
     );
     const correoEsc = escapeXml(correoRaw);
+    const radicadoRaw = String(
+      (templateData as globalThis.Record<string, unknown>)['RADICADO_SALIDA'] ?? '—'
+    );
+    const radicadoEsc = escapeXml(radicadoRaw);
+    const fechaRadRaw = String(
+      (templateData as globalThis.Record<string, unknown>)['FECHA_RAD_SALIDA'] ?? '—'
+    );
+    const fechaRadEsc = escapeXml(fechaRadRaw);
+    const hasRadicadoValue = (combined: string): boolean => {
+      if (!radicadoRaw || radicadoRaw === '—' || radicadoRaw.trim() === '') return false;
+      return (
+        Boolean(radicadoEsc && combined.includes(radicadoEsc)) ||
+        Boolean(radicadoRaw && combined.includes(radicadoRaw))
+      );
+    };
+    const hasFechaRadValue = (combined: string): boolean => {
+      if (!fechaRadRaw || fechaRadRaw === '—' || fechaRadRaw.trim() === '') return false;
+      return (
+        Boolean(fechaRadEsc && combined.includes(fechaRadEsc)) ||
+        Boolean(fechaRadRaw && combined.includes(fechaRadRaw))
+      );
+    };
 
     const processXml = (xml: string): string => {
       // Procesar cada párrafo para aplicar colores y reemplazar marcadores remanentes
@@ -515,9 +557,74 @@ export async function generateDocx(
           shouldColorCorreo &&
           ((correoEsc && combined.includes(correoEsc)) ||
             (correoRaw && combined.includes(correoRaw)));
+        const containsRadicado = hasRadicadoValue(combined);
+        const containsFechaRad = hasFechaRadValue(combined);
+        // Textos/números estáticos 7200 y 7280 -> Arial 7 (sz 14).
+        // Se detecta 7200 o 7280 en el texto combinado (el docx los trae en runs
+        // separados "7200" + " · 7" + "280", por eso se busca por separado).
+        const isSmall7200Para = /7200|7280/.test(combined);
 
-        // Si no hay marcador ni valor de correo, verificar si hay otros campos para forzar negro
-        if (!hasMarker && !hasCorreoValue) {
+        // Extraer base limpia (sin fuentes/tamaños/colores) para reconstruir con tamaño variable
+        const firstRPrMatch = pBlock.match(/<w:rPr[^>]*>[\s\S]*?<\/w:rPr>/);
+        let baseCleanInner = '';
+        if (firstRPrMatch) {
+          const full = firstRPrMatch[0];
+          const innerM = full.match(/<w:rPr[^>]*>([\s\S]*?)<\/w:rPr>/);
+          let inner = innerM ? innerM[1] : '';
+          inner = inner
+            .replace(/<w:rFonts[^>]*\/>/g, '')
+            .replace(/<w:rFonts[^>]*>[\s\S]*?<\/w:rFonts>/g, '')
+            .replace(/<w:sz[^>]*\/>/g, '')
+            .replace(/<w:szCs[^>]*\/>/g, '')
+            .replace(/<w:color[^>]*\/>/g, '')
+            .replace(/<w:u[^>]*\/>/g, '')
+            .replace(/<w:u\b[^>]*>[\s\S]*?<\/w:u>/g, '');
+          baseCleanInner = inner;
+        }
+
+        const rPrFor = (color: string, underline: boolean, szVal: string = SZ_DEFAULT): string => {
+          let inner = enforceArialSizedInner(baseCleanInner, szVal);
+          inner += `<w:color w:val="${color}"/>`;
+          if (underline) inner += `<w:u w:val="single" w:color="${color}"/>`;
+          return `<w:rPr>${inner}</w:rPr>`;
+        };
+
+        // Caso 0: párrafo con 7200 / 7280 ESTÁTICO (sin marcadores ni valores de
+        // campos) -> forzar Arial 7 en todo el párrafo. Los párrafos mixtos
+        // (con valores de radicado/fecha/correo + 7200) se manejan en Caso 2
+        // para dar a cada fragmento su tamaño (10 vs 7).
+        if (
+          isSmall7200Para &&
+          !hasMarker &&
+          !hasCorreoValue &&
+          !containsRadicado &&
+          !containsFechaRad
+        ) {
+          const tokenRegex = /(7200|7280)/g;
+          let lastPos = 0;
+          let m0: RegExpExecArray | null;
+          let newRuns0 = '';
+          while ((m0 = tokenRegex.exec(combined)) !== null) {
+            if (m0.index > lastPos) {
+              const before = combined.slice(lastPos, m0.index);
+              if (before)
+                newRuns0 += `<w:r>${rPrFor('000000', false, SZ_SMALL_7200)}<w:t xml:space="preserve">${before}</w:t></w:r>`;
+            }
+            newRuns0 += `<w:r>${rPrFor('000000', false, SZ_SMALL_7200)}<w:t xml:space="preserve">${m0[0]}</w:t></w:r>`;
+            lastPos = m0.index + m0[0].length;
+          }
+          if (lastPos < combined.length) {
+            const tail = combined.slice(lastPos);
+            if (tail)
+              newRuns0 += `<w:r>${rPrFor('000000', false, SZ_SMALL_7200)}<w:t xml:space="preserve">${tail}</w:t></w:r>`;
+          }
+          if (!newRuns0)
+            newRuns0 = `<w:r>${rPrFor('000000', false, SZ_SMALL_7200)}<w:t xml:space="preserve">${combined}</w:t></w:r>`;
+          return `${pOpen}${pPr}${newRuns0}${pClose}`;
+        }
+
+        // Si no hay marcador ni valor de correo/radicado/fecha, verificar otros campos para forzar negro
+        if (!hasMarker && !hasCorreoValue && !containsRadicado && !containsFechaRad) {
           // Detectar si el párrafo contiene algún otro valor de campo (para asegurar negro)
           // Si no contiene marcadores ni correo, pero contiene otros valores, forzamos negro en sus runs
           // Para no alterar párrafos 100% estáticos, solo tocamos si contiene algún valor de templateData
@@ -556,42 +663,18 @@ export async function generateDocx(
           return newPBlock;
         }
 
-        // Extraer base de fuentes/tamaños del primer rPr para preservarlos
-        const firstRPrMatch = pBlock.match(/<w:rPr[^>]*>[\s\S]*?<\/w:rPr>/);
-        let baseFontInner = '';
-        if (firstRPrMatch) {
-          const full = firstRPrMatch[0];
-          const innerM = full.match(/<w:rPr[^>]*>([\s\S]*?)<\/w:rPr>/);
-          let inner = innerM ? innerM[1] : '';
-          // Limpiar colores, subrayados y fuentes previas para forzar Arial 11
-          inner = inner
-            .replace(/<w:color[^>]*\/>/g, '')
-            .replace(/<w:u[^>]*\/>/g, '')
-            .replace(/<w:u\b[^>]*>[\s\S]*?<\/w:u>/g, '');
-          baseFontInner = enforceArial11Inner(inner);
-        } else {
-          baseFontInner = enforceArial11Inner('');
-        }
-
-        const rPrFor = (color: string, underline: boolean): string => {
-          let inner = baseFontInner;
-          // inner ya contiene Arial 11, solo añadir color y subrayado
-          inner += `<w:color w:val="${color}"/>`;
-          if (underline) inner += `<w:u w:val="single" w:color="${color}"/>`;
-          return `<w:rPr>${inner}</w:rPr>`;
-        };
-
         // Caso 1: párrafo con marcadores remanentes -> reconstruir fragmentando por marcadores
         // Soporta tanto [CORREO_SOLICITANTE] como [CORREO SOLICITANTE] (espacio o guion bajo)
+        // [RADICADO_SALIDA] y [FECHA_RAD_SALIDA] -> Arial 10 (sz 20)
         if (hasMarker) {
           const markerRegex = /\[[A-Z0-9_ ]+\]/g;
           let lastPos = 0;
           let m: RegExpExecArray | null;
-          const fragments: { text: string; isCorreo: boolean }[] = [];
+          const fragments: { text: string; isCorreo: boolean; sz: string }[] = [];
           while ((m = markerRegex.exec(combined)) !== null) {
             if (m.index > lastPos) {
               const staticPart = combined.slice(lastPos, m.index);
-              if (staticPart) fragments.push({ text: staticPart, isCorreo: false });
+              if (staticPart) fragments.push({ text: staticPart, isCorreo: false, sz: SZ_DEFAULT });
             }
             const marker = m[0];
             const rawKey = marker.slice(1, -1);
@@ -613,12 +696,20 @@ export async function generateDocx(
             }
             const isCorreoFrag =
               normalizedKey === 'CORREO_SOLICITANTE' && rep !== '—' && rep.trim() !== '';
-            if (rep) fragments.push({ text: rep, isCorreo: isCorreoFrag });
+            if (rep)
+              fragments.push({ text: rep, isCorreo: isCorreoFrag, sz: szForField(normalizedKey) });
             lastPos = m.index + marker.length;
           }
           if (lastPos < combined.length) {
             const tail = combined.slice(lastPos).replace(/\[[A-Z0-9_ ]+\]/g, '—');
-            if (tail) fragments.push({ text: tail, isCorreo: false });
+            if (tail) fragments.push({ text: tail, isCorreo: false, sz: SZ_DEFAULT });
+          }
+          // Si el párrafo contenía 7200/7280 estáticos junto a marcadores, esos
+          // fragmentos estáticos también deben ir en Arial 7
+          for (const frag of fragments) {
+            if (!frag.isCorreo && frag.sz === SZ_DEFAULT && /7200|7280/.test(frag.text)) {
+              frag.sz = SZ_SMALL_7200;
+            }
           }
           // Construir nuevos runs
           let newRuns = '';
@@ -626,29 +717,70 @@ export async function generateDocx(
             if (!frag.text) continue;
             const color = frag.isCorreo ? '0000FF' : '000000';
             const underline = frag.isCorreo;
-            newRuns += `<w:r>${rPrFor(color, underline)}<w:t xml:space="preserve">${frag.text}</w:t></w:r>`;
+            newRuns += `<w:r>${rPrFor(color, underline, frag.sz)}<w:t xml:space="preserve">${frag.text}</w:t></w:r>`;
           }
           if (!newRuns)
-            newRuns = `<w:r>${rPrFor('000000', false)}<w:t xml:space="preserve">—</w:t></w:r>`;
+            newRuns = `<w:r>${rPrFor('000000', false, SZ_DEFAULT)}<w:t xml:space="preserve">—</w:t></w:r>`;
           return `${pOpen}${pPr}${newRuns}${pClose}`;
         }
 
-        // Caso 2: párrafo sin marcadores pero con valor de correo ya insertado -> fragmentar por correo
-        if (hasCorreoValue) {
-          const delim = combined.includes(correoEsc) ? correoEsc : correoRaw;
-          const parts = combined.split(delim);
+        // Caso 2: párrafo sin marcadores pero con valores ya insertados
+        // (correo, radicado salida, fecha rad salida) -> fragmentar con su formato
+        if (hasCorreoValue || containsRadicado || containsFechaRad) {
+          const splitTokens: {
+            raw: string;
+            esc: string;
+            color: string;
+            underline: boolean;
+            sz: string;
+          }[] = [];
+          if (hasCorreoValue) {
+            const delimEsc = combined.includes(correoEsc) ? correoEsc : correoRaw;
+            splitTokens.push({
+              raw: correoRaw,
+              esc: delimEsc,
+              color: '0000FF',
+              underline: true,
+              sz: SZ_DEFAULT,
+            });
+          }
+          if (containsRadicado) {
+            const delimEsc = combined.includes(radicadoEsc) ? radicadoEsc : radicadoRaw;
+            splitTokens.push({
+              raw: radicadoRaw,
+              esc: delimEsc,
+              color: '000000',
+              underline: false,
+              sz: SZ_RADICADO_FECHA,
+            });
+          }
+          if (containsFechaRad) {
+            const delimEsc = combined.includes(fechaRadEsc) ? fechaRadEsc : fechaRadRaw;
+            splitTokens.push({
+              raw: fechaRadRaw,
+              esc: delimEsc,
+              color: '000000',
+              underline: false,
+              sz: SZ_RADICADO_FECHA,
+            });
+          }
+          const pattern = splitTokens.map((t) => `(${escapeRegExp(t.esc)})`).join('|');
+          const parts = combined
+            .split(new RegExp(pattern, 'g'))
+            .filter((p) => p !== undefined && p !== '');
           let newRuns = '';
-          for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            if (part) {
-              newRuns += `<w:r>${rPrFor('000000', false)}<w:t xml:space="preserve">${part}</w:t></w:r>`;
-            }
-            if (i < parts.length - 1) {
-              newRuns += `<w:r>${rPrFor('0000FF', true)}<w:t xml:space="preserve">${correoEsc}</w:t></w:r>`;
+          for (const part of parts) {
+            const tok = splitTokens.find((t) => part === t.esc);
+            if (tok) {
+              newRuns += `<w:r>${rPrFor(tok.color, tok.underline, tok.sz)}<w:t xml:space="preserve">${tok.esc}</w:t></w:r>`;
+            } else if (/7200|7280/.test(part)) {
+              newRuns += `<w:r>${rPrFor('000000', false, SZ_SMALL_7200)}<w:t xml:space="preserve">${part}</w:t></w:r>`;
+            } else {
+              newRuns += `<w:r>${rPrFor('000000', false, SZ_DEFAULT)}<w:t xml:space="preserve">${part}</w:t></w:r>`;
             }
           }
           if (!newRuns) {
-            newRuns = `<w:r>${rPrFor('0000FF', true)}<w:t xml:space="preserve">${correoEsc}</w:t></w:r>`;
+            return pBlock;
           }
           return `${pOpen}${pPr}${newRuns}${pClose}`;
         }
