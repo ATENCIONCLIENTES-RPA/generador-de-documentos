@@ -368,6 +368,16 @@ export const useDataStore = create<DataStore>((set, get) => ({
         (updated as globalThis.Record<string, unknown>)['OBSERVACION DECISION'] = val;
         (updated as EssaRecord).observacionDecision = val as string;
       }
+      if (patch.fechaSolicitud !== undefined) {
+        (updated as globalThis.Record<string, unknown>)['FECHA_SOLICITUD'] = patch.fechaSolicitud;
+        (updated as globalThis.Record<string, unknown>)['FECHA SOLICITUD'] = patch.fechaSolicitud;
+      }
+      if (patch.fechaVencimiento !== undefined) {
+        (updated as globalThis.Record<string, unknown>)['FECHA_VENCIMIENTO'] =
+          patch.fechaVencimiento;
+        (updated as globalThis.Record<string, unknown>)['FECHA VENCIMIENTO'] =
+          patch.fechaVencimiento;
+      }
 
       const nextRecords = [...s.records];
       nextRecords[idx] = updated;

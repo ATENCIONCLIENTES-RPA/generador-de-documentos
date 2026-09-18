@@ -102,15 +102,18 @@ export function parseDateOnly(val: unknown): Date | null {
   if (!str) return null;
 
   // Check Excel numeric serial date (e.g. 45000)
+  // El serial representa la medianoche UTC del día: se leen componentes UTC
+  // para no desplazar el día en zonas como UTC-5.
   if (!isNaN(Number(str)) && Number(str) > 10000 && Number(str) < 100000) {
-    const d = new Date(Math.round((Number(str) - 25569) * 86400 * 1000));
+    const wholeDays = Math.floor(Number(str));
+    const d = new Date(Math.round((wholeDays - 25569) * 86400 * 1000));
     if (!isNaN(d.getTime())) {
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+      return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0);
     }
   }
 
   // Matches DD/MM/YYYY or DD-MM-YYYY (ignoring time like 16:18:56.53)
-  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  const dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
   if (dmyMatch) {
     const day = parseInt(dmyMatch[1]!, 10);
     const month = parseInt(dmyMatch[2]!, 10) - 1;
@@ -120,7 +123,7 @@ export function parseDateOnly(val: unknown): Date | null {
   }
 
   // Matches YYYY-MM-DD or YYYY/MM/DD
-  const ymdMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  const ymdMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
   if (ymdMatch) {
     const year = parseInt(ymdMatch[1]!, 10);
     const month = parseInt(ymdMatch[2]!, 10) - 1;
@@ -133,7 +136,15 @@ export function parseDateOnly(val: unknown): Date | null {
 }
 
 export function addBusinessDays(startDate: Date, businessDays: number): Date {
-  const current = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0, 0);
+  const current = new Date(
+    startDate.getFullYear(),
+    startDate.getMonth(),
+    startDate.getDate(),
+    0,
+    0,
+    0,
+    0
+  );
   let added = 0;
   while (added < businessDays) {
     current.setDate(current.getDate() + 1);

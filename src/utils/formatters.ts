@@ -3,11 +3,15 @@ export function formatDateCC(date: string | null | undefined): string {
   const strVal = String(date).trim();
   if (!strVal) return '';
 
-  // Excel serial number
+  // Excel serial number: usar componentes UTC para no desplazar el día en UTC-5
   if (!isNaN(Number(strVal)) && Number(strVal) > 10000 && Number(strVal) < 100000) {
-    const d = new Date(Math.round((Number(strVal) - 25569) * 86400 * 1000));
+    const wholeDays = Math.floor(Number(strVal));
+    const d = new Date(Math.round((wholeDays - 25569) * 86400 * 1000));
     if (!isNaN(d.getTime())) {
-      return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const year = d.getUTCFullYear();
+      return `${day}/${month}/${year}`;
     }
   }
 

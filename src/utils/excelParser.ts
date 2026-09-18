@@ -43,11 +43,25 @@ export function getExcelCellValue(obj: RawExcelRow | null | undefined, keys: str
 
 export function formatExcelDate(val: unknown): string {
   if (val === undefined || val === null || val === '') return '';
+  // Si XLSX entrega un Date real, tomar el día calendario tal cual (sin shifts de zona horaria)
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    const day = String(val.getDate()).padStart(2, '0');
+    const month = String(val.getMonth() + 1).padStart(2, '0');
+    const year = val.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
   const strVal = String(val).trim();
   if (!isNaN(Number(strVal)) && Number(strVal) > 10000 && Number(strVal) < 100000) {
-    const d = new Date(Math.round((Number(strVal) - 25569) * 86400 * 1000));
+    // Serial Excel → día exacto. Se usan componentes UTC porque el serial
+    // representa la medianoche UTC de ese día; usar la zona local restaría
+    // un día (ej. 01/09/2026 → 31/08/2026 en UTC-5).
+    const wholeDays = Math.floor(Number(strVal));
+    const d = new Date(Math.round((wholeDays - 25569) * 86400 * 1000));
     if (!isNaN(d.getTime())) {
-      return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const year = d.getUTCFullYear();
+      return `${day}/${month}/${year}`;
     }
   }
   const isoMatch = strVal.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
@@ -423,6 +437,11 @@ export function buildRecord(row: RawExcelRow, index: number): EssaRecord {
     'MUNICIPIO_SUSCRIPTOR'
   ];
   (base as Record<string, unknown>)['ID TRAFO'] = (base as Record<string, unknown>)['ID_TRAFO'];
+  // Alias de fechas SAC para Módulo 3 — Fecha solicitud ↔ FECHA_SOLICITUD, Fecha vencimiento ↔ FECHA_VENCIMIENTO
+  (base as Record<string, unknown>)['FECHA_SOLICITUD'] = base.fechaSolicitud || '';
+  (base as Record<string, unknown>)['FECHA SOLICITUD'] = base.fechaSolicitud || '';
+  (base as Record<string, unknown>)['FECHA_VENCIMIENTO'] = base.fechaVencimiento || '';
+  (base as Record<string, unknown>)['FECHA VENCIMIENTO'] = base.fechaVencimiento || '';
 
   return base;
 }
@@ -624,17 +643,34 @@ export function crossReferenceSacAndMercurio(
       '';
     const transformador = String(idTrafoRawCross ?? '').trim();
 
-    const fechaVencimiento =
-      (bestSac?.fechaVencimiento && bestSac.fechaVencimiento.trim() !== ''
-        ? bestSac.fechaVencimiento
+    const fechaSolicitud =
+      (bestSac?.fechaSolicitud && String(bestSac.fechaSolicitud).trim() !== ''
+        ? String(bestSac.fechaSolicitud).trim()
         : undefined) ||
-      ((bestSac as Record<string, unknown> | undefined)?.['FECHA_VENCIMIENTO'] as string) ||
+      String(
+        ((bestSac as Record<string, unknown> | undefined)?.['FECHA_SOLICITUD'] as string) ??
+          ((bestSac as Record<string, unknown> | undefined)?.['FECHA SOLICITUD'] as string) ??
+          ''
+      ).trim() ||
+      merc.fechaSolicitud ||
+      '';
+
+    const fechaVencimiento =
+      (bestSac?.fechaVencimiento && String(bestSac.fechaVencimiento).trim() !== ''
+        ? String(bestSac.fechaVencimiento).trim()
+        : undefined) ||
+      String(
+        ((bestSac as Record<string, unknown> | undefined)?.['FECHA_VENCIMIENTO'] as string) ??
+          ((bestSac as Record<string, unknown> | undefined)?.['FECHA VENCIMIENTO'] as string) ??
+          ''
+      ).trim() ||
       merc.fechaVencimiento ||
       '';
 
     const semaforo = getEstadoSemaforo(numeroProceso, observacionRevision);
     const pqrInfo = calculatePqrBusinessDays(
-      merc.fechaSolicitud ||
+      fechaSolicitud ||
+        merc.fechaSolicitud ||
         (merc as Record<string, unknown>)['Fecha Radicación'] ||
         (merc as Record<string, unknown>)['Fecha  Radicacion'] ||
         (merc as Record<string, unknown>)['FECHA_RADICACION']
@@ -646,7 +682,13 @@ export function crossReferenceSacAndMercurio(
       observacionProceso,
       observacionRevision,
       observacionDecision: String(observacionDecision ?? '').trim(),
+      // Fecha solicitud y Fecha vencimiento — origen SAC (FECHA_SOLICITUD / FECHA_VENCIMIENTO)
+      fechaSolicitud: String(fechaSolicitud ?? '').trim(),
       fechaVencimiento: String(fechaVencimiento ?? '').trim(),
+      FECHA_SOLICITUD: String(fechaSolicitud ?? '').trim(),
+      'FECHA SOLICITUD': String(fechaSolicitud ?? '').trim(),
+      FECHA_VENCIMIENTO: String(fechaVencimiento ?? '').trim(),
+      'FECHA VENCIMIENTO': String(fechaVencimiento ?? '').trim(),
       tipoProceso: String(tipoProceso ?? '').trim(),
       descripcionTipoProceso: String(descripcionTipoProceso ?? '').trim(),
       usuarioResponsableInsumo: String(usuarioResponsableInsumo ?? '').trim(),
