@@ -11,7 +11,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import type { Record as EssaRecord } from '@/types/record';
-import { calculatePqrBusinessDays, parseDateOnly } from '@/utils/businessDays';
+import { calculatePqrBusinessDays, parseDateOnly, formatDateToSpanish } from '@/utils/businessDays';
 import { getEstadoSemaforo } from '@/utils/excelParser';
 
 const PAGE_SIZE = 10;
@@ -59,69 +59,135 @@ function getStateOrder(record: EssaRecord): number {
   return 4;
 }
 
-function buildReferencia(record: EssaRecord | null): string {
+function readRecordField(record: EssaRecord, keys: string[]): string {
+  const rec = record as unknown as Record<string, unknown>;
+  for (const k of keys) {
+    const v = rec[k];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+  }
+  return '';
+}
+
+function isValidReferenciaValue(v: string): boolean {
+  if (!v) return false;
+  const t = v.trim();
+  if (!t || t === '—') return false;
+  const lower = t.toLowerCase();
+  return lower !== 'null' && lower !== 'undefined';
+}
+
+/** Título: primera letra de cada palabra en mayúscula, resto en minúscula. */
+export function toTitleCaseReferencia(value: string): string {
+  const collapsed = String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ');
+  if (!collapsed) return '';
+  return collapsed.toLowerCase().replace(/(^\p{L}|\s\p{L}|-\p{L})/gu, (m) => m.toUpperCase());
+}
+
+/** Oración: primera letra en mayúscula, resto en minúscula (respeta números y símbolos). */
+export function toSentenceCaseReferencia(value: string): string {
+  const collapsed = String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ');
+  if (!collapsed) return '';
+  const lower = collapsed.toLowerCase();
+  return lower.replace(/^\P{L}*\p{L}/u, (m) => m.toUpperCase());
+}
+
+/**
+ * Construye el campo Referencia del modal "Enviar a Radicar" (Módulo 3).
+ * Aplica formato solo al texto generado, sin mutar el registro original.
+ */
+export function buildReferencia(record: EssaRecord | null): string {
   if (!record) return '';
-  const nombre = String(
-    record.nombreSolicitante ??
-      (record as unknown as Record<string, unknown>)['NOMBRE_SOLICITANTE'] ??
-      ''
-  ).trim();
-  const depto = String(
-    record.departamentoSolicitante ??
-      (record as unknown as Record<string, unknown>)['DEPTO_SOLICITANTE'] ??
-      (record as unknown as Record<string, unknown>)['DEPARTAMENTO_SOLICITANTE'] ??
-      ''
-  ).trim();
-  const municipio = String(
-    record.municipioSolicitante ??
-      (record as unknown as Record<string, unknown>)['MUNICIPIO_SOLICITANTE'] ??
-      ''
-  ).trim();
-  const direccion = String(
-    record.direccionSolicitante ??
-      (record as unknown as Record<string, unknown>)['DIRECCION_SOLICITANTE'] ??
-      ''
-  ).trim();
-  const correo = String(
-    record.correoSolicitante ??
-      (record as unknown as Record<string, unknown>)['CORREO_SOLICITANTE'] ??
-      ''
-  ).trim();
+  const nombreRaw = readRecordField(record, [
+    'nombreSolicitante',
+    'NOMBRE_SOLICITANTE',
+    'NOMBRE SOLICITANTE',
+  ]);
+  const direccionRaw = readRecordField(record, [
+    'direccionSolicitante',
+    'DIRECCION_SOLICITANTE',
+    'DIRECCION SOLICITANTE',
+  ]);
+  const municipioRaw = readRecordField(record, [
+    'municipioSolicitante',
+    'MUNICIPIO_SOLICITANTE',
+    'MUNICIPIO SOLICITANTE',
+  ]);
+  const deptoRaw = readRecordField(record, [
+    'departamentoSolicitante',
+    'DEPARTAMENTO_SOLICITANTE',
+    'DEPARTAMENTO SOLICITANTE',
+    'DEPTO_SOLICITANTE',
+    'DEPTO SOLICITANTE',
+  ]);
+  const telefonoRaw = readRecordField(record, [
+    'celularSolicitante',
+    'CELULAR_SOLICITANTE',
+    'CELULAR SOLICITANTE',
+    'TELEFONO_SOLICITANTE',
+    'TELEFONO SOLICITANTE',
+    'telefonoSolicitante',
+  ]);
+  const correoRaw = readRecordField(record, [
+    'correoSolicitante',
+    'CORREO_SOLICITANTE',
+    'CORREO SOLICITANTE',
+  ]);
+  const cuentaRaw = readRecordField(record, [
+    'numeroCuenta',
+    'cuenta',
+    'NUMERO_CUENTA',
+    'NUMERO CUENTA',
+  ]);
+  const procesoRaw = readRecordField(record, ['numeroProceso', 'NUMERO_PROCESO', 'NUMERO PROCESO']);
+  const radicadoRaw = readRecordField(record, [
+    'radicadoEntrada',
+    'RADICADO_ENTRADA',
+    'RADICADO ENTRADA',
+  ]);
+  const fechaRaw = readRecordField(record, [
+    'fechaSolicitud',
+    'FECHA_SOLICITUD',
+    'FECHA SOLICITUD',
+  ]);
 
   const lines: string[] = [];
-  const isValid = (v: string) =>
-    v &&
-    v !== '—' &&
-    v.toLowerCase() !== 'null' &&
-    v.toLowerCase() !== 'undefined' &&
-    v.trim() !== '';
-  if (isValid(nombre)) lines.push(nombre);
-  const lugarParts: string[] = [];
-  if (isValid(depto)) lugarParts.push(depto);
-  if (isValid(municipio)) lugarParts.push(municipio);
-  const lugar = lugarParts.join(', ');
-  if (lugar) lines.push(lugar);
-  if (isValid(direccion)) lines.push(direccion);
-  if (isValid(correo)) lines.push(correo);
+  if (isValidReferenciaValue(nombreRaw)) lines.push(toTitleCaseReferencia(nombreRaw));
+  // Si la dirección contiene '@' es un correo mal ubicado: se omite para no duplicar correos.
+  if (isValidReferenciaValue(direccionRaw) && !direccionRaw.includes('@'))
+    lines.push(toSentenceCaseReferencia(direccionRaw));
+  if (isValidReferenciaValue(municipioRaw)) lines.push(toSentenceCaseReferencia(municipioRaw));
+  if (isValidReferenciaValue(deptoRaw)) lines.push(toSentenceCaseReferencia(deptoRaw));
+  if (isValidReferenciaValue(telefonoRaw)) lines.push(telefonoRaw.trim());
+  if (isValidReferenciaValue(correoRaw)) lines.push(correoRaw.trim().toLowerCase());
+
+  // Fecha en formato largo en español: "17 de agosto de 2026".
+  // Si no se puede parsear, se conserva el valor original.
+  const fechaFormateada = formatDateToSpanish(fechaRaw) || fechaRaw.trim();
+
+  lines.push('');
+  lines.push(
+    `Citación para notificación personal Cuenta No. ${cuentaRaw.trim()} Id. ${procesoRaw.trim()}`.trim()
+  );
+  lines.push(`Radicado número ${radicadoRaw.trim()} del ${fechaFormateada}`.trim());
   return lines.join('\n');
 }
 
-function formatReferenciaSentenceCase(text: string): string {
+/** Normalización ligera al editar: solo correos a minúsculas, respeta la edición libre. */
+function normalizeReferenciaEmails(text: string): string {
   if (!text) return '';
-  const lines = text.split('\n');
-  return lines
+  return text
+    .split('\n')
     .map((line) => {
-      const trimmed = line.trim();
-      if (!trimmed) return '';
-      // Correo debe conservar minúsculas y no modificarse
-      if (trimmed.includes('@')) {
-        return trimmed.toLowerCase();
-      }
-      // Formato oración: primera letra en mayúscula, resto en minúscula
-      const lower = trimmed.toLowerCase();
-      return lower.charAt(0).toUpperCase() + lower.slice(1);
+      if (!line.includes('@')) return line;
+      return line
+        .split(/(\s+)/)
+        .map((tok) => (tok.includes('@') ? tok.toLowerCase() : tok))
+        .join('');
     })
-    .filter((l) => l.length > 0)
     .join('\n');
 }
 
@@ -192,6 +258,8 @@ export function DataView() {
   const [radicarOpen, setRadicarOpen] = useState(false);
   const [referencia, setReferencia] = useState('');
   const [radicarTouched, setRadicarTouched] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
+  const copyResetTimer = useRef<number | undefined>(undefined);
 
   const headerCbRef = useRef<HTMLInputElement>(null);
   const filterTagsRef = useRef<HTMLDivElement>(null);
@@ -486,19 +554,50 @@ export function DataView() {
     );
   }, [selectedRows, records, filteredRecords]);
 
-  const autoReferencia = useMemo(
-    () => formatReferenciaSentenceCase(buildReferencia(radicarRecord)),
-    [radicarRecord]
-  );
+  // Referencia generada automáticamente con las reglas de capitalización por campo
+  const autoReferencia = useMemo(() => buildReferencia(radicarRecord), [radicarRecord]);
 
-  // Sincronizar referencia editable cuando se abre el modal (generada automáticamente con formato oración)
+  // Sincronizar referencia editable cuando se abre el modal (generada automáticamente ya formateada)
   useEffect(() => {
     if (radicarOpen) {
       setReferencia(autoReferencia);
+      setCopiedRef(false);
     }
   }, [radicarOpen, autoReferencia]);
 
+  // Limpiar el temporizador del feedback de copiado al desmontar
+  useEffect(() => {
+    return () => {
+      if (copyResetTimer.current !== undefined) window.clearTimeout(copyResetTimer.current);
+    };
+  }, []);
+
   const isRadicarValid = useMemo(() => referencia.trim().length > 0, [referencia]);
+
+  const handleCopyReferencia = useCallback(async () => {
+    const text = referencia;
+    if (!text.trim()) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Fallback para contextos sin Clipboard API (http, iframes, tests)
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+      } finally {
+        ta.remove();
+      }
+    }
+    setCopiedRef(true);
+    if (copyResetTimer.current !== undefined) window.clearTimeout(copyResetTimer.current);
+    copyResetTimer.current = window.setTimeout(() => setCopiedRef(false), 1800);
+  }, [referencia]);
 
   const handleCloseRadicar = useCallback(() => {
     setRadicarOpen(false);
@@ -507,7 +606,9 @@ export function DataView() {
 
   const handleConfirmRadicar = useCallback(() => {
     setRadicarTouched(true);
-    const finalReferencia = formatReferenciaSentenceCase(referencia);
+    // No reformatear todo el texto (respetar edición libre y el Título del nombre);
+    // solo normalizar correos a minúsculas.
+    const finalReferencia = normalizeReferenciaEmails(referencia);
     if (finalReferencia !== referencia) {
       setReferencia(finalReferencia);
     }
@@ -1494,23 +1595,131 @@ export function DataView() {
         width={680}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Referencia — editable con formato oración, correo en minúsculas */}
+          {/* Referencia — generada automáticamente con formato por campo, editable */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>
-              Referencia <span style={{ color: '#dc2626' }}>*</span>{' '}
-              <span style={{ fontWeight: 500, color: '#64748b', fontSize: '0.72rem' }}>
-                (generada automáticamente, editable)
-              </span>
-            </label>
+            <style>{`@keyframes radicar-copy-pop{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}`}</style>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 8,
+              }}
+            >
+              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>
+                Referencia <span style={{ color: '#dc2626' }}>*</span>{' '}
+                <span style={{ fontWeight: 500, color: '#64748b', fontSize: '0.72rem' }}>
+                  (generada automáticamente, editable)
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={handleCopyReferencia}
+                disabled={!referencia.trim()}
+                data-testid="radicar-copiar"
+                title={copiedRef ? '¡Referencia copiada!' : 'Copiar referencia'}
+                aria-label={copiedRef ? 'Referencia copiada' : 'Copiar referencia'}
+                className="radicar-copy-btn"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 999,
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.01em',
+                  cursor: referencia.trim() ? 'pointer' : 'not-allowed',
+                  border: `1px solid ${copiedRef ? '#6ee7b7' : '#bfdbfe'}`,
+                  background: copiedRef ? '#ecfdf5' : '#eff6ff',
+                  color: copiedRef ? '#065f46' : '#1d4ed8',
+                  boxShadow: copiedRef
+                    ? '0 2px 10px rgba(16,185,129,0.25)'
+                    : '0 1px 3px rgba(30,64,175,0.12)',
+                  opacity: referencia.trim() ? 1 : 0.55,
+                  transition:
+                    'background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 120ms ease',
+                  animation: copiedRef ? 'radicar-copy-pop 320ms ease' : undefined,
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  if (!referencia.trim()) return;
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = copiedRef
+                    ? '0 4px 14px rgba(16,185,129,0.32)'
+                    : '0 4px 12px rgba(30,64,175,0.20)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = copiedRef
+                    ? '0 2px 10px rgba(16,185,129,0.25)'
+                    : '0 1px 3px rgba(30,64,175,0.12)';
+                }}
+                onMouseDown={(e) => {
+                  if (!referencia.trim()) return;
+                  e.currentTarget.style.transform = 'scale(0.96)';
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+              >
+                {copiedRef ? (
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : (
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                )}
+                {copiedRef ? '¡Copiado!' : 'Copiar'}
+              </button>
+            </div>
+            <span
+              aria-live="polite"
+              style={{
+                position: 'absolute',
+                width: 1,
+                height: 1,
+                overflow: 'hidden',
+                clip: 'rect(0 0 0 0)',
+              }}
+            >
+              {copiedRef ? 'Referencia copiada al portapapeles' : ''}
+            </span>
             <textarea
               value={referencia}
-              onChange={(e) => setReferencia(e.target.value)}
-              onBlur={() => setReferencia((prev) => formatReferenciaSentenceCase(prev))}
+              onChange={(e) => {
+                setReferencia(e.target.value);
+                setCopiedRef(false);
+              }}
+              onBlur={() => setReferencia((prev) => normalizeReferenciaEmails(prev))}
               placeholder="La referencia se genera automáticamente con los datos del registro. Puede editarla libremente: modificar, agregar o eliminar información."
               data-testid="radicar-referencia"
-              rows={5}
+              rows={8}
               style={{
-                minHeight: 110,
+                minHeight: 170,
                 borderRadius: 10,
                 border: `1px solid ${radicarTouched && !referencia.trim() ? '#fca5a5' : '#cbd5e1'}`,
                 background: radicarTouched && !referencia.trim() ? '#fef2f2' : '#fff',
