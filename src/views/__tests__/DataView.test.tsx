@@ -172,37 +172,47 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     expect(screen.getByTestId('dv-pagination-info')).toHaveTextContent(/Pág. 2 de 3/);
   });
 
-  it('filtra por cuenta, proceso, radicado y fecha con tags activos y Limpiar filtros', async () => {
-    const recs = seedRecords(14);
+  it('filtra por búsqueda general y estado con tags activos y Limpiar filtros', async () => {
+    const recs = seedRecords(6);
+    recs[0].estadoSemaforo = 'verde';
+    recs[1].estadoSemaforo = 'verde';
+    recs[2].estadoSemaforo = 'rojo';
+    recs[3].estadoSemaforo = 'verde';
+    recs[4].estadoSemaforo = 'violeta';
     useDataStore.getState().setRecords(recs as unknown as EssaRecord[]);
     render(<DataView />);
-    // cuenta filter
-    const cuentaInput = screen.getByTestId('dv-filter-cuenta');
-    fireEvent.change(cuentaInput, { target: { value: '1001' } });
-    // should filter: 1001, 10010? but our data 1000-1013, so 1001 matches 1001 only? also 101? includes so 1001 matches exactly one plus maybe? check logic includes
-    // With value 1001, 1001 and maybe 10010? not present. Expect some filtering
-    await waitFor(() => {
-      expect(useDataStore.getState().filterState.cuenta).toBe('1001');
+    // búsqueda general: 'Usuario' coincide con Usuario 0-4 (María López es el índice 5)
+    const search = screen.getByTestId('dv-search') as HTMLInputElement;
+    fireEvent.change(search, { target: { value: 'Usuario' } });
+    act(() => {
+      vi.advanceTimersByTime(350);
     });
-    expect(screen.getByTestId('dv-tag-cuenta')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(useDataStore.getState().filterState.search).toBe('Usuario');
+    });
+    expect(screen.getByTestId('dv-tag-search')).toBeInTheDocument();
     expect(screen.getByText('1 filtro')).toBeInTheDocument();
 
-    // add proceso filter
-    fireEvent.change(screen.getByTestId('dv-filter-proceso'), { target: { value: 'PROC-005' } });
-    await waitFor(() => expect(useDataStore.getState().filterState.proceso).toBe('PROC-005'));
+    // añadir filtro estado = rojo -> solo Usuario 2
+    fireEvent.change(screen.getByTestId('dv-filter-estado-semaforo'), {
+      target: { value: 'rojo' },
+    });
+    await waitFor(() => expect(useDataStore.getState().filterState.estadoSemaforo).toBe('rojo'));
     expect(screen.getByText('2 filtros')).toBeInTheDocument();
+    expect(screen.getByTestId('dv-counter')).toHaveTextContent(/Mostrando 1–1 de 1/);
 
-    // remove one tag via X
-    fireEvent.click(within(screen.getByTestId('dv-tag-cuenta')).getByRole('button'));
-    await waitFor(() => expect(useDataStore.getState().filterState.cuenta).toBe(''));
+    // quitar tag de estado vía X
+    fireEvent.click(within(screen.getByTestId('dv-tag-estado-semaforo')).getByRole('button'));
+    await waitFor(() => expect(useDataStore.getState().filterState.estadoSemaforo).toBe('todos'));
 
     // Limpiar filtros button
     fireEvent.click(screen.getByTestId('dv-limpiar-filtros'));
     await waitFor(() => {
       expect(useDataStore.getState().filterState.search).toBe('');
-      expect(useDataStore.getState().filterState.proceso).toBe('');
+      expect(useDataStore.getState().filterState.estadoSemaforo).toBe('todos');
     });
-    expect(screen.queryByTestId('dv-tag-proceso')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dv-tag-search')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dv-tag-estado-semaforo')).not.toBeInTheDocument();
   });
 
   it('búsqueda debounced 300ms sobre campos: nombre, cuenta, radicado, proceso, cédula, correo', async () => {
@@ -244,9 +254,13 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     fireEvent.click(firstRowCb);
     expect(useDataStore.getState().selectedRows.has('row_0_test')).toBe(true);
     expect(screen.getByTestId('dv-selected-count')).toHaveTextContent(/1 registro seleccionado/);
-    // apply filter that hides selected row
-    fireEvent.change(screen.getByTestId('dv-filter-cuenta'), { target: { value: '1005' } });
-    await waitFor(() => expect(screen.getByTestId('dv-tag-cuenta')).toBeInTheDocument());
+    // apply filter that hides selected row (búsqueda general con debounce)
+    const search = screen.getByTestId('dv-search') as HTMLInputElement;
+    fireEvent.change(search, { target: { value: 'María López' } });
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+    await waitFor(() => expect(screen.getByTestId('dv-tag-search')).toBeInTheDocument());
     // selectedRows still has row_0 even though not visible
     expect(useDataStore.getState().selectedRows.has('row_0_test')).toBe(true);
     // clear filter, row still selected and highlighted
@@ -348,36 +362,32 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     expect(useNavigationStore.getState().currentStep).toBe('plantillas');
   });
 
-  it('filtra registros por rango de fechas (Fecha inicial y Fecha final) y combinables', async () => {
+  it('filtra registros por Estado y combinable con búsqueda general', async () => {
     const recs = [
       makeRecord({
         rowId: 'row_1',
-        fechaSolicitud: '01/08/2026',
-        procesoCreado: 'Sí',
+        nombreSolicitante: 'Ana Torres',
         estadoSemaforo: 'verde',
         numeroProceso: 'PROC-1',
         cantidadProcesos: 1,
       }),
       makeRecord({
         rowId: 'row_2',
-        fechaSolicitud: '15/08/2026',
-        procesoCreado: 'No',
+        nombreSolicitante: 'Luis Gómez',
         estadoSemaforo: 'rojo',
         numeroProceso: '',
         cantidadProcesos: 0,
       }),
       makeRecord({
         rowId: 'row_3',
-        fechaSolicitud: '28/08/2026',
-        procesoCreado: 'Sí',
+        nombreSolicitante: 'Ana Ruiz',
         estadoSemaforo: 'violeta',
         numeroProceso: 'PROC-3',
         cantidadProcesos: 2,
       }),
       makeRecord({
         rowId: 'row_4',
-        fechaSolicitud: '05/09/2026',
-        procesoCreado: 'Sí',
+        nombreSolicitante: 'Pedro Díaz',
         estadoSemaforo: 'verde',
         numeroProceso: 'PROC-4',
         cantidadProcesos: 1,
@@ -386,24 +396,25 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     useDataStore.getState().setRecords(recs);
     render(<DataView />);
 
-    // Rango de fechas 01/08/2026 al 28/08/2026
-    const fechaDesde = screen.getByTestId('dv-filter-fecha-desde');
-    const fechaHasta = screen.getByTestId('dv-filter-fecha-hasta');
-
-    fireEvent.change(fechaDesde, { target: { value: '2026-08-01' } });
-    fireEvent.change(fechaHasta, { target: { value: '2026-08-28' } });
-
-    // rows 1, 2, 3 should match; row 4 (September) excluded
-    expect(screen.getByTestId('dv-row-row_1')).toBeInTheDocument();
-    expect(screen.getByTestId('dv-row-row_2')).toBeInTheDocument();
-    expect(screen.getByTestId('dv-row-row_3')).toBeInTheDocument();
-    expect(screen.queryByTestId('dv-row-row_4')).not.toBeInTheDocument();
-
-    // Combinar con Estado Semáforo = 'verde'
+    // Estado = verde -> filas 1 y 4
     const selectEstado = screen.getByTestId('dv-filter-estado-semaforo');
     fireEvent.change(selectEstado, { target: { value: 'verde' } });
+
     expect(screen.getByTestId('dv-row-row_1')).toBeInTheDocument();
+    expect(screen.getByTestId('dv-row-row_4')).toBeInTheDocument();
+    expect(screen.queryByTestId('dv-row-row_2')).not.toBeInTheDocument();
     expect(screen.queryByTestId('dv-row-row_3')).not.toBeInTheDocument();
+    expect(screen.getByTestId('dv-tag-estado-semaforo')).toBeInTheDocument();
+
+    // Combinar con búsqueda general = 'Ana' -> solo fila 1
+    const search = screen.getByTestId('dv-search') as HTMLInputElement;
+    fireEvent.change(search, { target: { value: 'Ana' } });
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+    await waitFor(() => expect(useDataStore.getState().filterState.search).toBe('Ana'));
+    expect(screen.getByTestId('dv-row-row_1')).toBeInTheDocument();
+    expect(screen.queryByTestId('dv-row-row_4')).not.toBeInTheDocument();
   });
 
   it('useSelection hook: toggleRow, togglePage, clearSelection usan Set<string>', async () => {

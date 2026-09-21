@@ -20,7 +20,7 @@ describe('App routing currentStep → view render', () => {
   it('renderiza HomeView en inicio (hero + Comenzar Flujo)', () => {
     render(<App />);
     expect(screen.getByTestId('home-view')).toBeInTheDocument();
-    expect(screen.getByTestId('home-title')).toHaveTextContent('Generación documental');
+    expect(screen.getByTestId('home-title')).toHaveTextContent('Asistente Documental');
     expect(screen.getByTestId('home-cta')).toBeInTheDocument();
     expect(screen.getByText('GENERADOR DE PLANTILLAS')).toBeInTheDocument();
     expect(screen.getByTestId('energy-illustration')).toBeInTheDocument();
@@ -51,9 +51,7 @@ describe('App routing currentStep → view render', () => {
     // inicio pending initially (not completed yet)
     // fill form and save to complete perfil
     const nameInput = screen.getByTestId('profile-name') as HTMLInputElement;
-    const emailInput = screen.getByTestId('profile-email') as HTMLInputElement;
     fireEvent.change(nameInput, { target: { value: 'Jaime Rizo' } });
-    fireEvent.change(emailInput, { target: { value: 'jaime@essa.com.co' } });
     fireEvent.click(screen.getByTestId('profile-save'));
     // after save navigates to configuracion
     expect(await screen.findByTestId('config-view')).toBeInTheDocument();

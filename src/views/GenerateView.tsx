@@ -419,7 +419,10 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             position: profile.position,
             email: profile.email,
           });
-          generatedBlob = await generateDocx(file, templateData, { signatureBlob });
+          generatedBlob = await generateDocx(file, templateData, {
+            signatureBlob,
+            signatureScale: profile.signatureScale ?? 100,
+          });
         } else {
           const templateData = buildTemplateData(activeRecord, profile);
           generatedBlob = await generateDocx(file, templateData);

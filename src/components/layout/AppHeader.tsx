@@ -52,18 +52,16 @@ export function AppHeader({ activeKey, onNav }: Props) {
       <style>{headerStyles}</style>
       <header className="app-header">
         <div className="app-header-inner">
-          {/* Logo + Brand */}
+          {/* Logo + Brand — un solo logo ESSA */}
           <div className="app-header-brand">
             <div className="app-header-logo">
               <img
-                src={`${import.meta.env.BASE_URL}Logo 3.png`}
+                src={`${import.meta.env.BASE_URL}logo-essa.svg`}
                 alt="ESSA Electrificadora de Santander"
               />
             </div>
             <div className="app-header-brand-text">
-              <span className="app-header-brand-name">ESSA</span>
-              <span className="app-header-brand-sep">·</span>
-              <span className="app-header-brand-sub">Generador Documental</span>
+              <span className="app-header-brand-sub">Asistente Documental</span>
             </div>
           </div>
 
@@ -152,24 +150,28 @@ const headerStyles = `
     flex-shrink: 0;
   }
   .app-header-logo {
-    width: 36px;
     height: 36px;
-    border-radius: 10px;
-    overflow: hidden;
+    width: auto;
+    border-radius: 0;
+    overflow: visible;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--essa-primary-50) 0%, #dbeafe 100%);
-    box-shadow: 0 2px 6px rgba(0,75,147,0.12);
-    transition: transform 200ms var(--ease), box-shadow 200ms var(--ease);
+    background: transparent;
+    box-shadow: none;
+    transition: transform 200ms var(--ease);
+    flex-shrink: 0;
   }
   .app-header-logo:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0,75,147,0.18);
+    transform: scale(1.03);
+    box-shadow: none;
   }
   .app-header-logo img {
-    height: 28px;
+    height: 32px;
     width: auto;
+    max-width: 190px;
+    object-fit: contain;
+    display: block;
   }
   .app-header-brand-text {
     display: flex;

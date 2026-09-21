@@ -6,12 +6,14 @@ import { test, expect } from '@playwright/test';
  * Ejecutar: npx playwright test --project=chromium
  */
 test.describe('ESSA flujo completo M2→M6', () => {
-  test('flujo inicio → perfil → configuracion → datos → plantillas → generacion', async ({ page }) => {
+  test('flujo inicio → perfil → configuracion → datos → plantillas → generacion', async ({
+    page,
+  }) => {
     await page.goto('http://localhost:5173');
 
     // M1 inicio: hero + CTA
     await expect(page.getByTestId('home-view')).toBeVisible();
-    await expect(page.getByTestId('home-title')).toContainText('Generación documental');
+    await expect(page.getByTestId('home-title')).toContainText('Asistente Documental');
     await expect(page.getByTestId('home-cta')).toBeVisible();
     await expect(page.getByTestId('energy-illustration')).toBeVisible();
     await expect(page.getByTestId('feature-card-rápido')).toBeVisible();
@@ -25,7 +27,6 @@ test.describe('ESSA flujo completo M2→M6', () => {
 
     // Guardar perfil
     await page.getByTestId('profile-name').fill('Jaime Arley Rizo Morales');
-    await page.getByTestId('profile-email').fill('jaime@essa.com.co');
     await page.getByTestId('profile-save').click();
     await expect(page.getByTestId('config-view')).toBeVisible();
 
@@ -65,7 +66,10 @@ test.describe('ESSA flujo completo M2→M6', () => {
 
     // Verificar pen colors y aria-labels
     await expect(page.getByTestId('pen-color-#002f6c')).toBeVisible();
-    await expect(page.getByTestId('signature-clear')).toHaveAttribute('aria-label', 'Limpiar trazo');
+    await expect(page.getByTestId('signature-clear')).toHaveAttribute(
+      'aria-label',
+      'Limpiar trazo'
+    );
     await expect(page.getByTestId('signature-save')).toHaveAttribute('aria-label', 'Guardar firma');
 
     // Cerrar modal

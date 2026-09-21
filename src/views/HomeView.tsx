@@ -173,7 +173,7 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
               letterSpacing: '-0.025em',
             }}
           >
-            Generación documental <span style={{ color: '#004B93' }}>con Word</span>
+            Asistente <span style={{ color: '#004B93' }}>Documental</span>
           </h1>
           <p
             data-testid="home-description"

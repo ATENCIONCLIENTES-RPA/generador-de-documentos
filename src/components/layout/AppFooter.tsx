@@ -5,7 +5,7 @@ export function AppFooter() {
       <footer className="app-footer">
         <div className="app-footer-inner">
           <span className="app-footer-copyright">
-            © {new Date().getFullYear()} ESSA E.S.P. — Generador documental
+            © {new Date().getFullYear()} ESSA E.S.P. — Asistente Documental
           </span>
           <span className="app-footer-rights">Todos los derechos reservados</span>
         </div>

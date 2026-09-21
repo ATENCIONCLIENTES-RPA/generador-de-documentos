@@ -202,6 +202,7 @@ export function useGeneration(options?: UseGenerationOptions): UseGenerationRetu
               });
               blob = await generateDocx(tplFile as unknown as File, templateData, {
                 signatureBlob,
+                signatureScale: profile.signatureScale ?? 100,
               });
             } else {
               blob = await generateDocx(

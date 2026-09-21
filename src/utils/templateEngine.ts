@@ -310,6 +310,106 @@ export function replaceTemplateVariables(
     .replace(/\[FIRMA_DOCUMENTO\]/g, '');
 }
 
+// Tamaño predeterminado de la firma: 5×2 cm ≈ 189×76 px @96dpi.
+// Se usa 190×75 para coincidir con DrawingML 1800000×720000 EMUs (9525 por px).
+export const SIGNATURE_BASE_WIDTH_PX = 190;
+export const SIGNATURE_BASE_HEIGHT_PX = 75;
+export const SIGNATURE_SCALE_MIN = 50;
+export const SIGNATURE_SCALE_MAX = 200;
+
+export function clampSignatureScale(value: unknown): number {
+  const n = typeof value === 'string' ? Number(value) : (value as number);
+  if (!Number.isFinite(n)) return 100;
+  return Math.min(SIGNATURE_SCALE_MAX, Math.max(SIGNATURE_SCALE_MIN, Math.round(n)));
+}
+
+/** Lee las dimensiones intrínsecas de la imagen para no deformarla. Null si no se puede. */
+async function getIntrinsicImageSize(
+  imageBuffer: ArrayBuffer,
+  mime: MimeType
+): Promise<{ w: number; h: number } | null> {
+  try {
+    const bytes = new Uint8Array(imageBuffer);
+    // PNG: IHDR (ancho/alto big-endian en bytes 16-23). JPG/GIF/BMP/SVG se resuelven abajo.
+    if (
+      bytes.length >= 24 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47
+    ) {
+      const w = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+      const h = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+      if (w > 0 && h > 0) return { w, h };
+    }
+    // createImageBitmap (navegador moderno): respeta orientación y todos los formatos.
+    const g = globalThis as unknown as {
+      createImageBitmap?: (
+        b: Blob
+      ) => Promise<{ width: number; height: number; close?: () => void }>;
+    };
+    if (typeof g.createImageBitmap === 'function') {
+      try {
+        const bmp = await g.createImageBitmap(new Blob([imageBuffer], { type: String(mime) }));
+        const size = { w: bmp.width, h: bmp.height };
+        bmp.close?.();
+        if (size.w > 0 && size.h > 0) return size;
+      } catch {
+        // cae al método Image
+      }
+    }
+    // Elemento Image (navegador / jsdom con recursos). Con timeout para no bloquear.
+    if (typeof Image !== 'undefined') {
+      const size = await new Promise<{ w: number; h: number } | null>((resolve) => {
+        const timer = setTimeout(() => resolve(null), 1500);
+        try {
+          const img = new Image();
+          const url = URL.createObjectURL(new Blob([imageBuffer], { type: String(mime) }));
+          img.onload = () => {
+            clearTimeout(timer);
+            URL.revokeObjectURL(url);
+            if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+              resolve({ w: img.naturalWidth, h: img.naturalHeight });
+            } else resolve(null);
+          };
+          img.onerror = () => {
+            clearTimeout(timer);
+            URL.revokeObjectURL(url);
+            resolve(null);
+          };
+          img.src = url;
+        } catch {
+          clearTimeout(timer);
+          resolve(null);
+        }
+      });
+      if (size) return size;
+    }
+  } catch {
+    // ignorar: se usa la proporción base
+  }
+  return null;
+}
+
+/** Encaja la firma en la caja escalada manteniendo su proporción (sin distorsión). */
+export function fitSignatureSize(
+  naturalW: number,
+  naturalH: number,
+  scalePercent: number
+): { width: number; height: number } {
+  const scale = clampSignatureScale(scalePercent) / 100;
+  const maxW = SIGNATURE_BASE_WIDTH_PX * scale;
+  const maxH = SIGNATURE_BASE_HEIGHT_PX * scale;
+  if (!(naturalW > 0) || !(naturalH > 0)) {
+    return { width: Math.round(maxW), height: Math.round(maxH) };
+  }
+  const factor = Math.min(maxW / naturalW, maxH / naturalH);
+  return {
+    width: Math.max(1, Math.round(naturalW * factor)),
+    height: Math.max(1, Math.round(naturalH * factor)),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Blob helpers
 // ---------------------------------------------------------------------------
@@ -356,16 +456,17 @@ function isProfileLike(v: unknown): v is Profile {
 export async function generateDocx(
   templateFile: File,
   data: TemplateData | EssaRecord,
-  opts?: { signatureBlob?: Blob } | Profile | null
+  opts?: { signatureBlob?: Blob; signatureScale?: number } | Profile | null
 ): Promise<Blob> {
   if (!templateFile) throw new Error('templateFile is required');
 
   // Resolve overloads:
   // - generateDocx(file, record, profile)
-  // - generateDocx(file, templateData, { signatureBlob })
+  // - generateDocx(file, templateData, { signatureBlob, signatureScale })
   // - generateDocx(file, templateData)
   let templateData: TemplateData;
   let signatureBlob: Blob | undefined;
+  let signatureScale = 100;
 
   if (
     opts &&
@@ -374,6 +475,7 @@ export async function generateDocx(
   ) {
     // second arg is EssaRecord, third is Profile
     templateData = buildTemplateData(data as EssaRecord, opts as Profile);
+    signatureScale = clampSignatureScale((opts as Profile).signatureScale ?? 100);
   } else {
     // data is already TemplateData (or EssaRecord treated as TemplateData)
     // If data looks like EssaRecord (has nombreSolicitante), convert via builder for safety,
@@ -392,6 +494,9 @@ export async function generateDocx(
       'signatureBlob' in (opts as unknown as globalThis.Record<string, unknown>)
     ) {
       signatureBlob = (opts as { signatureBlob?: Blob }).signatureBlob ?? undefined;
+      signatureScale = clampSignatureScale(
+        (opts as { signatureScale?: number }).signatureScale ?? 100
+      );
       // allow profile inside opts? not needed
     }
   }
@@ -402,10 +507,15 @@ export async function generateDocx(
       const imageBuffer = await blobToArrayBuffer(signatureBlob);
       const bytes = new Uint8Array(imageBuffer);
       const mime = detectMimeType(signatureBlob, bytes);
-      // easy-template-x image plugin expects width/height in pixels
-      // 5×2 cm ≈ 189×76 px @96dpi → use 190×75 to match DrawingML 1800000×720000 EMUs (9525 per px)
-      const widthPx = 190;
-      const heightPx = 75;
+      // easy-template-x image plugin expects width/height in pixels.
+      // Se encaja la imagen en la caja (base × escala) manteniendo su proporción
+      // para que no se distorsione ni en la vista previa ni en el Word final.
+      const intrinsic = await getIntrinsicImageSize(imageBuffer, mime);
+      const { width: widthPx, height: heightPx } = fitSignatureSize(
+        intrinsic?.w ?? SIGNATURE_BASE_WIDTH_PX,
+        intrinsic?.h ?? SIGNATURE_BASE_HEIGHT_PX,
+        signatureScale
+      );
       const source: ArrayBuffer = imageBuffer;
       (templateData as globalThis.Record<string, unknown>)['FIRMA_DOCUMENTO'] = {
         _type: 'image',

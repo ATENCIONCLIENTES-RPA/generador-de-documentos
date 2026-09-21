@@ -11,7 +11,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import type { Record as EssaRecord } from '@/types/record';
-import { calculatePqrBusinessDays, parseDateOnly, formatDateToSpanish } from '@/utils/businessDays';
+import { calculatePqrBusinessDays, formatDateToSpanish } from '@/utils/businessDays';
 import { getEstadoSemaforo, getExcelCellValue } from '@/utils/excelParser';
 
 const PAGE_SIZE = 10;
@@ -248,7 +248,7 @@ export function DataView() {
   const [jumpPage, setJumpPage] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [activeRecord, setActiveRecord] = useState<EssaRecord | null>(null);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
   // ── Enviar a Radicar modal state (simplificado: solo Referencia) ──
   const [radicarOpen, setRadicarOpen] = useState(false);
@@ -297,74 +297,9 @@ export function DataView() {
         return hay.includes(s);
       });
     }
-    if (filterState.cuenta.trim()) {
-      const q = filterState.cuenta.trim().toLowerCase();
-      out = out.filter((r) => {
-        const v = String(
-          r.numeroCuenta ||
-            r.cuenta ||
-            (r as Record<string, unknown>)['NUMERO_CUENTA'] ||
-            (r as Record<string, unknown>)['NUMERO CUENTA'] ||
-            (r as Record<string, unknown>)['CUENTA'] ||
-            ''
-        ).toLowerCase();
-        return v.includes(q);
-      });
-    }
-    if (filterState.proceso.trim()) {
-      const q = filterState.proceso.trim().toLowerCase();
-      out = out.filter((r) => {
-        const v = String(
-          r.numeroProceso ||
-            (r as Record<string, unknown>)['NUMERO_PROCESO'] ||
-            (r as Record<string, unknown>)['NUMERO PROCESO'] ||
-            (r as Record<string, unknown>)['No. Proceso'] ||
-            ''
-        ).toLowerCase();
-        return v.includes(q);
-      });
-    }
-    if (filterState.radicado.trim()) {
-      const q = filterState.radicado.trim().toLowerCase();
-      out = out.filter((r) =>
-        String(r.radicadoEntrada ?? '')
-          .toLowerCase()
-          .includes(q)
-      );
-    }
     if (filterState.fechaSolicitud.trim()) {
       const q = filterState.fechaSolicitud.trim();
       out = out.filter((r) => String(r.fechaSolicitud ?? '').includes(q));
-    }
-
-    if (filterState.fechaDesde) {
-      const dDesde = parseDateOnly(filterState.fechaDesde);
-      if (dDesde) {
-        out = out.filter((r) => {
-          const rawDate =
-            r.fechaSolicitud ||
-            (r as Record<string, unknown>)['Fecha Radicación'] ||
-            (r as Record<string, unknown>)['Fecha  Radicacion'] ||
-            (r as Record<string, unknown>)['FECHA_RADICACION'];
-          const rDate = parseDateOnly(rawDate);
-          return rDate ? rDate.getTime() >= dDesde.getTime() : false;
-        });
-      }
-    }
-
-    if (filterState.fechaHasta) {
-      const dHasta = parseDateOnly(filterState.fechaHasta);
-      if (dHasta) {
-        out = out.filter((r) => {
-          const rawDate =
-            r.fechaSolicitud ||
-            (r as Record<string, unknown>)['Fecha Radicación'] ||
-            (r as Record<string, unknown>)['Fecha  Radicacion'] ||
-            (r as Record<string, unknown>)['FECHA_RADICACION'];
-          const rDate = parseDateOnly(rawDate);
-          return rDate ? rDate.getTime() <= dHasta.getTime() : false;
-        });
-      }
     }
 
     if (filterState.estadoSemaforo && filterState.estadoSemaforo !== 'todos') {
@@ -416,12 +351,7 @@ export function DataView() {
   }, [
     records,
     filterState.search,
-    filterState.cuenta,
-    filterState.proceso,
-    filterState.radicado,
     filterState.fechaSolicitud,
-    filterState.fechaDesde,
-    filterState.fechaHasta,
     filterState.estadoSemaforo,
     filterState.diasPqrFiltro,
     showOnlySelected,
@@ -449,12 +379,7 @@ export function DataView() {
 
   const activeFilterCount = [
     filterState.search.trim(),
-    filterState.cuenta.trim(),
-    filterState.proceso.trim(),
-    filterState.radicado.trim(),
     filterState.fechaSolicitud.trim(),
-    filterState.fechaDesde ? 'desde' : '',
-    filterState.fechaHasta ? 'hasta' : '',
     filterState.estadoSemaforo && filterState.estadoSemaforo !== 'todos' ? 'estadoSemaforo' : '',
     filterState.diasPqrFiltro && filterState.diasPqrFiltro !== 'todos' ? 'diasPqrFiltro' : '',
   ].filter(Boolean).length;
@@ -849,11 +774,37 @@ export function DataView() {
       {/* ═══════ FILTER PANEL ═══════ */}
       <div className="dv-filter-panel" data-testid="dv-toolbar">
         <button
-          className="dv-filter-toggle"
+          className={`dv-filter-toggle ${activeFilterCount > 0 ? 'dv-filter-toggle--active' : ''}`}
           onClick={() => setFiltersOpen((v) => !v)}
           aria-expanded={filtersOpen}
+          aria-label={`Filtros de búsqueda${activeFilterCount > 0 ? `, ${activeFilterCount} activos` : ''}`}
         >
           <div className="dv-filter-toggle-left">
+            <span className="dv-filter-icon-badge" aria-hidden>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+            </span>
+            <span className="dv-filter-title-wrap">
+              <span className="dv-filter-title">
+                Filtros de búsqueda
+                {activeFilterCount > 0 && (
+                  <span className="dv-filter-count">{activeFilterCount}</span>
+                )}
+              </span>
+              <span className="dv-filter-hint">Búsqueda general y estado</span>
+            </span>
+          </div>
+          <span className="dv-filter-chevron" aria-hidden>
             <svg
               width="16"
               height="16"
@@ -863,164 +814,88 @@ export function DataView() {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
+              style={{
+                transform: filtersOpen ? 'rotate(180deg)' : 'rotate(0)',
+                transition: 'transform 250ms var(--ease)',
+              }}
             >
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              <polyline points="6 9 12 15 18 9" />
             </svg>
-            Filtros de búsqueda
-            {activeFilterCount > 0 && <span className="dv-filter-count">{activeFilterCount}</span>}
-          </div>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{
-              transform: filtersOpen ? 'rotate(180deg)' : 'rotate(0)',
-              transition: 'transform 250ms var(--ease)',
-            }}
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          </span>
         </button>
 
         <div className={`dv-filter-body ${filtersOpen ? 'dv-filter-body--open' : ''}`}>
-          {/* ── TEXT FILTERS ── */}
-          <div className="dv-filter-card dv-filter-card--search">
-            <div className="dv-filter-card-header">
-              <span>Buscar en todos los campos</span>
-            </div>
-            <Input
-              placeholder="Nombre, cuenta, radicado, proceso, cédula o correo"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              aria-label="Búsqueda global"
-              data-testid="dv-search"
-            />
-          </div>
-          <div className="dv-filter-card dv-filter-card--referencia">
-            <div className="dv-filter-card-header">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--essa-primary)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-              <span>Referencia</span>
-            </div>
-            <div className="dv-filter-fields-row dv-fields--ref">
-              <Input
-                placeholder="Cuenta"
-                value={filterState.cuenta}
-                onChange={(e) => setFilter({ cuenta: e.target.value })}
-                aria-label="Filtro cuenta"
-                data-testid="dv-filter-cuenta"
-              />
-              <Input
-                placeholder="Proceso"
-                value={filterState.proceso}
-                onChange={(e) => setFilter({ proceso: e.target.value })}
-                aria-label="Filtro proceso"
-                data-testid="dv-filter-proceso"
-              />
-              <Input
-                placeholder="Radicado"
-                value={filterState.radicado}
-                onChange={(e) => setFilter({ radicado: e.target.value })}
-                aria-label="Filtro radicado"
-                data-testid="dv-filter-radicado"
-              />
-            </div>
-          </div>
-
-          {/* ── DATE & STATUS FILTERS ── */}
-          <div className="dv-filter-card dv-filter-card--fecha">
-            <div className="dv-filter-card-header">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--essa-primary)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              <span>Fecha y estado</span>
-            </div>
-            <div className="dv-filter-fields-row dv-fields--fecha">
-              <div className="dv-filter-date-group">
-                <label className="dv-filter-label">Desde</label>
-                <input
-                  type="date"
-                  className="dv-date-input"
-                  value={filterState.fechaDesde}
-                  onChange={(e) => setFilter({ fechaDesde: e.target.value })}
-                  aria-label="Fecha inicial"
-                  data-testid="dv-filter-fecha-desde"
-                />
+          <div className="dv-filter-grid">
+            {/* ── TEXT FILTERS ── */}
+            <div className="dv-filter-card dv-filter-card--search">
+              <div className="dv-filter-card-header">
+                <span>Buscar en todos los campos</span>
               </div>
-              <div className="dv-filter-date-group">
-                <label className="dv-filter-label">Hasta</label>
-                <input
-                  type="date"
-                  className="dv-date-input"
-                  value={filterState.fechaHasta}
-                  onChange={(e) => setFilter({ fechaHasta: e.target.value })}
-                  aria-label="Fecha final"
-                  data-testid="dv-filter-fecha-hasta"
-                />
-              </div>
-              <div className="dv-filter-select-group">
-                <label className="dv-filter-label">Estado</label>
-                <select
-                  className="dv-select"
-                  value={filterState.estadoSemaforo || 'todos'}
-                  onChange={(e) => setFilter({ estadoSemaforo: e.target.value })}
-                  aria-label="Filtro Estado Semáforo"
-                  data-testid="dv-filter-estado-semaforo"
+              <Input
+                placeholder="Nombre, cuenta, radicado, proceso, cédula o correo"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                aria-label="Búsqueda global"
+                data-testid="dv-search"
+              />
+            </div>
+            {/* ── STATUS FILTER ── */}
+            <div className="dv-filter-card dv-filter-card--fecha">
+              <div className="dv-filter-card-header">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--essa-primary)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  <option value="todos">Todos los estados</option>
-                  <option value="verde">Completo</option>
-                  <option value="violeta">Tiene revisión</option>
-                  <option value="tiene_insumos">Tiene Insumos</option>
-                  <option value="no_tiene_insumos">No tiene insumos</option>
-                  <option value="rojo">Sin proceso</option>
-                </select>
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                <span>Estado</span>
               </div>
-              {hasMercurio && (
+              <div className="dv-filter-fields-row dv-fields--fecha">
                 <div className="dv-filter-select-group">
-                  <label className="dv-filter-label">Días PQR</label>
+                  <label className="dv-filter-label">Estado</label>
                   <select
                     className="dv-select"
-                    value={filterState.diasPqrFiltro || 'todos'}
-                    onChange={(e) => setFilter({ diasPqrFiltro: e.target.value })}
-                    aria-label="Filtro Días PQR"
-                    data-testid="dv-filter-dias-pqr"
+                    value={filterState.estadoSemaforo || 'todos'}
+                    onChange={(e) => setFilter({ estadoSemaforo: e.target.value })}
+                    aria-label="Filtro Estado Semáforo"
+                    data-testid="dv-filter-estado-semaforo"
                   >
-                    <option value="todos">Todos</option>
-                    <option value="menor5">&lt; 5 días hábiles</option>
-                    <option value="urgente">Urgente (≤ 3 días)</option>
-                    <option value="vence_hoy">Vence hoy</option>
-                    <option value="vencido">Vencidos (&lt; 0 días)</option>
+                    <option value="todos">Todos los estados</option>
+                    <option value="verde">Completo</option>
+                    <option value="violeta">Tiene revisión</option>
+                    <option value="tiene_insumos">Tiene Insumos</option>
+                    <option value="no_tiene_insumos">No tiene insumos</option>
+                    <option value="rojo">Sin proceso</option>
                   </select>
                 </div>
-              )}
+                {hasMercurio && (
+                  <div className="dv-filter-select-group">
+                    <label className="dv-filter-label">Días PQR</label>
+                    <select
+                      className="dv-select"
+                      value={filterState.diasPqrFiltro || 'todos'}
+                      onChange={(e) => setFilter({ diasPqrFiltro: e.target.value })}
+                      aria-label="Filtro Días PQR"
+                      data-testid="dv-filter-dias-pqr"
+                    >
+                      <option value="todos">Todos</option>
+                      <option value="menor5">&lt; 5 días hábiles</option>
+                      <option value="urgente">Urgente (≤ 3 días)</option>
+                      <option value="vence_hoy">Vence hoy</option>
+                      <option value="vencido">Vencidos (&lt; 0 días)</option>
+                    </select>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1047,52 +922,6 @@ export function DataView() {
                       setFilter({ search: '' });
                     }}
                     aria-label="Quitar búsqueda"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filterState.cuenta.trim() && (
-                <span className="dv-tag" data-testid="dv-tag-cuenta">
-                  Cuenta: {filterState.cuenta.trim()}
-                  <button onClick={() => setFilter({ cuenta: '' })} aria-label="Quitar cuenta">
-                    ×
-                  </button>
-                </span>
-              )}
-              {filterState.proceso.trim() && (
-                <span className="dv-tag" data-testid="dv-tag-proceso">
-                  Proceso: {filterState.proceso.trim()}
-                  <button onClick={() => setFilter({ proceso: '' })} aria-label="Quitar proceso">
-                    ×
-                  </button>
-                </span>
-              )}
-              {filterState.radicado.trim() && (
-                <span className="dv-tag" data-testid="dv-tag-radicado">
-                  Radicado: {filterState.radicado.trim()}
-                  <button onClick={() => setFilter({ radicado: '' })} aria-label="Quitar radicado">
-                    ×
-                  </button>
-                </span>
-              )}
-              {filterState.fechaDesde && (
-                <span className="dv-tag" data-testid="dv-tag-fecha-desde">
-                  Desde: {filterState.fechaDesde}
-                  <button
-                    onClick={() => setFilter({ fechaDesde: '' })}
-                    aria-label="Quitar fecha inicial"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filterState.fechaHasta && (
-                <span className="dv-tag" data-testid="dv-tag-fecha-hasta">
-                  Hasta: {filterState.fechaHasta}
-                  <button
-                    onClick={() => setFilter({ fechaHasta: '' })}
-                    aria-label="Quitar fecha final"
                   >
                     ×
                   </button>
@@ -2037,34 +1866,93 @@ const dvStyles = `
   /* ── Filter Panel ── */
   .dv-filter-panel {
     background: var(--bg-card);
-    border: 1px solid var(--border);
+    border: 1px solid #bfdbfe;
     border-radius: var(--radius-lg);
     overflow: hidden;
-    box-shadow: var(--shadow-xs);
+    box-shadow: 0 4px 16px rgba(0, 75, 147, 0.10);
     animation: dv-fadeInUp 400ms var(--ease-out) both;
+  }
+  .dv-filter-panel::before {
+    content: '';
+    display: block;
+    height: 4px;
+    background: linear-gradient(90deg, var(--essa-primary), #3b82f6 55%, var(--essa-accent));
   }
   .dv-filter-toggle {
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 20px;
+    gap: 12px;
+    padding: 12px 16px;
     border: none;
-    background: transparent;
+    background: linear-gradient(135deg, #eff6ff 0%, #ffffff 70%);
     cursor: pointer;
     font-family: inherit;
     color: var(--neutral-700);
     transition: background 150ms var(--ease);
   }
   .dv-filter-toggle:hover {
-    background: var(--neutral-50);
+    background: linear-gradient(135deg, #dbeafe 0%, #f0f7ff 70%);
+  }
+  .dv-filter-toggle--active {
+    background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 70%);
+  }
+  .dv-filter-toggle:focus-visible {
+    outline: 2px solid var(--essa-primary);
+    outline-offset: -2px;
   }
   .dv-filter-toggle-left {
     display: flex;
     align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  .dv-filter-icon-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: linear-gradient(135deg, var(--essa-primary) 0%, #3b82f6 100%);
+    box-shadow: 0 2px 8px rgba(0, 75, 147, 0.28);
+  }
+  .dv-filter-title-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    min-width: 0;
+  }
+  .dv-filter-title {
+    display: inline-flex;
+    align-items: center;
     gap: 8px;
-    font-size: 0.8125rem;
-    font-weight: 700;
+    font-size: 0.9375rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--neutral-900);
+  }
+  .dv-filter-hint {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--neutral-500);
+  }
+  .dv-filter-chevron {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--essa-primary);
+    background: #fff;
+    border: 1px solid #bfdbfe;
+    box-shadow: 0 1px 3px rgba(0, 75, 147, 0.10);
   }
   .dv-filter-count {
     display: inline-flex;
@@ -2083,19 +1971,34 @@ const dvStyles = `
     max-height: 0;
     overflow: hidden;
     transition: max-height 350ms var(--ease), padding 350ms var(--ease);
-    padding: 0 20px;
+    padding: 0 16px;
   }
   .dv-filter-body--open {
     max-height: 900px;
-    padding: 0 20px 16px;
+    padding: 0 16px 12px;
+  }
+
+  /* ── Grid compacto: búsqueda (2fr) + estado (1fr) en una sola fila ── */
+  .dv-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: stretch;
+    margin-bottom: 8px;
+  }
+  .dv-filter-grid .dv-filter-card {
+    margin-bottom: 0;
+  }
+  @media (max-width: 860px) {
+    .dv-filter-grid { grid-template-columns: 1fr; }
   }
 
   .dv-filter-card {
     background: var(--neutral-50);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: 14px;
-    margin-bottom: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
     transition: border-color 200ms var(--ease), box-shadow 200ms var(--ease);
   }
   .dv-filter-card:hover {
@@ -2107,7 +2010,8 @@ const dvStyles = `
   }
   .dv-filter-card--search {
     background: linear-gradient(135deg, var(--essa-primary-50) 0%, #f0f7ff 100%);
-    border-color: #bfdbfe;
+    border-color: #93c5fd;
+    box-shadow: 0 2px 8px rgba(0, 75, 147, 0.10);
   }
   .dv-filter-card-header {
     display: flex;
@@ -2118,16 +2022,16 @@ const dvStyles = `
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--essa-primary);
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
   .dv-filter-fields-row {
     display: grid;
-    gap: 12px;
+    gap: 10px;
     align-items: end;
   }
   .dv-fields--ref { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .dv-fields--fecha { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  @media (max-width: 1100px) { .dv-fields--fecha { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .dv-fields--fecha { grid-template-columns: minmax(0, 1fr); }
+  @media (max-width: 1100px) { .dv-fields--fecha { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 640px) { .dv-fields--ref { grid-template-columns: 1fr; } .dv-fields--fecha { grid-template-columns: 1fr; } }
   .dv-filter-fields-row > * { min-width: 0; width: 100%; }
   .dv-filter-fields-row label { width: 100%; }

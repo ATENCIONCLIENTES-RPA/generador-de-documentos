@@ -6,6 +6,8 @@ export interface ProfileState {
   position: string;
   email: string;
   signatureUrl: string | null;
+  /** Escala de la firma en % respecto al tamaño predeterminado (100 = 5×2 cm). */
+  signatureScale?: number;
 }
 
 interface ProfileStore {
@@ -21,6 +23,7 @@ const defaultProfile: ProfileState = {
   position: '',
   email: '',
   signatureUrl: null,
+  signatureScale: 100,
 };
 
 export const useProfileStore = create<ProfileStore>()(
