@@ -582,7 +582,7 @@ export function ProfileView(): JSX.Element {
                     </div>
                     <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 6 }}>
                       100% = tamaño predeterminado (5 × 2 cm). Se mantiene la proporción en la vista
-                      previa del Módulo 5 y en el documento final.
+                      previa del Módulo 4 y en el documento final.
                     </div>
                   </div>
                 )}

@@ -1,14 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * E2E crítico M2 → M6 (inicio → generación)
+ * E2E crítico (inicio → generación)
  * Requiere: npm run dev en http://localhost:5173
  * Ejecutar: npx playwright test --project=chromium
  */
-test.describe('ESSA flujo completo M2→M6', () => {
-  test('flujo inicio → perfil → configuracion → datos → plantillas → generacion', async ({
-    page,
-  }) => {
+test.describe('ESSA flujo completo', () => {
+  test('flujo inicio → perfil → configuracion → datos → generacion', async ({ page }) => {
     await page.goto('http://localhost:5173');
 
     // M1 inicio: hero + CTA
@@ -36,17 +34,13 @@ test.describe('ESSA flujo completo M2→M6', () => {
     await expect(page.getByTestId('m2-progress-track')).toBeVisible();
     await expect(page.getByTestId('m2-continuar')).toBeDisabled();
 
-    // Navegar por header a datos (vacío) y plantillas
+    // Navegar por header a datos (vacío) y generación (Módulo 4 unificado)
     await page.getByTestId('header-nav-datos').click();
     await expect(page.getByTestId('data-view')).toBeVisible();
 
-    await page.getByTestId('header-nav-plantillas').click();
-    await expect(page.getByTestId('templates-view')).toBeVisible();
-
     await page.getByTestId('header-nav-generacion').click();
     await expect(page.getByTestId('generate-view')).toBeVisible();
-    await expect(page.getByTestId('gv-status-bar')).toBeVisible();
-    await expect(page.getByTestId('gv-status-bar')).toContainText('documentos:');
+    await expect(page.getByTestId('dg-layout')).toBeVisible();
 
     // Volver a inicio via header y verificar stepper oculto en inicio
     await page.getByTestId('header-nav-inicio').click();
@@ -83,7 +77,6 @@ test.describe('ESSA flujo completo M2→M6', () => {
       ['perfil', 'profile-view'],
       ['configuracion', 'config-view'],
       ['datos', 'data-view'],
-      ['plantillas', 'templates-view'],
       ['generacion', 'generate-view'],
     ];
     for (const [nav, view] of steps) {

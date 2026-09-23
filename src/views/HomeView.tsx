@@ -322,8 +322,8 @@ export function HomeView({ onNavigate }: HomeViewProps): JSX.Element {
             </div>
             <div style={{ fontSize: '0.8rem', color: '#1e40af', lineHeight: 1.55 }}>
               1. Configura tu perfil y firma digital → 2. Carga el archivo Excel con datos de
-              clientes → 3. Revisa y selecciona registros → 4. Elige la plantilla Word → 5.
-              Previsualiza y genera los documentos finales en formato DOCX.
+              clientes → 3. Revisa y selecciona el registro → 4. Elige la plantilla, previsualiza y
+              genera el documento final en formato DOCX.
             </div>
           </div>
         </div>

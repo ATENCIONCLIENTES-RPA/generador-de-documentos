@@ -81,7 +81,7 @@ describe('App routing currentStep → view render', () => {
     expect(screen.getByTestId('feature-card-en la nube')).toBeInTheDocument();
     expect(screen.getByTestId('home-como-funciona')).toBeInTheDocument();
     expect(screen.getByTestId('home-como-funciona')).toHaveTextContent('1. Configura tu perfil');
-    expect(screen.getByTestId('home-como-funciona')).toHaveTextContent('5. Previsualiza');
+    expect(screen.getByTestId('home-como-funciona')).toHaveTextContent('4. Elige la plantilla');
   });
 
   it('focus-visible y aria-labels en elementos interactivos', () => {
@@ -98,8 +98,6 @@ describe('App routing currentStep → view render', () => {
     nav.goTo('datos');
     // DataView will render empty state if no records
     expect(await screen.findByTestId('data-view')).toBeInTheDocument();
-    nav.goTo('plantillas');
-    expect(await screen.findByTestId('templates-view')).toBeInTheDocument();
     nav.goTo('generacion');
     expect(await screen.findByTestId('generate-view')).toBeInTheDocument();
     nav.goTo('inicio');

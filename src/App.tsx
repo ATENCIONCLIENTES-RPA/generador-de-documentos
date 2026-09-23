@@ -7,26 +7,17 @@ import HomeView from '@/views/HomeView';
 import ProfileView from '@/views/ProfileView';
 import ConfigView from '@/views/ConfigView';
 import DataView from '@/views/DataView';
-import TemplatesView from '@/views/TemplatesView';
 import GenerateView from '@/views/GenerateView';
 import { useNavigationStore, type StepId } from '@/store/navigationStore';
 
-const STEP_ORDER: StepId[] = [
-  'inicio',
-  'perfil',
-  'configuracion',
-  'datos',
-  'plantillas',
-  'generacion',
-];
+const STEP_ORDER: StepId[] = ['inicio', 'perfil', 'configuracion', 'datos', 'generacion'];
 
 const STEP_LABELS: Record<StepId, string> = {
   inicio: 'Inicio',
   perfil: 'Perfil',
   configuracion: 'Configuración',
   datos: 'Datos',
-  plantillas: 'Plantillas',
-  generacion: 'Generar doc.',
+  generacion: 'Generación',
 };
 
 const STEP_ICONS: Record<StepId, string> = {
@@ -37,8 +28,6 @@ const STEP_ICONS: Record<StepId, string> = {
     'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
   datos:
     'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4',
-  plantillas:
-    'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
   generacion:
     'M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
 };
@@ -64,8 +53,6 @@ function ViewRouter({ currentStep }: { currentStep: StepId }): JSX.Element {
       return <ConfigView />;
     case 'datos':
       return <DataView />;
-    case 'plantillas':
-      return <TemplatesView />;
     case 'generacion':
       return <GenerateView />;
     default:

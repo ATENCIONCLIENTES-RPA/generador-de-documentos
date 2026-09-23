@@ -245,15 +245,31 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     );
   });
 
-  it('selección Set persists entre filtros (rowId, no índice)', async () => {
+  it('selección única: solo un registro a la vez, persiste entre filtros (rowId)', async () => {
     const recs = seedRecords(12);
     useDataStore.getState().setRecords(recs as unknown as EssaRecord[]);
     render(<DataView />);
-    // select first row via checkbox
+    // select first row via radio
     const firstRowCb = screen.getByTestId('dv-row-checkbox-row_0_test');
     fireEvent.click(firstRowCb);
     expect(useDataStore.getState().selectedRows.has('row_0_test')).toBe(true);
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
     expect(screen.getByTestId('dv-selected-count')).toHaveTextContent(/1 registro seleccionado/);
+    // selecting another row replaces the previous one (single selection)
+    const secondRowCb = screen.getByTestId('dv-row-checkbox-row_1_test');
+    fireEvent.click(secondRowCb);
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    expect(useDataStore.getState().selectedRows.has('row_1_test')).toBe(true);
+    expect(useDataStore.getState().selectedRows.has('row_0_test')).toBe(false);
+    // los radios nativos no se desmarcan al re-clic: la selección se mantiene
+    fireEvent.click(secondRowCb);
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    expect(useDataStore.getState().selectedRows.has('row_1_test')).toBe(true);
+    // limpiar y re-seleccionar para verificar persistencia entre filtros
+    fireEvent.click(screen.getByTestId('dv-limpiar-seleccion'));
+    expect(useDataStore.getState().selectedRows.size).toBe(0);
+    fireEvent.click(screen.getByTestId('dv-row-checkbox-row_0_test'));
+    expect(useDataStore.getState().selectedRows.has('row_0_test')).toBe(true);
     // apply filter that hides selected row (búsqueda general con debounce)
     const search = screen.getByTestId('dv-search') as HTMLInputElement;
     fireEvent.change(search, { target: { value: 'María López' } });
@@ -266,30 +282,35 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     // clear filter, row still selected and highlighted
     fireEvent.click(screen.getByTestId('dv-limpiar-filtros'));
     await waitFor(() => expect(screen.getByTestId('dv-row-checkbox-row_0_test')).toBeChecked());
-    // header checkbox indeterminate when some selected
-    // select more to fill page then check indeterminate logic via header
-    // select single row -> header should be indeterminate
-    const headerCb = screen.getByTestId('dv-header-checkbox') as HTMLInputElement;
-    expect(headerCb.indeterminate).toBe(true);
-    expect(headerCb.checked).toBe(false);
-    // togglePage should select all on page
-    fireEvent.click(headerCb);
-    expect(useDataStore.getState().selectedRows.size).toBe(10);
-    expect(headerCb.checked).toBe(true);
-    expect(headerCb.indeterminate).toBe(false);
-    // toggle again deselects page
-    fireEvent.click(headerCb);
-    expect(useDataStore.getState().selectedRows.size).toBe(0);
-    expect(headerCb.checked).toBe(false);
-    // Ver seleccionados toggle
-    fireEvent.click(screen.getByTestId('dv-row-checkbox-row_1_test'));
-    fireEvent.click(screen.getByTestId('dv-row-checkbox-row_2_test'));
-    expect(useDataStore.getState().selectedRows.size).toBe(2);
+    // header shows single-selection label (no select-all checkbox)
+    expect(screen.getByTestId('dv-header-single-label')).toBeInTheDocument();
+    expect(screen.queryByTestId('dv-header-checkbox')).not.toBeInTheDocument();
+    // Ver seleccionados toggle shows only the single selected row
     fireEvent.click(screen.getByTestId('dv-toggle-seleccionados'));
-    expect(screen.getAllByTestId(/^dv-row-row_/)).toHaveLength(2);
+    expect(screen.getAllByTestId(/^dv-row-row_/)).toHaveLength(1);
     expect(screen.getByTestId('dv-tag-seleccionados')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('dv-limpiar-seleccion'));
     expect(useDataStore.getState().selectedRows.size).toBe(0);
+  });
+
+  it('al cargar registros ninguno viene seleccionado por defecto', async () => {
+    const recs = seedRecords(6);
+    useDataStore.getState().setRecords(recs as unknown as EssaRecord[]);
+    render(<DataView />);
+    // ningún radio marcado, continuar deshabilitado y etiqueta de vacío
+    const radios = screen.queryAllByTestId(/^dv-row-checkbox-row_/);
+    expect(radios.length).toBeGreaterThan(0);
+    for (const el of radios) {
+      expect((el as HTMLInputElement).checked).toBe(false);
+      // ningún script debe marcarlos como indeterminados (el CSS :indeterminate
+      // los pintaría como seleccionados al compartir `name` sin selección)
+      expect((el as HTMLInputElement).indeterminate).toBe(false);
+    }
+    expect(screen.getByTestId('dv-continuar')).toBeDisabled();
+    expect(screen.getByTestId('dv-selected-count')).toHaveTextContent(
+      /Ningún registro seleccionado/
+    );
+    expect(screen.queryByTestId('dv-row-row_0_test')).not.toHaveClass('dv-tr--selected');
   });
 
   it('row highlight #EBF5FF + border #004B93 cuando seleccionado', async () => {
@@ -348,7 +369,7 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     expect(rec?.nombreSolicitante).toBe('Nuevo Nombre Editado');
   });
 
-  it('Continuar gate deshabilitado sin selección y habilitado con selección, navega a plantillas', async () => {
+  it('Continuar gate deshabilitado sin selección y habilitado con selección, navega a generación', async () => {
     const recs = seedRecords(6);
     useDataStore.getState().setRecords(recs as unknown as EssaRecord[]);
     render(<DataView />);
@@ -359,7 +380,7 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     expect(continuar).toBeEnabled();
     fireEvent.click(continuar);
     expect(useNavigationStore.getState().completed.has('datos')).toBe(true);
-    expect(useNavigationStore.getState().currentStep).toBe('plantillas');
+    expect(useNavigationStore.getState().currentStep).toBe('generacion');
   });
 
   it('filtra registros por Estado y combinable con búsqueda general', async () => {
@@ -417,18 +438,19 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     expect(screen.queryByTestId('dv-row-row_4')).not.toBeInTheDocument();
   });
 
-  it('useSelection hook: toggleRow, togglePage, clearSelection usan Set<string>', async () => {
+  it('useSelection hook: toggleRow single-selection, selectRow y clearSelection usan Set<string>', async () => {
     const recs = seedRecords(12);
     useDataStore.getState().setRecords(recs as unknown as EssaRecord[]);
     render(<DataView />);
-    // toggleRow via UI proves Set
+    // toggleRow via UI proves Set + single selection
     fireEvent.click(screen.getByTestId('dv-row-checkbox-row_5_test'));
     expect(useDataStore.getState().selectedRows instanceof Set).toBe(true);
     expect(useDataStore.getState().selectedRows.has('row_5_test')).toBe(true);
-    // togglePage
-    fireEvent.click(screen.getByTestId('dv-header-checkbox'));
-    // after togglePage with 1 selected, should select all 10 on page (so total =10)
-    expect(useDataStore.getState().selectedRows.size).toBe(10);
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    // selecting another replaces (single selection)
+    fireEvent.click(screen.getByTestId('dv-row-checkbox-row_6_test'));
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    expect(useDataStore.getState().selectedRows.has('row_6_test')).toBe(true);
     fireEvent.click(screen.getByTestId('dv-limpiar-seleccion'));
     expect(useDataStore.getState().selectedRows.size).toBe(0);
   });

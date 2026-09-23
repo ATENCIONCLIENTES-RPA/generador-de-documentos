@@ -57,67 +57,105 @@ describe('dataStore', () => {
     expect(useDataStore.getState().selectedRows.size).toBe(0);
   });
 
-  it('toggleRow persists between filter changes (selectedRows Set persistence)', () => {
+  it('toggleRow single-selection: seleccionar otro reemplaza al anterior', () => {
     const records = [makeRecord('row_0_1'), makeRecord('row_1_1'), makeRecord('row_2_1')];
     useDataStore.getState().setRecords(records);
     useDataStore.getState().toggleRow('row_0_1');
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
     useDataStore.getState().toggleRow('row_2_1');
-    expect(useDataStore.getState().selectedRows.size).toBe(2);
+    // Selección única: solo queda el último seleccionado
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    expect(useDataStore.getState().selectedRows.has('row_2_1')).toBe(true);
+    expect(useDataStore.getState().selectedRows.has('row_0_1')).toBe(false);
 
-    // apply filter that hides one row
+    // apply filter that hides selected row
     useDataStore.getState().setFilter({ cuenta: '85row_0' });
-    // selectedRows should still contain both ids even if filtered out
-    expect(useDataStore.getState().selectedRows.has('row_0_1')).toBe(true);
+    // selectedRows persists aunque el registro quede filtrado
     expect(useDataStore.getState().selectedRows.has('row_2_1')).toBe(true);
 
-    // clear filter, both should still be there
+    // clear filter, selection persists
     useDataStore.getState().setFilter({ cuenta: '' });
-    expect(useDataStore.getState().selectedRows.size).toBe(2);
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
   });
 
-  it('togglePage selects all rows on current page when none selected', () => {
+  it('setRecords limpia cualquier selección previa (sin selección predeterminada)', () => {
+    const records = [makeRecord('row_0_1'), makeRecord('row_1_1')];
+    useDataStore.getState().setRecords(records);
+    useDataStore.getState().toggleRow('row_0_1');
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+
+    // Al cargar un nuevo dataset no quedan registros seleccionados
+    useDataStore.getState().setRecords([makeRecord('row_2_1')]);
+    expect(useDataStore.getState().selectedRows.size).toBe(0);
+  });
+
+  it('setSacRecords y setMercurioRecords limpian la selección previa', () => {
+    const records = [makeRecord('row_0_1')];
+    useDataStore.getState().setRecords(records);
+    useDataStore.getState().toggleRow('row_0_1');
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+
+    useDataStore.getState().setSacRecords([makeRecord('row_sac_1')]);
+    expect(useDataStore.getState().selectedRows.size).toBe(0);
+
+    useDataStore.getState().toggleRow('row_sac_1');
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    useDataStore.getState().setMercurioRecords([makeRecord('row_merc_1')]);
+    expect(useDataStore.getState().selectedRows.size).toBe(0);
+  });
+  it('selectRow selecciona un único registro o limpia con null', () => {
+    useDataStore.getState().selectRow('row_a');
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    useDataStore.getState().selectRow('row_b');
+    expect(useDataStore.getState().selectedRows.has('row_b')).toBe(true);
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    useDataStore.getState().selectRow(null);
+    expect(useDataStore.getState().selectedRows.size).toBe(0);
+  });
+
+  it('togglePage selecciona solo el primer registro visible (selección única)', () => {
     const records = Array.from({ length: 15 }, (_, i) => makeRecord(`row_${i}_1`));
     useDataStore.getState().setRecords(records);
     expect(useDataStore.getState().currentPage).toBe(1);
     expect(useDataStore.getState().selectedRows.size).toBe(0);
 
     useDataStore.getState().togglePage();
-    // pageSize=10, so 10 rows selected
-    expect(useDataStore.getState().selectedRows.size).toBe(10);
-    for (let i = 0; i < 10; i++) {
-      expect(useDataStore.getState().selectedRows.has(`row_${i}_1`)).toBe(true);
-    }
+    // selección única: solo 1 registro (el primero de la página)
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    expect(useDataStore.getState().selectedRows.has('row_0_1')).toBe(true);
   });
 
-  it('togglePage deselects all rows on current page when all selected', () => {
+  it('togglePage limpia si el registro seleccionado ya es el primero de la página', () => {
     const records = Array.from({ length: 12 }, (_, i) => makeRecord(`row_${i}_1`));
     useDataStore.getState().setRecords(records);
-    useDataStore.getState().togglePage(); // select first 10
-    expect(useDataStore.getState().selectedRows.size).toBe(10);
-    useDataStore.getState().togglePage(); // deselect first 10
+    useDataStore.getState().togglePage(); // selecciona row_0_1
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    useDataStore.getState().togglePage(); // limpia
     expect(useDataStore.getState().selectedRows.size).toBe(0);
   });
 
-  it('togglePage respects pagination - second page', () => {
+  it('togglePage respects pagination - second page selecciona el primero de esa página', () => {
     const records = Array.from({ length: 15 }, (_, i) => makeRecord(`row_${i}_1`));
     useDataStore.getState().setRecords(records);
     useDataStore.getState().setPage(2);
     useDataStore.getState().togglePage();
-    // page 2 has 5 rows (indices 10-14)
-    expect(useDataStore.getState().selectedRows.size).toBe(5);
-    for (let i = 10; i < 15; i++) {
-      expect(useDataStore.getState().selectedRows.has(`row_${i}_1`)).toBe(true);
-    }
-    // going back to page 1 and toggling should add 10 more
+    // page 2: solo el primer registro visible de la página 2
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    expect(useDataStore.getState().selectedRows.has('row_10_1')).toBe(true);
+    // going back to page 1 and toggling selects first of page 1 (reemplaza)
     useDataStore.getState().setPage(1);
     useDataStore.getState().togglePage();
-    expect(useDataStore.getState().selectedRows.size).toBe(15);
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    expect(useDataStore.getState().selectedRows.has('row_0_1')).toBe(true);
   });
 
   it('clearSelection empties Set', () => {
     useDataStore.getState().toggleRow('row_a');
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
     useDataStore.getState().toggleRow('row_b');
-    expect(useDataStore.getState().selectedRows.size).toBe(2);
+    // selección única: solo queda row_b
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+    expect(useDataStore.getState().selectedRows.has('row_b')).toBe(true);
     useDataStore.getState().clearSelection();
     expect(useDataStore.getState().selectedRows.size).toBe(0);
     expect(useDataStore.getState().selectedRows.has('row_a')).toBe(false);

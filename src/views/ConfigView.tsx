@@ -251,6 +251,8 @@ export function ConfigView() {
 
   const handleContinuar = () => {
     if (!allReady) return;
+    // Iniciar revisión sin selección predeterminada.
+    useDataStore.getState().clearSelection();
     complete('configuracion');
     goTo('datos');
   };

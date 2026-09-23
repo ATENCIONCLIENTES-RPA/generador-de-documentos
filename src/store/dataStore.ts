@@ -35,6 +35,8 @@ interface DataStore {
   setSacRecords: (records: EssaRecord[]) => void;
   setMercurioRecords: (records: EssaRecord[]) => void;
   toggleRow: (id: string) => void;
+  /** Selecciona un único registro (o null para limpiar). */
+  selectRow: (id: string | null) => void;
   togglePage: () => void;
   clearSelection: () => void;
   setFilter: (patch: Partial<FilterState>) => void;
@@ -247,6 +249,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
     set({
       records,
       currentPage: 1,
+      // Nuevo dataset: sin selección predeterminada.
+      selectedRows: new Set<string>(),
     }),
 
   setSacRecords: (sacRecords) =>
@@ -261,6 +265,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
         sacRecords,
         records: combined,
         currentPage: 1,
+        // Nuevo dataset: sin selección predeterminada.
+        selectedRows: new Set<string>(),
       };
     }),
 
@@ -271,52 +277,55 @@ export const useDataStore = create<DataStore>((set, get) => ({
         mercurioRecords,
         records: combined,
         currentPage: 1,
+        // Nuevo dataset: sin selección predeterminada.
+        selectedRows: new Set<string>(),
       };
     }),
 
   toggleRow: (id) =>
     set((s) => {
-      const next = new Set(s.selectedRows);
-      const wasSelected = next.has(id);
-      if (wasSelected) next.delete(id);
-      else {
-        next.add(id);
-        // Si el registro estaba excluido en Módulo 5 (borrado/limpiado), al volver a seleccionarlo debe reaparecer
-        try {
-          useGenerationStore.getState().removeExcludedId(id);
-        } catch {
-          // Store synchronization is best effort.
-        }
+      // Módulo 3: selección única — solo un registro a la vez.
+      if (s.selectedRows.has(id)) return { selectedRows: new Set<string>() };
+      // Si el registro estaba excluido en el Módulo 4 (borrado/limpiado), al seleccionarlo debe reaparecer
+      try {
+        useGenerationStore.getState().removeExcludedId(id);
+      } catch {
+        // Store synchronization is best effort.
       }
-      return { selectedRows: next };
+      return { selectedRows: new Set<string>([id]) };
+    }),
+
+  selectRow: (id) =>
+    set(() => {
+      if (id === null) return { selectedRows: new Set<string>() };
+      try {
+        useGenerationStore.getState().removeExcludedId(id);
+      } catch {
+        // Store synchronization is best effort.
+      }
+      return { selectedRows: new Set<string>([id]) };
     }),
 
   togglePage: () =>
     set((s) => {
+      // Módulo 3: selección única — el header solo selecciona el primer registro
+      // visible de la página (o limpia si ya es el seleccionado).
       const filtered = applyFilters(s.records, s.filterState);
       const totalPages = Math.max(1, Math.ceil(filtered.length / s.pageSize));
       const safePage = Math.min(s.currentPage, totalPages);
       const start = (safePage - 1) * s.pageSize;
       const pageRows = filtered.slice(start, start + s.pageSize);
-      const ids = pageRows.map((r) => r.rowId);
-      const allSelected = ids.length > 0 && ids.every((id) => s.selectedRows.has(id));
-      const next = new Set(s.selectedRows);
-      if (allSelected) {
-        ids.forEach((id) => next.delete(id));
-      } else {
-        ids.forEach((id) => {
-          const wasSelected = next.has(id);
-          next.add(id);
-          if (!wasSelected) {
-            try {
-              useGenerationStore.getState().removeExcludedId(id);
-            } catch {
-              // Store synchronization is best effort.
-            }
-          }
-        });
+      if (pageRows.length === 0) return {};
+      const firstId = pageRows[0]!.rowId;
+      if (s.selectedRows.size === 1 && s.selectedRows.has(firstId)) {
+        return { selectedRows: new Set<string>() };
       }
-      return { selectedRows: next };
+      try {
+        useGenerationStore.getState().removeExcludedId(firstId);
+      } catch {
+        // Store synchronization is best effort.
+      }
+      return { selectedRows: new Set<string>([firstId]) };
     }),
 
   clearSelection: () => set({ selectedRows: new Set<string>() }),
@@ -388,7 +397,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   assignTemplate: (rowId, templateId) =>
     set((s) => {
-      // Al reasignar plantilla en Módulo 4, el registro debe volver a aparecer en Módulo 5 si estaba excluido
+      // Al reasignar plantilla en el Módulo 4, el registro debe volver a aparecer si estaba excluido
       try {
         useGenerationStore.getState().removeExcludedId(rowId);
       } catch {

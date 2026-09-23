@@ -231,7 +231,6 @@ export function DataView() {
   const setFilter = useDataStore((s) => s.setFilter);
   const setPage = useDataStore((s) => s.setPage);
   const toggleRow = useDataStore((s) => s.toggleRow);
-  const togglePage = useDataStore((s) => s.togglePage);
   const clearSelection = useDataStore((s) => s.clearSelection);
   const editRecord = useDataStore((s) => s.editRecord);
   const setEditingRecord = useDataStore((s) => s.setEditingRecord);
@@ -257,7 +256,6 @@ export function DataView() {
   const [copiedRef, setCopiedRef] = useState(false);
   const copyResetTimer = useRef<number | undefined>(undefined);
 
-  const headerCbRef = useRef<HTMLInputElement>(null);
   const filterTagsRef = useRef<HTMLDivElement>(null);
   const tbodyRef = useRef<HTMLTableSectionElement>(null);
 
@@ -369,13 +367,8 @@ export function DataView() {
     if (currentPage !== safePage) setPage(safePage);
   }, [safePage]);
 
-  const allPageSelected =
-    pageRecords.length > 0 && pageRecords.every((r) => selectedRows.has(r.rowId));
-  const somePageSelected = pageRecords.some((r) => selectedRows.has(r.rowId)) && !allPageSelected;
-
-  useEffect(() => {
-    if (headerCbRef.current) headerCbRef.current.indeterminate = somePageSelected;
-  }, [somePageSelected]);
+  // Selección única: un solo registro a la vez.
+  const selectedRowId = selectedRows.size === 1 ? Array.from(selectedRows)[0]! : null;
 
   const activeFilterCount = [
     filterState.search.trim(),
@@ -457,15 +450,10 @@ export function DataView() {
     return arr;
   }, [safePage, totalPages]);
 
-  // ── Enviar a Radicar: referencia y validación ──
+  // ── Enviar a Radicar: referencia y validación (selección única) ──
   const radicarRecord = useMemo(() => {
-    if (selectedRows.size === 1) {
-      const id = Array.from(selectedRows)[0]!;
-      return records.find((r) => r.rowId === id) ?? null;
-    }
-    if (selectedRows.size > 1) {
-      const firstId = Array.from(selectedRows)[0]!;
-      return records.find((r) => r.rowId === firstId) ?? null;
+    if (selectedRowId) {
+      return records.find((r) => r.rowId === selectedRowId) ?? null;
     }
     // fallback: si no hay selección, usar el primer registro filtrado si existe
     return (
@@ -473,7 +461,7 @@ export function DataView() {
       (records[0] as EssaRecord | undefined) ??
       null
     );
-  }, [selectedRows, records, filteredRecords]);
+  }, [selectedRowId, records, filteredRecords]);
 
   // Referencia generada automáticamente con las reglas de capitalización por campo
   const autoReferencia = useMemo(() => buildReferencia(radicarRecord), [radicarRecord]);
@@ -662,7 +650,7 @@ export function DataView() {
                     >
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
-                    {selectedRows.size} seleccionados
+                    1 seleccionado
                   </span>
                 )}
                 {activeFilterCount > 0 && (
@@ -1028,18 +1016,14 @@ export function DataView() {
           <table className="dv-table" data-testid="dv-table">
             <thead>
               <tr>
-                <th className="dv-th dv-th--check">
-                  <label className="dv-checkbox-wrap">
-                    <input
-                      ref={headerCbRef}
-                      type="checkbox"
-                      checked={allPageSelected}
-                      onChange={() => togglePage()}
-                      aria-label="Seleccionar página"
-                      data-testid="dv-header-checkbox"
-                    />
-                    <span className="dv-checkbox-custom" />
-                  </label>
+                <th className="dv-th dv-th--check" title="Seleccionar un registro">
+                  <span
+                    className="dv-radio-header"
+                    aria-hidden
+                    data-testid="dv-header-single-label"
+                  >
+                    Sel.
+                  </span>
                 </th>
                 <th className="dv-th">Estado</th>
                 <th className="dv-th">Fecha</th>
@@ -1160,15 +1144,16 @@ export function DataView() {
                       style={{ animationDelay: `${idx * 30}ms` }}
                     >
                       <td className="dv-td dv-td--check">
-                        <label className="dv-checkbox-wrap">
+                        <label className="dv-checkbox-wrap dv-radio-wrap">
                           <input
-                            type="checkbox"
+                            type="radio"
+                            name="dv-single-select"
                             checked={isSelected}
                             onChange={() => toggleRow(r.rowId)}
                             aria-label={`Seleccionar ${r.rowId}`}
                             data-testid={`dv-row-checkbox-${r.rowId}`}
                           />
-                          <span className="dv-checkbox-custom" />
+                          <span className="dv-checkbox-custom dv-radio-custom" />
                         </label>
                       </td>
 
@@ -1370,9 +1355,7 @@ export function DataView() {
         </Button>
         <div className="dv-bottom-right">
           <span className="dv-selected-label" data-testid="dv-selected-count">
-            {selectedRows.size === 0
-              ? 'Ningún registro seleccionado'
-              : `${selectedRows.size} registro${selectedRows.size > 1 ? 's' : ''} seleccionado${selectedRows.size > 1 ? 's' : ''}`}
+            {selectedRows.size === 0 ? 'Ningún registro seleccionado' : '1 registro seleccionado'}
           </span>
           <Button
             variant="primary"
@@ -1380,10 +1363,10 @@ export function DataView() {
             onClick={() => {
               if (selectedRows.size === 0) return;
               complete('datos');
-              goTo('plantillas');
+              goTo('generacion');
             }}
             data-testid="dv-continuar"
-            title={selectedRows.size === 0 ? 'Selecciona al menos un registro' : 'Continuar'}
+            title={selectedRows.size === 0 ? 'Selecciona un registro' : 'Continuar'}
           >
             Continuar
             <svg
@@ -2165,6 +2148,45 @@ const dvStyles = `
     border-color: #3b82f6;
     color: #1e3a8a;
   }
+  .dv-radio-header {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--neutral-500);
+  }
+  /* Radio de selección única: vacío gris claro sin seleccionar,
+     relleno primario con punto blanco al seleccionar. */
+  .dv-radio-wrap .dv-radio-custom {
+    border-radius: 999px;
+    border-color: var(--neutral-300);
+    background: #fff;
+  }
+  .dv-radio-wrap:hover .dv-radio-custom {
+    border-color: var(--essa-primary);
+    box-shadow: 0 0 0 3px rgba(0, 75, 147, 0.1);
+  }
+  .dv-radio-wrap .dv-radio-custom::after {
+    width: 8px;
+    height: 8px;
+    border: none;
+    border-radius: 999px;
+    background: #fff;
+    transform: scale(0);
+    top: auto;
+  }
+  .dv-radio-wrap input:checked + .dv-radio-custom {
+    background: var(--essa-primary);
+    border-color: var(--essa-primary);
+    box-shadow: 0 0 0 3px rgba(0, 75, 147, 0.14);
+  }
+  .dv-radio-wrap input:checked + .dv-radio-custom::after {
+    transform: scale(1);
+  }
+  .dv-radio-wrap input:focus-visible + .dv-radio-custom {
+    outline: 2px solid #93c5fd;
+    outline-offset: 2px;
+  }
   .dv-tag--green {
     background: var(--essa-accent-50);
     border-color: #c5e8a3;
@@ -2280,18 +2302,9 @@ const dvStyles = `
   .dv-checkbox-wrap input:checked + .dv-checkbox-custom::after {
     transform: rotate(-45deg) scale(1);
   }
-  .dv-checkbox-wrap input:indeterminate + .dv-checkbox-custom {
-    background: var(--essa-primary);
-    border-color: var(--essa-primary);
-  }
-  .dv-checkbox-wrap input:indeterminate + .dv-checkbox-custom::after {
-    width: 10px;
-    height: 0;
-    border-left: 0;
-    border-bottom: 2px solid #fff;
-    transform: rotate(0) scale(1);
-    top: 6px;
-  }
+  /* NOTA: no usar :indeterminate aquí. Los radios de selección única comparten
+     name y el navegador los reporta a todos como :indeterminate cuando no
+     hay selección, lo que los pintaría como seleccionados. */
 
   /* ── Table Row ── */
   .dv-tr {

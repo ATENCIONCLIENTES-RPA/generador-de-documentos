@@ -206,7 +206,7 @@ const STEPS = [
     kicker: '¡LISTO PARA USAR!',
     kickerColor: '#059669',
     title: '¡Listo! 🎉 La plantilla quedará disponible en Word',
-    text: 'Al entrar o refrescar el Módulo 4: Selección de Plantillas, tu nuevo documento aparecerá en el catálogo listo para seleccionarse y generar los documentos en masa.',
+    text: 'Al entrar o refrescar el Módulo 4: Generación Documental, tu nuevo documento aparecerá en el catálogo listo para seleccionarse y generar el documento final.',
     tip: '✨ ¡Podrás previsualizarlo y fusionar cientos de registros en segundos!',
     tipBg: '#F0FDF4',
     tipBorder: '#BBF7D0',

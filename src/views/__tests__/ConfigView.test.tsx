@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import ConfigView from '@/views/ConfigView';
 import { useExcelStore } from '@/store/excelStore';
+import { useDataStore } from '@/store/dataStore';
 import { useNavigationStore } from '@/store/navigationStore';
 import { useTemplateStore } from '@/store/templateStore';
 
@@ -66,6 +67,35 @@ describe('ConfigView allReady gate', () => {
     expect(screen.getByTestId('m2-segment-0')).toBeInTheDocument();
     expect(screen.getByTestId('m2-segment-1')).toBeInTheDocument();
     expect(screen.queryByTestId('m2-segment-2')).not.toBeInTheDocument();
+  });
+
+  it('Continuar limpia cualquier selección previa: Módulo 3 inicia sin selección', () => {
+    useDataStore.setState({
+      records: [{ rowId: 'row_old_1' }] as unknown as never[],
+      selectedRows: new Set(['row_old_1']),
+    });
+    expect(useDataStore.getState().selectedRows.size).toBe(1);
+
+    useExcelStore.getState().setSacFile({
+      file: new File(['a'], 'sac.xlsx'),
+      loading: false,
+      progress: 100,
+      error: null,
+      recordCount: 5,
+    });
+    useExcelStore.getState().setTemplateFolder({
+      file: new File(['c'], 'Plantillas'),
+      loading: false,
+      progress: 100,
+      error: null,
+      recordCount: 4,
+    });
+
+    render(<ConfigView />);
+    fireEvent.click(screen.getByTestId('m2-continuar'));
+    expect(useDataStore.getState().selectedRows.size).toBe(0);
+    expect(useNavigationStore.getState().currentStep).toBe('datos');
+    expect(useNavigationStore.getState().completed.has('configuracion')).toBe(true);
   });
 
   it('habilita Continuar cuando allReady es true', () => {
