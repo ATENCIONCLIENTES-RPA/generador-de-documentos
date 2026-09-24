@@ -174,15 +174,16 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
 
   it('renderiza encabezado Módulo 4: Generación Documental + layout 3 paneles', () => {
     const tpl = makeTemplate({ id: 'tpl-1' });
+    const rec = makeRecord({ rowId: 'row_0_1' });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: null });
-    seedData([], []);
+    seedData([rec], ['row_0_1']);
     render(<GenerateView />);
     expect(screen.getByText('Módulo 4: Generación Documental')).toBeInTheDocument();
     expect(screen.getByTestId('dg-layout')).toBeInTheDocument();
     expect(screen.getByText('Plantillas')).toBeInTheDocument();
-    expect(screen.getByText('Registro')).toBeInTheDocument();
-    expect(screen.getByText('Documento')).toBeInTheDocument();
-    expect(screen.getByTestId('generation-stage-indicator')).toBeInTheDocument();
+    expect(screen.getByTestId('dg-desc-card')).toBeInTheDocument();
+    expect(screen.getAllByText('Documento').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByTestId('generation-stage-indicator')).not.toBeInTheDocument();
   });
 
   it('el encabezado del visor centra los modos y no muestra etiqueta de registro', () => {
@@ -194,8 +195,8 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(screen.getByTestId('dg-mode-diseno')).toBeInTheDocument();
     expect(screen.getByTestId('dg-mode-documento')).toBeInTheDocument();
     expect(screen.queryByTestId('dg-preview-meta')).not.toBeInTheDocument();
-    // el registro vive en el panel lateral
-    expect(screen.getByTestId('dg-selected-record')).toHaveTextContent('María López');
+    // el registro se gestiona en el Módulo 3; aquí se editan sus descripciones
+    expect(screen.getByTestId('dg-desc-card')).toBeInTheDocument();
   });
 
   it('catálogo: lista plantillas con nombre y conteo', () => {
@@ -260,12 +261,7 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(useTemplateStore.getState().selectedTemplate?.id).toBe('tpl-1');
     expect(useDataStore.getState().templateAssignments['row_assign']).toBe('tpl-1');
     expect(screen.getByTestId('dg-card-tpl-1')).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('dg-auto-assigned')).toHaveTextContent('Mi Plantilla');
-    expect(screen.getByTestId('dg-selected-record')).toHaveTextContent('Pedro López');
     expect(screen.getByTestId('dg-generate-btn')).toBeEnabled();
-    // el texto de resumen "Se generará..." se eliminó: solo queda el botón
-    expect(screen.queryByTestId('dg-summary')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('dg-gate-warning')).not.toBeInTheDocument();
   });
 
   it('sin registro seleccionado muestra aviso para ir al Módulo 3', () => {
@@ -273,11 +269,11 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
     seedData([], []);
     render(<GenerateView />);
-    expect(screen.getByTestId('dg-no-record')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('dg-go-datos-side'));
+    expect(screen.getByTestId('dg-preview-empty-records')).toBeInTheDocument();
+    expect(screen.getByTestId('dg-desc-empty')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('dg-go-datos'));
     expect(useNavigationStore.getState().currentStep).toBe('datos');
     expect(screen.getByTestId('dg-generate-btn')).toBeDisabled();
-    expect(screen.getByTestId('dg-gate-warning')).toHaveTextContent(/Módulo 3/);
   });
 
   it('modo Diseño muestra el contenido de la plantilla sin datos', () => {
@@ -316,9 +312,9 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(screen.getByTestId('dg-fallback-content')).toHaveTextContent(
       'Contenido generado de prueba'
     );
-    // el registro se muestra en el panel lateral, no en el encabezado del visor
+    // el registro se gestiona en el Módulo 3; aquí se editan sus descripciones
     expect(screen.queryByTestId('dg-preview-meta')).not.toBeInTheDocument();
-    expect(screen.getByTestId('dg-selected-record')).toHaveTextContent('María López');
+    expect(screen.getByTestId('dg-desc-card')).toBeInTheDocument();
 
     // Cambiar a Diseño y volver con teclado
     fireEvent.click(screen.getByTestId('dg-mode-diseno'));
@@ -342,7 +338,7 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     await waitFor(() => expect(screen.getByTestId('dg-generate-btn')).toBeEnabled());
   });
 
-  it('generación completa: progreso 100%, stage Finalizado e historial', async () => {
+  it('generación completa: descarga, historial y etapa completada', async () => {
     const rec = makeRecord({ rowId: 'row_0_1', numeroCuenta: '1001' });
     const tpl = makeTemplate({ id: 'tpl-1' });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
@@ -350,19 +346,12 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
 
     const onAddHistory = vi.fn();
     render(<GenerateView onAddHistory={onAddHistory} />);
-    expect(screen.getByTestId('generation-stage-indicator')).toHaveTextContent('Revisión');
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('dg-generate-btn'));
     });
 
-    await waitFor(() => expect(screen.getByTestId('dg-progress-pct')).toHaveTextContent('100%'), {
-      timeout: 2000,
-    });
-    await waitFor(() =>
-      expect(screen.getByTestId('generation-stage-indicator')).toHaveTextContent('Finalizado')
-    );
-    expect(screen.getByTestId('dg-progress-fill').style.width).toBe('100%');
+    await waitFor(() => expect(useGenerationStore.getState().stage).toBe('finalizado'));
     expect(onAddHistory).toHaveBeenCalledWith(expect.objectContaining({ recordsCount: 1 }));
     expect(useNavigationStore.getState().completed.has('generacion')).toBe(true);
   });
@@ -383,18 +372,15 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
       ],
     });
     expect(await screen.findByTestId('dg-retry-btn')).toBeInTheDocument();
-    expect(screen.getByTestId('generation-stage-indicator')).toHaveTextContent('Con errores');
 
     vi.mocked(generateDocx).mockResolvedValueOnce(new Blob(['recovered']) as unknown as Blob);
     fireEvent.click(screen.getByTestId('dg-retry-btn'));
-    await waitFor(
-      () =>
-        expect(screen.getByTestId('generation-stage-indicator')).toHaveTextContent('Finalizado'),
-      { timeout: 2000 }
-    );
+    await waitFor(() => expect(useGenerationStore.getState().stage).toBe('finalizado'), {
+      timeout: 2000,
+    });
   });
 
-  it('borrar documentos generados limpia resultados con confirmación', async () => {
+  it('no existe botón Borrar documentos generados', async () => {
     const rec = makeRecord({ rowId: 'row_0_1', nombreSolicitante: 'Ana López' });
     const tpl = makeTemplate({ id: 'tpl-1', title: 'Tpl Test' });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
@@ -415,13 +401,10 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     });
 
     render(<GenerateView />);
-    fireEvent.click(screen.getByTestId('dg-clear-generated'));
-    expect(await screen.findByTestId('dg-confirm-clear-btn')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('dg-confirm-clear-btn'));
-
-    await waitFor(() => {
-      expect(useGenerationStore.getState().docResults).toHaveLength(0);
-    });
+    expect(screen.queryByTestId('dg-clear-generated')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dg-confirm-clear-btn')).not.toBeInTheDocument();
+    // el botón Generar vive en el encabezado, siempre visible
+    expect(screen.getByTestId('dg-generate-btn')).toBeInTheDocument();
   });
 
   it('botón Generar documento: diseño con icono, brillo y aviso solo si falta algo', () => {
@@ -435,26 +418,22 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(btn).toBeEnabled();
     expect(btn).toHaveTextContent('Generar documento');
     expect(btn.getAttribute('title')).toBe('Generar documento');
-    // sin resumen intermedio: del encabezado Documento se pasa al botón
-    expect(screen.queryByTestId('dg-summary')).not.toBeInTheDocument();
 
-    // sin plantilla ni asignación: aparece el aviso de guía y el botón se deshabilita
+    // sin plantilla ni asignación: el botón se deshabilita con aviso en el título
     const rec2 = makeRecord({ rowId: 'row_sin_asignar', nombreSolicitante: 'Sin Asignar' });
     seedData([rec2], ['row_sin_asignar']);
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: null });
     rerender(<GenerateView />);
-    expect(screen.getByTestId('dg-gate-warning')).toBeInTheDocument();
     expect(screen.getByTestId('dg-generate-btn')).toBeDisabled();
+    expect(screen.getByTestId('dg-generate-btn').getAttribute('title')).toMatch(/plantilla/i);
   });
 
-  it('volver regresa al Módulo 3 y cambiar registro también', () => {
+  it('volver regresa al Módulo 3', () => {
     const tpl = makeTemplate({ id: 'tpl-1' });
     const rec = makeRecord({ rowId: 'row_0_1' });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
     seedData([rec], ['row_0_1']);
     render(<GenerateView />);
-    fireEvent.click(screen.getByTestId('dg-change-record'));
-    expect(useNavigationStore.getState().currentStep).toBe('datos');
     fireEvent.click(screen.getByTestId('dg-volver'));
     expect(useNavigationStore.getState().currentStep).toBe('datos');
   });
@@ -474,6 +453,59 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(screen.queryByTestId('dg-fallback-content')).not.toBeInTheDocument();
   });
 
+  it('modo Documento: neutraliza el fondo gris propio de docx-preview', async () => {
+    const { renderAsync } = await import('docx-preview');
+    vi.mocked(renderAsync).mockImplementation(async (_buf, el) => {
+      el.innerHTML =
+        '<div class="docx-wrapper" style="background: gray; padding: 30px;">' +
+        '<section class="docx"><p>Con formato</p></section></div>';
+    });
+    const tpl = makeTemplate({ id: 'tpl-1', file: fakeFile() });
+    const rec = makeRecord({ rowId: 'row_0_1' });
+    useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
+    seedData([rec], ['row_0_1']);
+    render(<GenerateView />);
+
+    expect(await screen.findByText('Con formato')).toBeInTheDocument();
+    const container = screen.getByTestId('dg-doc-container');
+    await waitFor(() => {
+      const w = container.querySelector('.docx-wrapper') as HTMLElement | null;
+      expect(w?.style.background).toBe('transparent');
+    });
+    const wrapper = container.querySelector('.docx-wrapper') as HTMLElement;
+    expect(wrapper.style.padding).toBe('0px');
+  });
+
+  it('Módulo 4: franja del solicitante bajo el banner con los datos del registro', () => {
+    const tpl = makeTemplate({ id: 'tpl-1' });
+    const rec = makeRecord({ rowId: 'row_0_1', nombreSolicitante: 'María López' });
+    useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
+    seedData([rec], ['row_0_1']);
+    render(<GenerateView />);
+
+    expect(screen.getByTestId('dg-applicant-card')).toBeInTheDocument();
+    expect(screen.getByTestId('dg-applicant-nombre')).toHaveValue('María López');
+  });
+
+  it('Módulo 4: tarjeta Descripciones con Mejorar texto para el registro', async () => {
+    const tpl = makeTemplate({ id: 'tpl-1', file: fakeFile() });
+    const rec = makeRecord({
+      rowId: 'row_0_1',
+      observacionProceso: 'Texto de la solicitud.',
+      observacionRevision: 'Texto del insumo.',
+      observacionDecision: 'Texto de la decisión.',
+    });
+    useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
+    seedData([rec], ['row_0_1']);
+    render(<GenerateView />);
+
+    expect(screen.getByTestId('dg-desc-card')).toBeInTheDocument();
+    expect(screen.getByTestId('dg-desc-textarea-proceso')).toHaveValue('Texto de la solicitud.');
+    expect(screen.getByTestId('dg-desc-textarea-insumo')).toHaveValue('Texto del insumo.');
+    expect(screen.getByTestId('dg-desc-textarea-decision')).toHaveValue('Texto de la decisión.');
+    expect(screen.getByTestId('dg-btn-mejorar-proceso')).toBeInTheDocument();
+  });
+
   it('modo Documento: render vacío usa el respaldo con los datos del registro', async () => {
     const tpl = makeTemplate({
       id: 'tpl-1',
@@ -489,6 +521,32 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(fallback).toHaveTextContent('Texto de respaldo 456');
     // el contenedor docx persiste pero queda oculto al mostrar el respaldo
     expect(screen.getByTestId('dg-doc-container')).not.toBeVisible();
+  });
+
+  it('modo Diseño: render exitoso usa el mismo pipeline que Documento (mismo ancho)', async () => {
+    const { renderAsync } = await import('docx-preview');
+    vi.mocked(renderAsync).mockImplementation(async (_buf, el) => {
+      el.innerHTML =
+        '<div class="docx-wrapper">' +
+        '<section class="docx"><p>Diseño OK mismo ancho</p></section></div>';
+    });
+    const tpl = makeTemplate({ id: 'tpl-1', file: fakeFile() });
+    const rec = makeRecord({ rowId: 'row_0_1' });
+    useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
+    seedData([rec], ['row_0_1']);
+    render(<GenerateView />);
+
+    fireEvent.click(screen.getByTestId('dg-mode-diseno'));
+    expect(await screen.findByText('Diseño OK mismo ancho')).toBeInTheDocument();
+    const disenoDoc = screen.getByTestId('dg-diseno-document');
+    // Sin clonación intermedia: el render va directo al contenedor visible,
+    // igual que en el modo Documento, para conservar el ancho intrínseco.
+    expect(disenoDoc.querySelector('.dg-viewer-page')).toBeNull();
+    const sec = disenoDoc.querySelector('section.docx') as HTMLElement;
+    expect(sec).not.toBeNull();
+    // Sin override de ancho: la sección conserva el ancho de página del Word.
+    expect(sec.style.width).toBe('');
+    expect(disenoDoc.querySelector('.docx-wrapper')).not.toBeNull();
   });
 
   it('modo Diseño: render vacío usa el respaldo con el contenido de la plantilla', async () => {

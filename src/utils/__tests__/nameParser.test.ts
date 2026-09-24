@@ -83,4 +83,70 @@ describe('nameParser', () => {
   it('formatApplicantName 2 palabras apellido+nombre invierte', () => {
     expect(formatApplicantName('GOMEZ JUAN')).toBe('Juan Gomez');
   });
+
+  it('extractFirstName: dos apellidos + un nombre identifica el nombre', () => {
+    // Antes tomaba el segundo apellido (MURILLO) como primer nombre
+    expect(extractFirstName('CASTRO MURILLO JAIME')).toBe('Jaime');
+    expect(extractFirstName('castro murillo jaime')).toBe('Jaime');
+  });
+
+  it('extractFirstName: dos apellidos + dos nombres identifica el primero', () => {
+    expect(extractFirstName('CASTRO MURILLO JAIME ANDRÉS')).toBe('Jaime');
+  });
+
+  it('extractFirstName: un apellido + un nombre', () => {
+    expect(extractFirstName('CASTRO JAIME')).toBe('Jaime');
+  });
+
+  it('extractFirstName: ignora partículas al buscar el nombre', () => {
+    expect(extractFirstName('VILLEGAS SERNA OSCAR ORLANDO')).toBe('Oscar');
+  });
+
+  it('extractFirstName: empresa conserva la razón social sin la sigla jurídica', () => {
+    expect(extractFirstName('INCOLYESOS SAS')).toBe('INCOLYESOS');
+    expect(extractFirstName('INCOLYESOS S.A.S.')).toBe('INCOLYESOS');
+    expect(extractFirstName('EMPRESA XYZ LTDA')).toBe('EMPRESA XYZ');
+  });
+
+  it('extractFirstName: empresa sin sigla pero con nombre comercial se conserva', () => {
+    expect(extractFirstName('INDUSTRIA NACIONAL DE SNACKS SAS')).toBe(
+      'INDUSTRIA NACIONAL DE SNACKS'
+    );
+    expect(extractFirstName('HG CONSTRUCTORA')).toBe('HG CONSTRUCTORA');
+  });
+
+  it('extractFirstName: dos apellidos iguales + nombre no sobrestima el apellido', () => {
+    // Caso reportado: "Serrano Serrano Rosmira" -> Rosmira, no Serrano
+    expect(extractFirstName('Serrano Serrano Rosmira')).toBe('Rosmira');
+    expect(extractFirstName('SERRANO SERRANO ROSMIRA')).toBe('Rosmira');
+    expect(extractFirstName('serrano serrano rosmira')).toBe('Rosmira');
+  });
+
+  it('formatApplicantName: dos apellidos iguales + nombre reordena', () => {
+    expect(formatApplicantName('SERRANO SERRANO ROSMIRA')).toBe('Rosmira Serrano Serrano');
+  });
+
+  it('extractFirstName: respaldo estructural con nombre fuera del diccionario', () => {
+    // Apellido conocido + nombre desconocido: nunca devolver el apellido
+    expect(extractFirstName('SERRANO XYZQWE')).toBe('Xyzqwe');
+    // Nombre desconocido en orden nombres-primero se conserva
+    expect(extractFirstName('XYZQWE SERRANO SERRANO')).toBe('Xyzqwe');
+  });
+
+  it('formatApplicantName: solo apellidos no se rota', () => {
+    expect(formatApplicantName('GARCIA LOPEZ')).toBe('Garcia Lopez');
+  });
+
+  it('formatApplicantName: dos apellidos + un nombre reordena', () => {
+    expect(formatApplicantName('CASTRO MURILLO JAIME')).toBe('Jaime Castro Murillo');
+  });
+
+  it('formatApplicantName: empresas conservan la razón social completa', () => {
+    expect(formatApplicantName('INCOLYESOS SAS')).toBe('INCOLYESOS');
+    expect(formatApplicantName('INDUSTRIA NACIONAL DE SNACKS SAS')).toBe(
+      'INDUSTRIA NACIONAL DE SNACKS'
+    );
+    expect(formatApplicantName('HG CONSTRUCTORA')).toBe('HG CONSTRUCTORA');
+    expect(formatApplicantName('EMPRESA XYZ LTDA')).toBe('EMPRESA XYZ');
+  });
 });

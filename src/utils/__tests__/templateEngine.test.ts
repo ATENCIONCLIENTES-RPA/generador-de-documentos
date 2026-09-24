@@ -269,4 +269,50 @@ describe('docxHelpers', () => {
     const zip = new PizZip(new Uint8Array(buf));
     expect(zip.file('word/document.xml')!.asText()).not.toMatch(/\[[A-Z0-9_]+\]/);
   });
+
+  it('generateDocx preserva formato: negritas, tablas, imágenes y encabezados', async () => {
+    const file = fixtureFile('Bloqueodecuenta_Electronico_Accede.docx');
+    const inBuf = await blobToArrayBuffer(
+      new Blob([
+        fs.readFileSync(path.resolve('tests/fixtures', 'Bloqueodecuenta_Electronico_Accede.docx')),
+      ])
+    );
+    const inZip = new PizZip(new Uint8Array(inBuf));
+    const blob = await generateDocx(file, baseRecord, baseProfile);
+    const buf = await blobToArrayBuffer(blob);
+    const outZip = new PizZip(new Uint8Array(buf));
+
+    const boldParasOf = (xml: string): string[] =>
+      (xml.match(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g) ?? []).filter((p) => /<w:b[\s>/]/.test(p));
+    const inXml = inZip.file('word/document.xml')!.asText();
+    const outXml = outZip.file('word/document.xml')!.asText();
+
+    // XML bien formado en las partes procesadas
+    for (const part of ['word/document.xml', 'word/header1.xml', 'word/styles.xml']) {
+      const f = outZip.file(part);
+      if (!f) continue;
+      const doc = new DOMParser().parseFromString(f.asText(), 'application/xml');
+      expect(doc.querySelector('parsererror')).toBeNull();
+    }
+
+    // Los párrafos con valores sustituidos conservan la negrita original
+    const outBold = boldParasOf(outXml);
+    expect(outBold.length).toBeGreaterThan(0);
+    expect(outBold.some((p) => p.includes('Juan Carlos Carrillo Palacio'))).toBe(true);
+
+    // Encabezado intacto: misma tabla, dibujo e imagen referenciada
+    const inHeader = inZip.file('word/header1.xml')!.asText();
+    const outHeader = outZip.file('word/header1.xml')!.asText();
+    for (const tag of ['w:tbl', 'w:drawing', 'wp:inline', 'w:p', 'w:r']) {
+      const count = (x: string): number =>
+        (x.match(new RegExp(`<${tag}[\\s>/]`, 'g')) || []).length;
+      expect(count(outHeader)).toBe(count(inHeader));
+    }
+    expect(outHeader).toContain('r:embed');
+
+    // Alineaciones y secciones intactas
+    const countJc = (x: string): number => (x.match(/<w:jc[\s>/]/g) || []).length;
+    expect(countJc(outXml)).toBe(countJc(inXml));
+    expect(outXml).toContain('<w:sectPr');
+  });
 });

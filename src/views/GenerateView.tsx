@@ -4,7 +4,6 @@ import autoAnimate from '@formkit/auto-animate';
 import * as docxPreview from 'docx-preview';
 import { useGeneration } from '@/hooks/useGeneration';
 import { useGenerationStore } from '@/store/generationStore';
-import { GenerationStageIndicator } from '@/components/features/GenerationStageIndicator';
 import { useProfileStore } from '@/store/profileStore';
 import { useDataStore } from '@/store/dataStore';
 import { useTemplateStore } from '@/store/templateStore';
@@ -13,10 +12,11 @@ import { useExcelStore } from '@/store/excelStore';
 import { generateDocx, buildTemplateData, replaceTemplateVariables } from '@/utils/templateEngine';
 import { formatDateToSpanish } from '@/utils/businessDays';
 import { BuildTemplateGuideModal } from '@/components/features/BuildTemplateGuideModal';
+import { DescriptionsCard } from '@/components/features/DescriptionsCard';
+import { ApplicantCard } from '@/components/features/ApplicantCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { Modal } from '@/components/ui/Modal';
 import type { Record as EssaRecord } from '@/types/record';
 
 function escapeHtml(s: string): string {
@@ -113,14 +113,11 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
 
   /* ── Generation engine ── */
   const [isGenerating, setIsGenerating] = useState(false);
-  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const excludedIdsList = useGenerationStore((s) => s.excludedIds);
-  const clearGenerated = useGenerationStore((s) => s.clearGenerated);
   const excludedIds = useMemo(() => new Set(excludedIdsList), [excludedIdsList]);
 
   const {
     stage,
-    progress,
     docResults,
     visibleRecords,
     selectedTemplate: engineTemplate,
@@ -245,15 +242,15 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
     }
   }, []);
 
-  /* ── Modo Diseño: renderiza la plantilla tal cual (sin datos) ── */
+  /* ── Modo Diseño: renderiza la plantilla tal cual (sin datos).
+     Usa el mismo pipeline que el modo Documento para garantizar idéntico ancho. ── */
   useEffect(() => {
     let cancelled = false;
-    const hidden = disenoHiddenRef.current;
     const wrapper = disenoWrapperRef.current;
-    if (!hidden || !wrapper) return;
+    if (!wrapper) return;
     setDisenoRenderFailed(false);
-    hidden.innerHTML = '';
     wrapper.innerHTML = '';
+    if (disenoHiddenRef.current) disenoHiddenRef.current.innerHTML = '';
     if (!selectedTemplate?.file) return;
     setDisenoRendering(true);
     const file = selectedTemplate.file;
@@ -262,38 +259,23 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         const renderAsync = (docxPreview as DocxPreviewModule).renderAsync;
         if (!renderAsync) throw new Error('docx-preview renderAsync not found');
         const buf = await (file as unknown as Blob).arrayBuffer();
-        if (cancelled) return;
-        hidden.innerHTML = '';
-        await renderAsync(buf, hidden);
-        if (cancelled) return;
-        hidden.querySelectorAll('section').forEach((sec) => {
-          const s = sec as HTMLElement;
-          s.style.display = 'block';
-          s.style.width = '100%';
-          s.style.clear = 'both';
-        });
+        if (cancelled || !disenoWrapperRef.current) return;
+        disenoWrapperRef.current.innerHTML = '';
+        await renderAsync(buf, disenoWrapperRef.current);
+        if (cancelled || !disenoWrapperRef.current) return;
         await new Promise((r) => requestAnimationFrame(r));
-        await new Promise((r) => requestAnimationFrame(r));
-        if (cancelled) return;
-        const sections = Array.from(
-          hidden.querySelectorAll('section.docx, section[class*="docx"]')
-        );
-        if (sections.length >= 1) {
-          for (const sec of sections) {
-            const pageWrapper = document.createElement('div');
-            pageWrapper.className = 'dg-viewer-page';
-            const clone = sec.cloneNode(true) as HTMLElement;
-            clone.style.position = 'relative';
-            clone.style.background = '#fff';
-            pageWrapper.appendChild(clone);
-            wrapper.appendChild(pageWrapper);
-          }
-        } else {
-          const clone = hidden.cloneNode(true) as HTMLElement;
-          clone.style.position = 'relative';
-          clone.style.background = '#fff';
-          clone.className = 'dg-viewer-page';
-          wrapper.appendChild(clone);
+        if (cancelled || !disenoWrapperRef.current) return;
+        {
+          const container = disenoWrapperRef.current;
+          const sections = container.querySelectorAll('section.docx, section[class*="docx"]');
+          sections.forEach((sec) => {
+            (sec as HTMLElement).style.display = 'block';
+            (sec as HTMLElement).style.marginBottom = '18px';
+          });
+          const libWrapper = container.querySelector('.docx-wrapper');
+          const wrapperEl = (libWrapper ?? container) as HTMLElement;
+          wrapperEl.style.background = 'transparent';
+          wrapperEl.style.padding = '0';
         }
         // Verificación: si no quedó contenido visible, se usa el respaldo con datos.
         await new Promise((r) => requestAnimationFrame(r));
@@ -306,7 +288,6 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         console.error('docx-preview render failed (diseño)', err);
         if (!cancelled) {
           setDisenoRenderFailed(true);
-          hidden.innerHTML = '';
           wrapper.innerHTML = '';
         }
       } finally {
@@ -458,6 +439,12 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             (sec as HTMLElement).style.display = 'block';
             (sec as HTMLElement).style.marginBottom = '18px';
           });
+          // Neutralización a nivel DOM (además del CSS): el fondo gris propio
+          // de docx-preview no debe aparecer aunque falle la hoja de estilos.
+          const libWrapper = container.querySelector('.docx-wrapper');
+          const wrapperEl = (libWrapper ?? container) as HTMLElement;
+          wrapperEl.style.background = 'transparent';
+          wrapperEl.style.padding = '0';
           // Verificación: si el render no dejó contenido visible, se usa el
           // respaldo con los datos del registro en lugar de un visor vacío.
           const hasContent = sections.length > 0 || (container.textContent ?? '').trim().length > 0;
@@ -513,30 +500,6 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
       setIsGenerating(false);
     }
   }, [retryFailed]);
-
-  const handleClearGenerated = useCallback(() => {
-    if (visibleRecords.length > 0) {
-      const idsToExclude = visibleRecords.map(
-        (r) => (r as unknown as { rowId: string }).rowId ?? ''
-      );
-      const store = useGenerationStore.getState();
-      idsToExclude.forEach((id) => {
-        if (id) store.addExcludedId(id);
-      });
-    }
-    clearGenerated();
-    setConfirmClearOpen(false);
-  }, [clearGenerated, visibleRecords]);
-
-  const recordMeta = useMemo(() => {
-    if (!selectedRecord) return null;
-    const rr = selectedRecord as unknown as Record<string, unknown>;
-    return {
-      nombre: String(rr.nombreSolicitante ?? '—'),
-      cuenta: String(rr.numeroCuenta ?? rr.cuenta ?? '—'),
-      radicado: String(rr.radicadoEntrada ?? '—'),
-    };
-  }, [selectedRecord]);
 
   const generateTitle = !hasSelectedRecord
     ? 'Selecciona un registro en el Módulo 3'
@@ -599,7 +562,6 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             <h2 className="dg-header-title">Módulo 4: Generación Documental</h2>
             <p className="dg-header-sub">Selecciona la plantilla, revisa el diseño y genera</p>
           </div>
-          <GenerationStageIndicator stage={stage as unknown as string} />
         </div>
         <div className="dg-empty" data-testid="dg-empty">
           <div className="dg-empty-title">No hay plantillas disponibles</div>
@@ -659,8 +621,79 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           <h2 className="dg-header-title">Módulo 4: Generación Documental</h2>
           <p className="dg-header-sub">Selecciona la plantilla, revisa el diseño y genera</p>
         </div>
-        <GenerationStageIndicator stage={stage as unknown as string} />
         <div className="dg-header-right">
+          <button
+            type="button"
+            disabled={!canGenerate || isGenerating || stage === 'generando'}
+            onClick={handleGenerate}
+            data-testid="dg-generate-btn"
+            title={generateTitle}
+            className="dg-generate-btn"
+          >
+            <span className="dg-generate-btn-shine" aria-hidden />
+            {isGenerating || stage === 'generando' ? (
+              <svg
+                className="dg-spin-icon"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+            ) : (
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="11" x2="12" y2="17" />
+                <polyline points="9 14 12 17 15 14" />
+              </svg>
+            )}
+            <span>
+              {isGenerating || stage === 'generando' ? 'Generando documento…' : 'Generar documento'}
+            </span>
+          </button>
+          {hasError && (stage === 'con_errores' || stage === 'finalizado') && (
+            <button
+              type="button"
+              onClick={handleRetry}
+              disabled={isGenerating}
+              data-testid="dg-retry-btn"
+              title={`Reintentar documentos con error (${errorCount})`}
+              className="dg-retry-btn"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="1 4 1 10 7 10" />
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+              </svg>
+              Reintentar ({errorCount})
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setGuideOpen(true)}
@@ -684,16 +717,33 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             </svg>
             Construir mi plantilla
           </button>
-          <Button
-            variant="ghost"
+          <button
+            type="button"
             onClick={() => goTo('datos')}
             data-testid="dg-volver"
-            style={{ fontSize: '0.72rem', height: 30, padding: '0 12px' }}
+            className="dg-back-btn"
           >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
             Volver
-          </Button>
+          </button>
         </div>
       </div>
+
+      {/* ════ SOLICITANTE: franja bajo el banner ════ */}
+      <ApplicantCard />
 
       {/* ════ LAYOUT 3 COLUMNAS ════ */}
       <div className="dg-layout" data-testid="dg-layout">
@@ -1045,182 +1095,14 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           </div>
         </section>
 
-        {/* ════ RIGHT: registro + acciones ════ */}
-        <aside className="dg-side" data-testid="dg-actions" aria-label="Registro y acciones">
-          {/* Registro del Módulo 3 */}
-          <div className="dg-card dg-record">
-            <div className="dg-panel-hdr">
-              <span className="dg-panel-title">Registro</span>
-              <span className="dg-panel-step">Módulo 3</span>
-            </div>
-            {recordMeta ? (
-              <div data-testid="dg-selected-record">
-                <div className="dg-record-name" title={recordMeta.nombre}>
-                  {recordMeta.nombre}
-                </div>
-                <div className="dg-record-meta">
-                  <span>
-                    Cuenta: <strong>{recordMeta.cuenta}</strong>
-                  </span>
-                  <span>
-                    Radicado: <strong>{recordMeta.radicado}</strong>
-                  </span>
-                </div>
-                {assignedTemplate ? (
-                  <span className="dg-badge-ok" data-testid="dg-auto-assigned">
-                    ✓ {assignedTemplate.title || assignedTemplate.fileName}
-                  </span>
-                ) : (
-                  <span className="dg-badge-warn">Selecciona una plantilla del catálogo</span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => goTo('datos')}
-                  data-testid="dg-change-record"
-                  className="dg-link-btn"
-                >
-                  Cambiar registro
-                </button>
-              </div>
-            ) : (
-              <div data-testid="dg-no-record">
-                <div className="dg-record-empty">No hay registro seleccionado</div>
-                <Button
-                  variant="primary"
-                  onClick={() => goTo('datos')}
-                  data-testid="dg-go-datos-side"
-                  style={{ width: '100%', fontSize: '0.72rem', marginTop: 8 }}
-                >
-                  Ir al Módulo 3
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Resumen + generación */}
-          <div className="dg-card dg-generate">
-            <div className="dg-panel-hdr">
-              <span className="dg-panel-title">Documento</span>
-            </div>
-            {(!hasSelectedRecord || !assignedTemplate) && (
-              <div className="dg-summary" data-testid="dg-summary">
-                <div className="dg-gate-warning" data-testid="dg-gate-warning">
-                  {!hasSelectedRecord && !assignedTemplate
-                    ? 'Selecciona el registro en el Módulo 3 y una plantilla del catálogo.'
-                    : !hasSelectedRecord
-                      ? 'Selecciona un registro en el Módulo 3.'
-                      : 'Selecciona una plantilla del catálogo.'}
-                </div>
-              </div>
-            )}
-
-            {(stage === 'generando' ||
-              stage === 'finalizado' ||
-              stage === 'con_errores' ||
-              progress > 0) && (
-              <div data-testid="dg-progress-section" className="dg-progress">
-                <div className="dg-progress-row">
-                  <span className="dg-progress-label">
-                    {stage === 'finalizado'
-                      ? 'Generación completada'
-                      : stage === 'con_errores'
-                        ? 'Generación con errores'
-                        : 'Generando documento...'}
-                  </span>
-                  <span
-                    data-testid="dg-progress-pct"
-                    className={`dg-progress-pct dg-progress-pct--${stage}`}
-                  >
-                    {progress}%
-                  </span>
-                </div>
-                <div className="dg-progress-track" data-testid="dg-progress-track">
-                  <div
-                    className={`dg-progress-fill ${stage === 'finalizado' ? 'done' : ''}`}
-                    style={{ width: `${progress}%` }}
-                    data-testid="dg-progress-fill"
-                  />
-                </div>
-              </div>
-            )}
-
-            <button
-              type="button"
-              disabled={!canGenerate || isGenerating || stage === 'generando'}
-              onClick={handleGenerate}
-              data-testid="dg-generate-btn"
-              title={generateTitle}
-              className="dg-generate-btn"
-            >
-              <span className="dg-generate-btn-shine" aria-hidden />
-              {isGenerating || stage === 'generando' ? (
-                <svg
-                  className="dg-spin-icon"
-                  width="17"
-                  height="17"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                </svg>
-              ) : (
-                <svg
-                  width="17"
-                  height="17"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="12" y1="11" x2="12" y2="17" />
-                  <polyline points="9 14 12 17 15 14" />
-                </svg>
-              )}
-              <span>
-                {isGenerating || stage === 'generando'
-                  ? 'Generando documento…'
-                  : 'Generar documento'}
-              </span>
-            </button>
-
-            {hasError && (stage === 'con_errores' || stage === 'finalizado') && (
-              <Button
-                variant="secondary"
-                onClick={handleRetry}
-                disabled={isGenerating}
-                data-testid="dg-retry-btn"
-                style={{ width: '100%' }}
-              >
-                Reintentar ({errorCount} con error)
-              </Button>
-            )}
-            {(docResults.length > 0 || excludedIds.size > 0) && (
-              <Button
-                variant="ghost"
-                onClick={() => setConfirmClearOpen(true)}
-                data-testid="dg-clear-generated"
-                style={{
-                  width: '100%',
-                  color: '#991b1b',
-                  borderColor: '#fecaca',
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
-                }}
-              >
-                Borrar documentos generados
-              </Button>
-            )}
-          </div>
+        {/* ════ RIGHT: descripciones del documento ════ */}
+        <aside
+          className="dg-side"
+          data-testid="dg-actions"
+          aria-label="Descripciones del documento"
+        >
+          {/* Descripciones del documento + Mejorar texto */}
+          <DescriptionsCard />
         </aside>
       </div>
 
@@ -1229,40 +1111,6 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         onClose={() => setGuideOpen(false)}
         folderHint={templateFolderPath ?? undefined}
       />
-
-      {/* ── Confirm clear modal ── */}
-      <Modal
-        open={confirmClearOpen}
-        onClose={() => setConfirmClearOpen(false)}
-        title="Borrar documentos generados"
-        width={420}
-      >
-        <div className="dg-confirm-body">
-          <div className="dg-confirm-text">
-            ¿Seguro que deseas <strong>borrar los documentos generados</strong>?
-            <br />
-            <span className="dg-confirm-hint">
-              Se eliminarán los resultados de generación. Esta acción se guarda automáticamente.
-            </span>
-          </div>
-          <div className="dg-confirm-actions">
-            <Button
-              variant="ghost"
-              onClick={() => setConfirmClearOpen(false)}
-              data-testid="dg-clear-cancel"
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="danger"
-              onClick={handleClearGenerated}
-              data-testid="dg-confirm-clear-btn"
-            >
-              Sí, borrar todo
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }
@@ -1277,33 +1125,37 @@ export default GenerateView;
 const dgStyles = `
   @keyframes dg-cardIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes dg-shimmer { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
-  @keyframes dg-build-pulse { 0%,100% { box-shadow: 0 2px 8px rgba(0,75,147,.18), 0 0 0 1px rgba(255,255,255,.12) inset; } 50% { box-shadow: 0 4px 14px rgba(0,75,147,.26), 0 0 12px rgba(59,130,246,.18); } }
-  @keyframes dg-build-shine { 0% { transform: translateX(-140%) skewX(-12deg); opacity: 0; } 15% { opacity: 1; } 50% { transform: translateX(140%) skewX(-12deg); opacity: 0; } 100% { transform: translateX(140%) skewX(-12deg); opacity: 0; } }
 
   .dg-root { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 100%; }
 
   /* ── Header ── */
-  .dg-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 12px 16px; }
-  .dg-header-icon { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--essa-primary-50) 0%, #dbeafe 100%); display: inline-flex; align-items: center; justify-content: center; color: var(--essa-primary); flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,75,147,.1); }
-  .dg-header-text { min-width: 0; margin-right: auto; }
-  .dg-header-title { font-size: 1.04rem; font-weight: 900; letter-spacing: -0.02em; color: var(--neutral-900); margin: 0; line-height: 1.2; }
-  .dg-header-sub { font-size: 0.74rem; color: var(--neutral-500); margin: 2px 0 0; }
-  .dg-header-right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-  .dg-build-btn { position: relative; overflow: hidden; isolation: isolate; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 13px; border-radius: 999px; border: 1px solid #1e3a8a; background: linear-gradient(135deg,#0b2a5b 0%,#004B93 45%,#0e6ad1 100%); color: #fff; font-size: 0.7rem; font-weight: 800; cursor: pointer; white-space: nowrap; transition: transform 180ms var(--ease), box-shadow 180ms var(--ease); animation: dg-build-pulse 3s ease-in-out infinite; }
-  .dg-build-btn::before { content: ''; position: absolute; inset: 0; background: linear-gradient(105deg,transparent 30%,rgba(255,255,255,.22) 46%,rgba(255,255,255,.34) 50%,transparent 62%); transform: translateX(-140%) skewX(-12deg); animation: dg-build-shine 3.4s ease-in-out infinite; pointer-events: none; }
-  .dg-build-btn:hover { transform: translateY(-1px); }
-  .dg-build-btn:active { transform: translateY(0) scale(0.97); }
+  .dg-header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: rgba(255,255,255,.95); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,.05), 0 2px 4px -2px rgba(0,0,0,.05); padding: 10px 16px; }
+  .dg-header-icon { width: 36px; height: 36px; border-radius: 10px; background-color: #eff6ff; display: inline-flex; align-items: center; justify-content: center; color: #3b82f6; flex-shrink: 0; }
+  .dg-header-icon svg { width: 17px; height: 17px; }
+  .dg-header-text { min-width: 0; margin-right: auto; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; }
+  .dg-header-title { font-size: 0.95rem; font-weight: 700; letter-spacing: -0.01em; color: #0f172a; margin: 0; line-height: 1.2; }
+  .dg-header-sub { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 400; color: #64748b; margin: 0; }
+  .dg-header-sub::before { content: "•"; color: #94a3b8; font-size: 0.9rem; line-height: 1; }
+  .dg-header-right { display: flex; gap: 10px; align-items: center; flex-shrink: 0; margin-left: auto; }
+  .dg-build-btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border: none; border-radius: 9999px; background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%); box-shadow: 0 4px 15px rgba(37,99,235,.3); color: #fff; font-size: 0.78rem; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  .dg-build-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37,99,235,.45); }
+  .dg-build-btn:active { transform: translateY(0) scale(0.98); }
   .dg-build-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+  .dg-back-btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 9999px; background: transparent; color: #0f172a; border: 1px solid #cbd5e1; font-size: 0.78rem; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  .dg-back-btn svg { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: #64748b; }
+  .dg-back-btn:hover { background: #fff; border-color: #94a3b8; box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+  .dg-back-btn:hover svg { color: #0f172a; transform: translateX(-4px); }
+  .dg-back-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
 
   /* ── Layout ── */
-  .dg-layout { display: grid; grid-template-columns: 248px minmax(0, 1fr) 268px; gap: 10px; align-items: start; }
+  .dg-layout { display: grid; grid-template-columns: 264px minmax(0, 1fr) 300px; gap: 12px; align-items: stretch; }
   @media (max-width: 1100px) {
-    .dg-layout { grid-template-columns: 230px minmax(0, 1fr); }
-    .dg-side { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+    .dg-layout { grid-template-columns: 240px minmax(0, 1fr); }
+    .dg-side { grid-column: 1 / -1; }
   }
   @media (max-width: 860px) {
     .dg-layout { grid-template-columns: minmax(0, 1fr); }
-    .dg-side { grid-column: auto; grid-template-columns: minmax(0, 1fr); }
+    .dg-side { grid-column: auto; }
     .dg-header-right { width: 100%; justify-content: flex-start; }
   }
 
@@ -1314,7 +1166,10 @@ const dgStyles = `
   .dg-panel-step { font-size: 0.6rem; font-weight: 700; color: var(--neutral-500); background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
 
   /* ── Templates panel ── */
-  .dg-templates { max-height: 640px; }
+  .dg-templates { min-height: 0; }
+  @media (max-width: 1100px) {
+    .dg-templates { max-height: 640px; }
+  }
   .dg-panel-search { padding: 8px 10px 4px; flex-shrink: 0; }
   .dg-cats { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 6px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
   .dg-cats::-webkit-scrollbar { display: none; }
@@ -1349,15 +1204,27 @@ const dgStyles = `
   /* ── Preview card ── */
   .dg-preview-card { min-height: 560px; }
   .dg-preview-hdr { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, var(--neutral-50) 0%, #f1f5f9 100%); flex-shrink: 0; flex-wrap: wrap; }
-  .dg-modes { position: relative; display: inline-flex; background: var(--white); border: 1px solid var(--border); border-radius: 999px; padding: 4px; isolation: isolate; box-shadow: var(--shadow-sm); }
-  .dg-modes-pill { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 999px; background: linear-gradient(135deg, var(--essa-primary) 0%, #0e6ad1 100%); box-shadow: 0 2px 8px rgba(0,75,147,.32), 0 0 0 1px rgba(0,75,147,.12); transition: transform 240ms var(--ease); z-index: 0; }
-  .dg-modes[data-mode="documento"] .dg-modes-pill { transform: translateX(100%); }
-  .dg-mode-btn { position: relative; z-index: 1; flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: none; background: transparent; padding: 8px 20px; border-radius: 999px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.01em; color: var(--neutral-500); cursor: pointer; white-space: nowrap; transition: color 180ms var(--ease), transform 120ms var(--ease), background 180ms var(--ease); font-family: inherit; }
-  .dg-mode-btn:hover { color: var(--essa-primary); background: var(--essa-primary-50); }
+  .dg-modes { position: relative; display: inline-flex; align-items: stretch; width: auto; max-width: 100%; background: rgba(255,255,255,.7); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,1); outline: 1px solid var(--border); border-radius: 999px; padding: 4px; isolation: isolate; box-shadow: 0 10px 30px rgba(0,0,0,.05), inset 0 2px 5px rgba(255,255,255,.8); }
+  .dg-modes-pill { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 999px; pointer-events: none; z-index: 0; background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 6px 16px rgba(37,99,235,.35); will-change: transform; transition: transform 0.45s cubic-bezier(0.34, 1.3, 0.64, 1), opacity 0.3s ease, box-shadow 0.3s ease; }
+  .dg-modes-pill::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(135deg, #10b981, #059669); opacity: 0; transition: opacity 0.3s ease; }
+  .dg-modes[data-mode="diseno"] .dg-modes-pill { transform: translate3d(0, 0, 0); box-shadow: 0 6px 16px rgba(37,99,235,.35); }
+  .dg-modes[data-mode="diseno"] .dg-modes-pill::after { opacity: 0; }
+  .dg-modes[data-mode="documento"] .dg-modes-pill { transform: translate3d(100%, 0, 0); box-shadow: 0 6px 16px rgba(16,185,129,.35); }
+  .dg-modes[data-mode="documento"] .dg-modes-pill::after { opacity: 1; }
+  .dg-mode-btn { position: relative; z-index: 1; flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; text-align: center; gap: 7px; border: none; background: transparent; padding: 8px 16px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; line-height: 1.2; letter-spacing: 0.01em; color: #64748b; cursor: pointer; white-space: nowrap; user-select: none; transition: color 0.25s ease; font-family: inherit; }
+  .dg-mode-btn svg { width: 13px; height: 13px; flex-shrink: 0; transition: transform 0.35s cubic-bezier(0.34, 1.3, 0.64, 1); }
+  .dg-mode-btn:hover { color: #334155; }
   .dg-mode-btn[aria-selected="true"] { color: #fff; }
-  .dg-mode-btn[aria-selected="true"]:hover { background: transparent; }
+  .dg-mode-btn[data-testid="dg-mode-diseno"][aria-selected="true"] svg { transform: scale(1.15) rotate(-5deg); }
+  .dg-mode-btn[data-testid="dg-mode-documento"][aria-selected="true"] svg { transform: scale(1.15) rotate(5deg); }
   .dg-mode-btn:active { transform: scale(0.97); }
   .dg-mode-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+  @media (max-width: 600px) {
+    .dg-mode-btn { font-size: 0.68rem; padding: 7px 12px; gap: 6px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dg-modes-pill, .dg-modes-pill::after, .dg-mode-btn, .dg-mode-btn svg { transition: none; }
+  }
 
   .dg-viewer { position: relative; background: linear-gradient(180deg, #f7f9fc 0%, #edf1f6 100%); min-height: 500px; max-height: 640px; overflow-y: auto; overflow-x: auto; flex: 1 1 auto; border-top: 1px solid var(--neutral-100); }
   .dg-viewer::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -1365,15 +1232,17 @@ const dgStyles = `
   .dg-views { display: grid; min-height: 500px; }
   .dg-view { grid-area: 1 / 1; display: flex; flex-direction: column; align-items: stretch; opacity: 0; transform: translateY(10px); visibility: hidden; pointer-events: none; transition: opacity 220ms ease-out, transform 220ms ease-out, visibility 0ms linear 220ms; }
   .dg-view[data-visible="true"] { opacity: 1; transform: translateY(0); visibility: visible; pointer-events: auto; transition: opacity 220ms ease-out, transform 220ms ease-out, visibility 0ms; }
-  .dg-viewer-inner { display: flex; flex-direction: column; align-items: center; gap: 26px; padding: 30px 24px 34px; width: 100%; }
-  .dg-doc-layer { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 26px; }
-  /* ── Hojas de documento unificadas (ambos modos) ── */
-  .dg-viewer-page { scroll-margin-top: 20px; flex-shrink: 0; max-width: 100%; background: #fff; border-radius: 5px; box-shadow: 0 8px 30px rgba(15,23,42,.14), 0 2px 8px rgba(15,23,42,.08); overflow: hidden; }
-  .dg-viewer-page > section { margin: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
-  /* ── Normalización del contenedor propio de docx-preview ── */
-  .dg-viewer-inner .docx-wrapper, .dg-doc-layer .docx-wrapper { background: transparent !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; border: none !important; max-width: 100%; }
+  .dg-viewer-inner { display: block; width: 100%; padding: 30px 24px 34px; }
+  .dg-doc-layer { display: block; width: 100%; }
+  /* ── Hojas de documento unificadas: ambos modos usan el mismo pipeline de
+     docx-preview, por lo que las secciones conservan su ancho intrínseco
+     (pageSize del Word) y se centran igual en los dos modos. ── */
+  .dg-viewer-page { scroll-margin-top: 20px; margin: 0 auto 22px; background: #fff; border-radius: 5px; box-shadow: 0 8px 30px rgba(15,23,42,.14), 0 2px 8px rgba(15,23,42,.08); }
+  .dg-viewer-page > section { margin: 0 !important; box-shadow: none !important; border-radius: 5px !important; }
+  /* ── Normalización del contenedor propio de docx-preview (idéntica en ambos modos) ── */
+  .dg-viewer-inner .docx-wrapper, .dg-doc-layer .docx-wrapper { display: block !important; width: 100% !important; background: transparent !important; padding: 0 !important; margin: 0 auto !important; box-shadow: none !important; border: none !important; }
   .dg-viewer-inner .docx-wrapper > section.docx, .dg-doc-layer .docx-wrapper > section.docx,
-  .dg-viewer-inner .docx-wrapper > section[class*="docx"], .dg-doc-layer .docx-wrapper > section[class*="docx"] { margin: 0 auto 22px !important; box-shadow: 0 8px 30px rgba(15,23,42,.14), 0 2px 8px rgba(15,23,42,.08) !important; border-radius: 5px !important; background: #ffffff !important; max-width: 100% !important; overflow: hidden; }
+  .dg-viewer-inner .docx-wrapper > section[class*="docx"], .dg-doc-layer .docx-wrapper > section[class*="docx"] { display: block !important; margin: 0 auto 22px !important; box-shadow: 0 8px 30px rgba(15,23,42,.14), 0 2px 8px rgba(15,23,42,.08) !important; border-radius: 5px !important; background: #ffffff !important; overflow: hidden; }
   .dg-viewer-inner .docx-wrapper > section.docx:last-child, .dg-doc-layer .docx-wrapper > section.docx:last-child { margin-bottom: 0 !important; }
   .dg-fallback { display: flex; justify-content: center; padding: 26px 20px; width: 100%; }
   .dg-fallback .dg-fallback-text, .dg-fallback-text { background: var(--white); padding: 26px 30px; box-shadow: 0 4px 20px rgba(0,0,0,.08); border-radius: 4px; min-height: 220px; max-width: 600px; width: 100%; font-family: Georgia, "Times New Roman", serif; font-size: 11px; line-height: 1.75; color: var(--neutral-900); white-space: pre-wrap; word-break: break-word; }
@@ -1394,18 +1263,6 @@ const dgStyles = `
 
   /* ── Right side ── */
   .dg-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-  .dg-record-name { font-size: 0.84rem; font-weight: 800; letter-spacing: -0.01em; color: var(--neutral-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 12px 14px 0; }
-  .dg-record-meta { display: flex; flex-direction: column; gap: 3px; font-size: 0.68rem; color: var(--neutral-500); padding: 5px 14px 0; }
-  .dg-record-meta strong { color: var(--neutral-800); font-weight: 700; }
-  .dg-badge-ok { display: inline-flex; align-items: center; gap: 4px; margin: 9px 14px 0; font-size: 0.62rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; background: var(--success-50); color: var(--success); border: 1px solid #a7f3d0; max-width: calc(100% - 28px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dg-badge-warn { display: inline-flex; margin: 9px 14px 0; font-size: 0.62rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--warning-50); color: var(--warning); border: 1px solid #fde68a; }
-  .dg-link-btn { background: none; border: none; padding: 0; margin: 9px 14px 14px; align-self: flex-start; color: var(--essa-primary); font-size: 0.68rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity 150ms var(--ease); border-radius: 4px; }
-  .dg-link-btn:hover { opacity: 0.75; text-decoration: underline; }
-  .dg-link-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
-  .dg-record-empty { font-size: 0.74rem; color: var(--neutral-500); padding: 12px 14px 0; }
-  .dg-generate { padding-bottom: 14px; }
-  .dg-summary { font-size: 0.8rem; color: var(--neutral-700); padding: 12px 14px 0; line-height: 1.5; }
-  .dg-gate-warning { font-size: 0.72rem; color: #b45309; background: var(--warning-50); border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 8px 10px; }
   /* ── Botón principal Generar documento ── */
   @keyframes dg-btn-shine { 0% { transform: translateX(-130%) skewX(-12deg); opacity: 0; } 12% { opacity: 1; } 55% { transform: translateX(130%) skewX(-12deg); opacity: 0; } 100% { transform: translateX(130%) skewX(-12deg); opacity: 0; } }
   @keyframes dg-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -1417,36 +1274,26 @@ const dgStyles = `
   .dg-generate-btn:disabled .dg-generate-btn-shine { display: none; }
   .dg-generate-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
   .dg-generate-btn svg { flex-shrink: 0; }
+  .dg-header .dg-generate-btn { width: auto; margin: 0; height: auto; padding: 8px 16px; font-size: 0.78rem; font-weight: 600; border-radius: 9999px; flex-shrink: 0; border: none; background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); box-shadow: 0 4px 15px rgba(30,58,138,.25); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  .dg-header .dg-generate-btn:hover:not(:disabled) { transform: translateY(-2px); filter: none; box-shadow: 0 6px 20px rgba(30,58,138,.4); }
+  .dg-header .dg-generate-btn:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+  .dg-header .dg-retry-btn { display: inline-flex; align-items: center; gap: 6px; height: auto; padding: 8px 14px; border-radius: 9999px; border: 1px solid #fca5a5; background: #fef2f2; color: #991b1b; font-size: 0.75rem; font-weight: 700; font-family: inherit; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background 150ms var(--ease), transform 120ms var(--ease); }
+  .dg-header .dg-retry-btn:hover:not(:disabled) { background: #fee2e2; transform: translateY(-1px); }
+  .dg-header .dg-retry-btn:active:not(:disabled) { transform: scale(0.97); }
+  .dg-header .dg-retry-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .dg-header .dg-retry-btn:focus-visible { outline: 2px solid #fca5a5; outline-offset: 2px; }
   .dg-spin-icon { animation: dg-rotate 0.9s linear infinite; }
-  .dg-progress { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 0; }
-  .dg-progress-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .dg-progress-label { font-size: 0.74rem; font-weight: 800; color: var(--neutral-700); }
-  .dg-progress-pct { font-size: 0.78rem; font-weight: 800; color: var(--essa-primary); }
-  .dg-progress-pct--finalizado { color: #065f46; }
-  .dg-progress-pct--con_errores { color: #991b1b; }
-  .dg-progress-track { width: 100%; height: 8px; background: var(--neutral-200); border-radius: 999px; overflow: hidden; border: 1px solid var(--neutral-200); padding: 1px; }
-  .dg-progress-fill { height: 100%; border-radius: 999px; transition: width 300ms ease; background: linear-gradient(90deg, #3b82f6, var(--essa-primary)); min-width: 0; }
-  .dg-progress-fill.done { background: linear-gradient(90deg, #10b981, #059669); }
-  .dg-generate > button:not(.dg-generate-btn) { margin: 12px 14px 0; width: calc(100% - 28px) !important; }
 
   /* ── Empty state (sin plantillas) ── */
   .dg-empty { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 56px 28px; text-align: center; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .dg-empty-title { font-size: 1rem; font-weight: 800; color: var(--neutral-700); }
   .dg-empty-sub { font-size: 0.82rem; color: var(--neutral-500); margin-bottom: 12px; }
 
-  /* ── Confirm modal ── */
-  .dg-confirm-body { display: flex; flex-direction: column; gap: 16px; }
-  .dg-confirm-text { font-size: 0.86rem; color: var(--neutral-700); line-height: 1.5; }
-  .dg-confirm-text strong { color: var(--neutral-900); }
-  .dg-confirm-hint { font-size: 0.78rem; color: var(--neutral-500); }
-  .dg-confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
-
   @media (prefers-reduced-motion: reduce) {
     .dg-view { transition: none; opacity: 1; transform: none; }
     .dg-view:not([data-visible="true"]) { display: none; }
     .dg-tpl { animation: none; }
     .dg-tpl:hover { transform: none; }
-    .dg-build-btn, .dg-build-btn::before { animation: none; }
     .dg-build-btn:hover { transform: none; }
     .dg-skeleton { animation: none; }
     .dg-modes-pill { transition: none; }

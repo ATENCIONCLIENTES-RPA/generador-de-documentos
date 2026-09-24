@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+﻿import { useEffect, useState, useCallback, useRef } from 'react';
 import type { Record as EssaRecord } from '@/types/record';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -59,13 +59,9 @@ function isDirty(a: EssaRecord | null, b: EssaRecord | null): boolean {
   return false;
 }
 
-import { improveText } from '@/utils/textEnhancer';
-
 export function RecordEditModal({ open, record, onClose, onSave }: Props) {
   const [draft, setDraft] = useState<EssaRecord | null>(null);
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
-  const [improvingField, setImprovingField] = useState<string | null>(null);
-  const [improvedField, setImprovedField] = useState<string | null>(null);
   const originalRef = useRef<EssaRecord | null>(null);
 
   useEffect(() => {
@@ -74,15 +70,11 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
       setDraft(copy);
       originalRef.current = { ...record } as EssaRecord;
       setShowUnsavedWarning(false);
-      setImprovingField(null);
-      setImprovedField(null);
     } else if (!open) {
       const t = window.setTimeout(() => {
         setDraft(null);
         originalRef.current = null;
         setShowUnsavedWarning(false);
-        setImprovingField(null);
-        setImprovedField(null);
       }, 180);
       return () => window.clearTimeout(t);
     }
@@ -125,96 +117,6 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
     if (!draft) return;
     setDraft({ ...draft, [key]: value } as EssaRecord);
   };
-
-  const handleImproveText = useCallback(
-    async (field: 'observacionProceso' | 'observacionRevision' | 'observacionDecision') => {
-      if (!draft) return;
-      let currentText = '';
-      if (field === 'observacionProceso') {
-        currentText = String(
-          draft.observacionProceso ??
-            (draft as Record<string, unknown>)['OBSERVACION_PROCESO'] ??
-            (draft as Record<string, unknown>)['descripcion'] ??
-            ''
-        );
-      } else if (field === 'observacionRevision') {
-        currentText = String(
-          draft.observacionRevision ??
-            (draft as Record<string, unknown>)['OBSERVACION_REVISION'] ??
-            (draft as Record<string, unknown>)['observaciones'] ??
-            ''
-        );
-      } else if (field === 'observacionDecision') {
-        currentText = String(
-          draft.observacionDecision ??
-            (draft as Record<string, unknown>)['OBSERVACION_DECISION'] ??
-            (draft as Record<string, unknown>)['OBSERVACION DECISION'] ??
-            ''
-        );
-      }
-
-      if (!currentText.trim() || improvingField) return;
-
-      setImprovingField(field);
-      setImprovedField(null);
-
-      await new Promise<void>((resolve) => {
-        if (typeof requestAnimationFrame !== 'undefined') {
-          requestAnimationFrame(() => setTimeout(resolve, 16));
-        } else {
-          setTimeout(resolve, 16);
-        }
-      });
-
-      try {
-        const improved = await new Promise<string>((resolve) => {
-          const doWork = () => resolve(improveText(currentText));
-          const ric = (
-            window as unknown as {
-              requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-            }
-          ).requestIdleCallback;
-          if (typeof ric === 'function') {
-            ric(doWork, { timeout: 120 });
-          } else {
-            setTimeout(doWork, 0);
-          }
-        });
-
-        setDraft((prev) => {
-          if (!prev) return prev;
-          if (field === 'observacionProceso') {
-            return {
-              ...prev,
-              observacionProceso: improved,
-              OBSERVACION_PROCESO: improved,
-              descripcion: improved,
-            } as EssaRecord;
-          }
-          if (field === 'observacionRevision') {
-            return {
-              ...prev,
-              observacionRevision: improved,
-              OBSERVACION_REVISION: improved,
-              observaciones: improved,
-            } as EssaRecord;
-          }
-          return {
-            ...prev,
-            observacionDecision: improved,
-            OBSERVACION_DECISION: improved,
-            'OBSERVACION DECISION': improved,
-          } as EssaRecord;
-        });
-
-        setImprovedField(field);
-        setTimeout(() => setImprovedField((prev) => (prev === field ? null : prev)), 2500);
-      } finally {
-        setImprovingField(null);
-      }
-    },
-    [draft, improvingField]
-  );
 
   if (!open) return null;
 
@@ -292,315 +194,6 @@ export function RecordEditModal({ open, record, onClose, onSave }: Props) {
                 value={convertToISODate(draft.fechaVencimiento)}
                 onChange={(e) => set('fechaVencimiento', e.target.value)}
               />
-            </div>
-          </div>
-
-          {/* ═══════ SECCIÓN: SOLICITANTE ═══════ */}
-          <div className="rem-section" data-testid="rem-section-solicitante">
-            <div className="rem-section-header rem-section-header--green">
-              <div className="rem-section-icon rem-section-icon--green">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </div>
-              <span className="rem-section-title">Información del solicitante</span>
-            </div>
-            <div className="rem-grid">
-              <Input
-                label="Nombre"
-                value={String(draft.nombreSolicitante ?? '')}
-                onChange={(e) => set('nombreSolicitante', e.target.value)}
-                placeholder="Nombre completo"
-              />
-              <Input
-                label="Cédula"
-                value={String(draft.cedulaSolicitante ?? '')}
-                onChange={(e) => set('cedulaSolicitante', e.target.value)}
-                placeholder="Cédula"
-              />
-              <Input
-                label="Dirección"
-                value={String(draft.direccionSolicitante ?? '')}
-                onChange={(e) => set('direccionSolicitante', e.target.value)}
-                placeholder="Dirección"
-              />
-              <Input
-                label="Departamento"
-                value={String(draft.departamentoSolicitante ?? '')}
-                onChange={(e) => set('departamentoSolicitante', e.target.value)}
-                placeholder="Departamento"
-              />
-              <Input
-                label="Municipio"
-                value={String(draft.municipioSolicitante ?? '')}
-                onChange={(e) => set('municipioSolicitante', e.target.value)}
-                placeholder="Municipio"
-              />
-              <Input
-                label="Correo"
-                value={String(draft.correoSolicitante ?? '')}
-                onChange={(e) => set('correoSolicitante', e.target.value)}
-                placeholder="correo@ejemplo.com"
-                type="email"
-              />
-            </div>
-          </div>
-
-          {/* ═══════ SECCIÓN: DESCRIPCIONES ═══════ */}
-          <div className="rem-section" data-testid="rem-section-descripciones">
-            <div className="rem-section-header rem-section-header--sky">
-              <div className="rem-section-icon rem-section-icon--sky">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="17" y1="10" x2="3" y2="10" />
-                  <line x1="21" y1="6" x2="3" y2="6" />
-                  <line x1="21" y1="14" x2="3" y2="14" />
-                  <line x1="17" y1="18" x2="3" y2="18" />
-                </svg>
-              </div>
-              <span className="rem-section-title">Descripciones</span>
-            </div>
-            <div className="rem-descriptions">
-              <div className="rem-desc-group">
-                <div className="rem-desc-header">
-                  <label className="rem-desc-label">Descripción de la solicitud</label>
-                  <button
-                    type="button"
-                    className={`rem-btn-improve ${improvedField === 'observacionProceso' ? 'rem-btn-improve--success' : ''}`}
-                    onClick={() => handleImproveText('observacionProceso')}
-                    disabled={improvingField !== null}
-                    data-testid="rem-btn-mejorar-texto"
-                    title="Revisar y mejorar redacción, ortografía y formato"
-                  >
-                    {improvingField === 'observacionProceso' ? (
-                      <>
-                        <span className="rem-improve-spinner" />
-                        Mejorando…
-                      </>
-                    ) : improvedField === 'observacionProceso' ? (
-                      <>
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        ¡Mejorado!
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                        </svg>
-                        Mejorar texto
-                      </>
-                    )}
-                  </button>
-                </div>
-                <textarea
-                  className="rem-textarea"
-                  value={String(
-                    draft.observacionProceso ??
-                      (draft as Record<string, unknown>)['OBSERVACION_PROCESO'] ??
-                      (draft as Record<string, unknown>)['descripcion'] ??
-                      ''
-                  )}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (!draft) return;
-                    setDraft({
-                      ...draft,
-                      observacionProceso: val,
-                      OBSERVACION_PROCESO: val,
-                      descripcion: val,
-                    } as EssaRecord);
-                  }}
-                  placeholder="Descripción de la solicitud (OBSERVACION_PROCESO)…"
-                  rows={4}
-                  data-testid="rem-textarea-descripcion"
-                />
-              </div>
-              <div className="rem-desc-group">
-                <div className="rem-desc-header">
-                  <label className="rem-desc-label">Observación del insumo</label>
-                  <button
-                    type="button"
-                    className={`rem-btn-improve ${improvedField === 'observacionRevision' ? 'rem-btn-improve--success' : ''}`}
-                    onClick={() => handleImproveText('observacionRevision')}
-                    disabled={improvingField !== null}
-                    data-testid="rem-btn-mejorar-texto-insumo"
-                    title="Revisar y mejorar redacción, ortografía y formato"
-                  >
-                    {improvingField === 'observacionRevision' ? (
-                      <>
-                        <span className="rem-improve-spinner" />
-                        Mejorando…
-                      </>
-                    ) : improvedField === 'observacionRevision' ? (
-                      <>
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        ¡Mejorado!
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                        </svg>
-                        Mejorar texto
-                      </>
-                    )}
-                  </button>
-                </div>
-                <textarea
-                  className="rem-textarea"
-                  value={String(
-                    draft.observacionRevision ??
-                      (draft as Record<string, unknown>)['OBSERVACION_REVISION'] ??
-                      (draft as Record<string, unknown>)['observaciones'] ??
-                      ''
-                  )}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (!draft) return;
-                    setDraft({
-                      ...draft,
-                      observacionRevision: val,
-                      OBSERVACION_REVISION: val,
-                      observaciones: val,
-                    } as EssaRecord);
-                  }}
-                  placeholder="Observaciones de revisión (OBSERVACION_REVISION)…"
-                  rows={3}
-                  data-testid="rem-textarea-observaciones"
-                />
-              </div>
-              <div className="rem-desc-group">
-                <div className="rem-desc-header">
-                  <label className="rem-desc-label">Observación de la decisión</label>
-                  <button
-                    type="button"
-                    className={`rem-btn-improve ${improvedField === 'observacionDecision' ? 'rem-btn-improve--success' : ''}`}
-                    onClick={() => handleImproveText('observacionDecision')}
-                    disabled={improvingField !== null}
-                    data-testid="rem-btn-mejorar-texto-decision"
-                    title="Revisar y mejorar redacción, ortografía y formato"
-                  >
-                    {improvingField === 'observacionDecision' ? (
-                      <>
-                        <span className="rem-improve-spinner" />
-                        Mejorando…
-                      </>
-                    ) : improvedField === 'observacionDecision' ? (
-                      <>
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        ¡Mejorado!
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                        </svg>
-                        Mejorar texto
-                      </>
-                    )}
-                  </button>
-                </div>
-                <textarea
-                  className="rem-textarea"
-                  value={String(
-                    draft.observacionDecision ??
-                      (draft as Record<string, unknown>)['OBSERVACION_DECISION'] ??
-                      (draft as Record<string, unknown>)['OBSERVACION DECISION'] ??
-                      ''
-                  )}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (!draft) return;
-                    setDraft({
-                      ...draft,
-                      observacionDecision: val,
-                      OBSERVACION_DECISION: val,
-                      'OBSERVACION DECISION': val,
-                    } as EssaRecord);
-                  }}
-                  placeholder="Observación de la decisión (OBSERVACION_DECISION)…"
-                  rows={3}
-                  data-testid="rem-textarea-decision"
-                />
-              </div>
             </div>
           </div>
 
@@ -710,8 +303,6 @@ const remStyles = `
   .rem-section:hover { border-color: #bfdbfe; box-shadow: 0 2px 8px rgba(0,75,147,.06); transform: translateY(-1px) }
   .rem-section:focus-within { border-color: var(--essa-primary); box-shadow: 0 0 0 3px rgba(0,75,147,.07); }
   .rem-section:nth-child(1) { animation-delay: 0ms; }
-  .rem-section:nth-child(2) { animation-delay: 70ms; }
-  .rem-section:nth-child(3) { animation-delay: 140ms; }
 
   .rem-section-header {
     display: flex; align-items: center; gap: 10px;
@@ -722,8 +313,6 @@ const remStyles = `
     flex-shrink: 0; box-shadow: 0 1px 3px rgba(15,23,42,.06);
   }
   .rem-section-icon--blue { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); color: #004B93; border: 1px solid #bfdbfe; }
-  .rem-section-icon--green { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); color: #15803d; border: 1px solid #bbf7d0; }
-  .rem-section-icon--sky { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); color: #0284c7; border: 1px solid #bae6fd; }
   .rem-section-title {
     font-size: 0.7rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: #334155;
   }
@@ -732,36 +321,6 @@ const remStyles = `
     display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
   }
   @media (max-width: 680px) { .rem-grid { grid-template-columns: 1fr; } }
-
-  /* ── Descriptions ── */
-  .rem-descriptions { display: flex; flex-direction: column; gap: 16px; }
-  .rem-desc-group { display: flex; flex-direction: column; gap: 8px; }
-  .rem-desc-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .rem-desc-label { font-size: 0.8rem; font-weight: 700; color: #334155; letter-spacing: -0.01em; }
-
-  .rem-textarea {
-    width: 100%; min-height: 96px; border-radius: 10px; border: 1px solid #cbd5e1;
-    padding: 12px 14px; font-size: 0.875rem; font-family: inherit; color: #1e293b;
-    resize: vertical; outline: none; line-height: 1.6; background: #fff;
-    transition: border-color 200ms var(--ease), box-shadow 200ms var(--ease), background 200ms var(--ease);
-    box-shadow: inset 0 1px 2px rgba(15,23,42,.04);
-  }
-  .rem-textarea::placeholder{ color:#94a3b8 }
-  .rem-textarea:hover{ border-color:#93c5fd; background:#f8fafc }
-  .rem-textarea:focus{ border-color: var(--essa-primary); box-shadow: var(--ring); background:#fff }
-
-  /* ── Improve Button ── */
-  .rem-btn-improve {
-    display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; border: 1px solid #86efac;
-    color: #15803d; font-size: 0.72rem; font-weight: 700; font-family: inherit;
-    padding: 6px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap;
-    transition: all 180ms var(--ease); box-shadow: 0 1px 2px rgba(22,163,74,.06);
-  }
-  .rem-btn-improve:hover:not(:disabled){ background:#dcfce7; border-color:#4ade80; color:#166534; box-shadow: 0 2px 8px rgba(22,163,74,.12); transform: translateY(-1px) }
-  .rem-btn-improve:active:not(:disabled){ transform: scale(.97) }
-  .rem-btn-improve:disabled{ opacity:.55; cursor:not-allowed }
-  .rem-btn-improve--success{ background:#dcfce7; border-color:#22c55e; color:#166534; box-shadow: 0 2px 8px rgba(22,163,74,.14) }
-  .rem-improve-spinner{ width:13px; height:13px; border:2px solid #86efac; border-top-color:#15803d; border-radius:50%; animation: rem-spin 0.7s linear infinite; }
 
   /* ── Unsaved Warning ── */
   .rem-unsaved {

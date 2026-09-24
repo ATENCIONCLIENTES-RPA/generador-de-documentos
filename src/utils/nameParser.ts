@@ -1,4 +1,4 @@
-const COMMON_GIVEN_NAMES: ReadonlySet<string> = new Set<string>([
+﻿const COMMON_GIVEN_NAMES: ReadonlySet<string> = new Set<string>([
   'JUAN',
   'CARLOS',
   'JOSE',
@@ -156,6 +156,11 @@ const COMMON_GIVEN_NAMES: ReadonlySet<string> = new Set<string>([
   'VIVIANA',
   'LORENA',
   'PILAR',
+  'ROSMIRA',
+  'CARMEN',
+  'LUCIA',
+  'LUCÍA',
+  'ELENA',
 ]);
 
 const COMMON_SURNAMES: ReadonlySet<string> = new Set<string>([
@@ -379,6 +384,276 @@ export function cleanSpecialCharacters(name: string | null | undefined): string 
     .trim();
 }
 
+// ---------------------------------------------------------------------------
+// Clasificación persona natural vs empresa / razón social
+// ---------------------------------------------------------------------------
+
+/** Normaliza una palabra para búsquedas en diccionario: mayúsculas sin tildes
+ *  (conserva la Ñ para no generar falsos positivos). */
+function normKey(word: string): string {
+  return word
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u0302\u0304-\u036f]/g, '');
+}
+
+/** Formas societarias (canónicas: sin puntos, sin espacios, en mayúsculas). */
+const LEGAL_SUFFIX_FORMS: ReadonlySet<string> = new Set<string>([
+  'SAS',
+  'SA',
+  'LTDA',
+  'LIMITADA',
+  'SENC',
+  'SCA',
+  'EU',
+  'ESP',
+  'BIC',
+  'SASBIC',
+]);
+
+/** Palabras que delatan una razón social o nombre comercial. Se excluyen
+ *  deliberadamente apellidos y nombres comunes para evitar falsos positivos. */
+const COMPANY_KEYWORDS: ReadonlySet<string> = new Set<string>([
+  'ALCALDIA',
+  'GOBERNACION',
+  'MUNICIPIO',
+  'MINISTERIO',
+  'SUPERINTENDENCIA',
+  'CONTRALORIA',
+  'PROCURADURIA',
+  'FISCALIA',
+  'JUZGADO',
+  'TRIBUNAL',
+  'NOTARIA',
+  'REGISTRADURIA',
+  'DEFENSORIA',
+  'PERSONERIA',
+  'CONCEJO',
+  'ASAMBLEA',
+  'EMBAJADA',
+  'CONSULADO',
+  'POLICIA',
+  'EJERCITO',
+  'ARMADA',
+  'BOMBEROS',
+  'IGLESIA',
+  'PARROQUIA',
+  'DIOCESIS',
+  'COMUNIDAD',
+  'ASOCIACION',
+  'SINDICATO',
+  'FEDERACION',
+  'CONFEDERACION',
+  'CAMARA',
+  'LIGA',
+  'CLUB',
+  'FUNDACION',
+  'CORPORACION',
+  'COOPERATIVA',
+  'FONDO',
+  'CAJA',
+  'BANCO',
+  'SEGUROS',
+  'ASEGURADORA',
+  'TRANSPORTES',
+  'TRANSPORTE',
+  'TRANSPORTADORA',
+  'CONSTRUCTORA',
+  'CONSTRUCTOR',
+  'CONSTRUCCIONES',
+  'CONSTRUCCION',
+  'INDUSTRIA',
+  'INDUSTRIAS',
+  'INDUSTRIAL',
+  'INVERSIONES',
+  'INVERSION',
+  'COMERCIALIZADORA',
+  'COMERCIAL',
+  'COMERCIO',
+  'EMPRESA',
+  'SERVICIOS',
+  'SERVICIO',
+  'GRUPO',
+  'ALIMENTOS',
+  'SNACKS',
+  'DROGUERIA',
+  'FARMACIA',
+  'HOTEL',
+  'HOTELES',
+  'RESTAURANTE',
+  'CLINICA',
+  'HOSPITAL',
+  'COLEGIO',
+  'UNIVERSIDAD',
+  'INSTITUTO',
+  'ACADEMIA',
+  'JARDIN',
+  'FUNERARIA',
+  'CONSULTORIA',
+  'CONSULTORES',
+  'ASESORES',
+  'INGENIERIA',
+  'ARQUITECTURA',
+  'LOGISTICA',
+  'DISTRIBUIDORA',
+  'MAYORISTA',
+  'FERRETERIA',
+  'PANADERIA',
+  'TIENDA',
+  'SUPERMERCADO',
+  'SUPERMERCADOS',
+  'CALZADO',
+  'TEXTILES',
+  'CONFECCIONES',
+  'MUEBLES',
+  'OPTICA',
+  'VETERINARIA',
+  'AGROPECUARIA',
+  'EDITORIAL',
+  'IMPRENTA',
+  'PAPELERIA',
+  'JOYERIA',
+  'TALLER',
+  'LAVANDERIA',
+  'PELUQUERIA',
+  'CAFETERIA',
+  'HELADERIA',
+  'PIZZERIA',
+  'CARNICERIA',
+  'LICORERA',
+  'GIMNASIO',
+  'TURISMO',
+  'VIAJES',
+  'PARQUEADERO',
+  'LAVADERO',
+  'MONTAJES',
+  'SOLDADURA',
+  'CARPINTERIA',
+  'PLOMERIA',
+  'ELECTRICOS',
+  'ELECTRONICA',
+  'PUBLICIDAD',
+  'MARKETING',
+  'EVENTOS',
+  'COMUNICACIONES',
+  'TELECOMUNICACIONES',
+  'ENERGIA',
+  'MINERA',
+  'PETROLERA',
+  'AGRICOLA',
+  'GANADERA',
+  'HOLDING',
+  'CONSORCIO',
+  'UNION',
+  'ALIANZA',
+  'PROYECTO',
+  'OBRA',
+  'CONDOMINIO',
+  'CONJUNTO',
+  'EDIFICIO',
+  'CENTRO',
+  'PLAZA',
+  'TERMINAL',
+  'AEROPUERTO',
+  'ZONA',
+  'PARQUE',
+  'FINCA',
+  'HACIENDA',
+  'COMPANIA',
+  'COMPAÑIA',
+  'CIA',
+  'SOCIEDAD',
+  'SUCURSAL',
+  'BODEGA',
+  'DEPOSITO',
+  'MERCADO',
+  'GALERIA',
+]);
+
+const NAME_PARTICLES: ReadonlySet<string> = new Set<string>([
+  'DE',
+  'DEL',
+  'LA',
+  'LAS',
+  'LOS',
+  'Y',
+  'E',
+  'VON',
+  'VAN',
+]);
+
+function isGivenName(word: string): boolean {
+  return COMMON_GIVEN_NAMES.has(normKey(word));
+}
+
+function isSurname(word: string): boolean {
+  return COMMON_SURNAMES.has(normKey(word));
+}
+
+/** Remueve siglas societarias al final del texto (SAS, S.A.S., LTDA, ...).
+ *  Retorna si se removió algo y el texto restante. */
+function stripLegalSuffix(raw: string): { stripped: boolean; text: string } {
+  const tokens = raw.split(/\s+/).filter(Boolean);
+  let end = tokens.length;
+  let stripped = false;
+  for (;;) {
+    let take = 0;
+    for (const n of [3, 2, 1]) {
+      if (end - n < 0) continue;
+      const candidate = tokens
+        .slice(end - n, end)
+        .map((t) => t.replace(/[.,;:]+/g, '').toUpperCase())
+        .join('');
+      if (LEGAL_SUFFIX_FORMS.has(candidate)) {
+        take = n;
+        break;
+      }
+    }
+    if (take === 0 || end - take === 0) break;
+    end -= take;
+    stripped = true;
+  }
+  const text = tokens
+    .slice(0, end)
+    .join(' ')
+    .replace(/[.,;:\s]+$/g, '')
+    .trim();
+  return { stripped, text };
+}
+
+interface ApplicantClass {
+  kind: 'person' | 'company';
+  /** Texto limpio (separadores normalizados, caso original conservado). */
+  text: string;
+}
+
+/** Determina si el registro es persona natural o empresa/razón social.
+ *  No depende del número de palabras: usa siglas, palabras clave y patrones. */
+function classifyApplicant(rawName: string): ApplicantClass {
+  const collapsed = rawName.trim().replace(/\s+/g, ' ');
+  const { stripped, text } = stripLegalSuffix(collapsed);
+  if (stripped && text) return { kind: 'company', text: cleanSpecialCharacters(text) };
+
+  const probe = text || collapsed;
+  const tokens = probe.split(/\s+/).filter(Boolean);
+  const keys = tokens.map(normKey);
+
+  if (tokens.some((t) => t.includes('&'))) {
+    return { kind: 'company', text: cleanSpecialCharacters(probe) };
+  }
+  if (tokens.some((t) => /\d/.test(t))) {
+    return { kind: 'company', text: cleanSpecialCharacters(probe) };
+  }
+  if (keys.some((k) => COMPANY_KEYWORDS.has(k))) {
+    return { kind: 'company', text: cleanSpecialCharacters(probe) };
+  }
+  const significant = tokens.filter((t) => !NAME_PARTICLES.has(normKey(t)));
+  if (significant.length >= 4 && !significant.some((t) => COMMON_GIVEN_NAMES.has(normKey(t)))) {
+    return { kind: 'company', text: cleanSpecialCharacters(probe) };
+  }
+  return { kind: 'person', text: probe };
+}
+
 export function toTitleCase(text: string | null | undefined): string {
   if (!text) return '';
   const clean = cleanSpecialCharacters(text);
@@ -396,8 +671,12 @@ export function toTitleCase(text: string | null | undefined): string {
 
 export function extractFirstName(rawName: string | null | undefined): string {
   if (!rawName) return '';
-  const rawTrimmed = rawName.trim();
+  const rawTrimmed = rawName.trim().replace(/\s+/g, ' ');
   if (!rawTrimmed) return '';
+
+  // Empresas: se conserva la razón social completa (sin siglas jurídicas).
+  const applicant = classifyApplicant(rawTrimmed);
+  if (applicant.kind === 'company') return applicant.text;
 
   if (rawTrimmed.includes('/') || rawTrimmed.includes('\\')) {
     const parts = rawTrimmed.split(/[/|\\]/);
@@ -422,63 +701,106 @@ export function extractFirstName(rawName: string | null | undefined): string {
     }
   }
 
+  return extractPersonFirstName(rawTrimmed);
+}
+
+/** Extrae el primer nombre de una persona natural por estructura:
+ *  detecta el bloque de apellidos y toma el primer nombre posterior,
+ *  sin asumir posiciones fijas. Cuando el diccionario no reconoce el
+ *  nombre (p. ej. ROSMIRA), usa la estructura posicional apellidos-primero
+ *  en vez de devolver un apellido. */
+function extractPersonFirstName(rawTrimmed: string): string {
   const clean = cleanSpecialCharacters(rawTrimmed);
-  const words = clean.split(/\s+/);
+  const words = clean.split(/\s+/).filter(Boolean);
   if (words.length === 0 || !words[0]) return '';
   if (words.length === 1) return toTitleCase(words[0]);
 
-  const upperWords = words.map((w) => w.toUpperCase());
-
-  if (words.length === 4) {
-    const [w0, w1, w2, w3] = upperWords as [string, string, string, string];
-    const isW0Given = COMMON_GIVEN_NAMES.has(w0) && !COMMON_SURNAMES.has(w0);
-    const isW2Given = COMMON_GIVEN_NAMES.has(w2);
-    const isW0Surname = COMMON_SURNAMES.has(w0);
-    void w1;
-    void w3;
-    if (isW0Given && !isW0Surname) return toTitleCase(words[0]!);
-    if (isW2Given || isW0Surname) return toTitleCase(words[2]!);
-    return toTitleCase(words[2]!);
-  }
-
-  if (words.length === 3) {
-    const [w0, w1, w2] = upperWords as [string, string, string];
-    const w0IsSurname = COMMON_SURNAMES.has(w0);
-    const w0IsGiven = COMMON_GIVEN_NAMES.has(w0);
-    const w1IsSurname = COMMON_SURNAMES.has(w1);
-    const w1IsGiven = COMMON_GIVEN_NAMES.has(w1);
-    const w2IsSurname = COMMON_SURNAMES.has(w2);
-    const w2IsGiven = COMMON_GIVEN_NAMES.has(w2);
-    if ((w0IsSurname && w1IsGiven) || (w0IsSurname && !w0IsGiven && !w1IsSurname))
-      return toTitleCase(words[1]!);
-    if (w0IsSurname && (w1IsSurname || w2IsGiven) && w2IsGiven) return toTitleCase(words[2]!);
-    if (w0IsGiven && !w0IsSurname) return toTitleCase(words[0]!);
-    if (w0IsSurname) return toTitleCase(words[1]!);
+  // Orden nombres-antes-que-apellidos: el primer token ya es el nombre.
+  if (isGivenName(words[0]!) && !isSurname(words[0]!)) {
     return toTitleCase(words[0]!);
   }
 
-  if (words.length === 2) {
-    const [w0, w1] = upperWords as [string, string];
-    const w0IsSurname = COMMON_SURNAMES.has(w0);
-    const w0IsGiven = COMMON_GIVEN_NAMES.has(w0);
-    const w1IsSurname = COMMON_SURNAMES.has(w1);
-    const w1IsGiven = COMMON_GIVEN_NAMES.has(w1);
-    if (w0IsSurname && w1IsGiven) return toTitleCase(words[1]!);
-    if (w0IsGiven) return toTitleCase(words[0]!);
-    if (w1IsGiven && !w0IsGiven) return toTitleCase(words[1]!);
-    return toTitleCase(words[0]!);
+  // Orden apellidos-primero (convención colombiana): el primer nombre es
+  // la primera palabra de nombre que aparezca después de los apellidos,
+  // ignorando partículas (de/del/la/los/y/...).
+  for (let i = 1; i < words.length; i++) {
+    if (NAME_PARTICLES.has(normKey(words[i]!))) continue;
+    if (isGivenName(words[i]!)) return toTitleCase(words[i]!);
   }
 
-  for (let i = 0; i < words.length; i++) {
-    const wUpper = upperWords[i]!;
-    if (COMMON_GIVEN_NAMES.has(wUpper)) return toTitleCase(words[i]!);
+  // Respaldo estructural (el nombre no está en el diccionario):
+  // nunca devolver un apellido como primer nombre. Si el candidato
+  // también es un apellido conocido (entrada sin nombres), se conserva
+  // el comportamiento anterior.
+  const splitAt = findGivenStart(words);
+  if (splitAt > 0 && splitAt < words.length) {
+    const candidate = words[splitAt]!;
+    if (isSurname(candidate) && !isGivenName(candidate)) return toTitleCase(words[0]!);
+    return toTitleCase(candidate);
   }
+  if (splitAt === 0) return toTitleCase(words[0]!);
+
   return toTitleCase(words[0]!);
+}
+
+/** Entradas significativas (sin partículas como de/del/la/los/y). */
+function significantEntries(words: string[]): { word: string; index: number }[] {
+  const out: { word: string; index: number }[] = [];
+  for (let i = 0; i < words.length; i++) {
+    if (NAME_PARTICLES.has(normKey(words[i]!))) continue;
+    out.push({ word: words[i]!, index: i });
+  }
+  return out;
+}
+
+/** Localiza el índice del primer nombre en orden apellidos-primero.
+ *  Retorna el índice en `words`, 0 si el orden es nombres-primero,
+ *  o -1 si no se puede determinar. */
+function findGivenStart(words: string[]): number {
+  const sig = significantEntries(words);
+  if (sig.length === 0) return -1;
+  if (sig.length === 1) return sig[0]!.index;
+
+  const norm = (w: string): string => normKey(w);
+
+  // Apellidos duplicados al inicio ("SERRANO SERRANO ROSMIRA"):
+  // el nombre empieza en el tercer bloque.
+  if (sig.length >= 3 && norm(sig[0]!.word) === norm(sig[1]!.word)) {
+    return sig[2]!.index;
+  }
+
+  // Bloque de apellidos conocidos al inicio ("CASTRO MURILLO ...").
+  let lead = 0;
+  while (lead < sig.length && isSurname(sig[lead]!.word)) lead++;
+
+  // Sin apellidos conocidos al inicio pero con apellidos al final
+  // ("ROSMIRA SERRANO SERRANO"): orden nombres-primero.
+  if (lead === 0) {
+    let trail = 0;
+    let j = sig.length - 1;
+    while (j >= 0 && isSurname(sig[j]!.word)) {
+      trail++;
+      j--;
+    }
+    if (trail >= 1 && trail < sig.length) return sig[0]!.index;
+  }
+
+  if (lead >= 2 && lead < sig.length) return sig[lead]!.index;
+
+  // Posicional por defecto (convención apellidos-primero):
+  // 2 bloques -> el segundo; 3+ bloques -> el tercero.
+  if (sig.length === 2) return sig[1]!.index;
+  if (sig.length >= 3) {
+    if (lead > 2 && lead < sig.length) return sig[lead]!.index;
+    return sig[2]!.index;
+  }
+
+  return -1;
 }
 
 export function formatApplicantName(rawName: string | null | undefined): string {
   if (!rawName) return '';
-  const rawTrimmed = rawName.trim();
+  const rawTrimmed = rawName.trim().replace(/\s+/g, ' ');
   if (!rawTrimmed) return '';
 
   if (/[/\-\\_,|;]/.test(rawTrimmed)) {
@@ -486,59 +808,40 @@ export function formatApplicantName(rawName: string | null | undefined): string 
     return toTitleCase(cleaned);
   }
 
+  // Empresas: se conserva la razón social completa, sin reordenar.
+  const applicant = classifyApplicant(rawTrimmed);
+  if (applicant.kind === 'company') return applicant.text;
+
   const clean = cleanSpecialCharacters(rawTrimmed);
-  const words = clean.split(/\s+/);
+  const words = clean.split(/\s+/).filter(Boolean);
   if (words.length <= 1) return toTitleCase(clean);
 
-  const upperWords = words.map((w) => w.toUpperCase());
-
-  if (words.length === 4) {
-    const [w0, w1, w2, w3] = upperWords as [string, string, string, string];
-    const isW0Given = COMMON_GIVEN_NAMES.has(w0) && !COMMON_SURNAMES.has(w0);
-    const isW2Given = COMMON_GIVEN_NAMES.has(w2);
-    const isW0Surname = COMMON_SURNAMES.has(w0);
-    void w1;
-    void w3;
-    if (isW0Given && !isW0Surname) return toTitleCase(clean);
-    if (isW2Given || isW0Surname) {
-      const nombres = `${words[2]!} ${words[3]!}`;
-      const apellidos = `${words[0]!} ${words[1]!}`;
-      return `${toTitleCase(nombres)} ${toTitleCase(apellidos)}`;
-    }
+  // Orden nombres-antes-que-apellidos: se conserva el orden original.
+  if (isGivenName(words[0]!) && !isSurname(words[0]!)) {
     return toTitleCase(clean);
   }
 
-  if (words.length === 3) {
-    const [w0, w1, w2] = upperWords as [string, string, string];
-    const w0IsSurname = COMMON_SURNAMES.has(w0);
-    const w0IsGiven = COMMON_GIVEN_NAMES.has(w0);
-    const w1IsSurname = COMMON_SURNAMES.has(w1);
-    const w1IsGiven = COMMON_GIVEN_NAMES.has(w1);
-    const w2IsSurname = COMMON_SURNAMES.has(w2);
-    const w2IsGiven = COMMON_GIVEN_NAMES.has(w2);
-    if (w0IsSurname && w1IsGiven && w2IsGiven) {
-      const nombres = `${words[1]!} ${words[2]!}`;
-      const apellido = words[0]!;
-      return `${toTitleCase(nombres)} ${toTitleCase(apellido)}`;
+  // Orden apellidos-primero: se rotan los nombres detectados al inicio,
+  // ignorando partículas al buscar el límite entre bloques. Si el nombre
+  // no está en el diccionario, se usa la estructura posicional.
+  let splitAt = -1;
+  for (let i = 1; i < words.length; i++) {
+    if (NAME_PARTICLES.has(normKey(words[i]!))) continue;
+    if (isGivenName(words[i]!)) {
+      splitAt = i;
+      break;
     }
-    if (w0IsSurname && w1IsSurname && w2IsGiven) {
-      const nombre = words[2]!;
-      const apellidos = `${words[0]!} ${words[1]!}`;
-      return `${toTitleCase(nombre)} ${toTitleCase(apellidos)}`;
-    }
-    if (w0IsSurname && !w1IsSurname && !w2IsSurname) return toTitleCase(clean);
+  }
+  if (splitAt === -1) splitAt = findGivenStart(words);
+  if (splitAt <= 0) return toTitleCase(clean);
+  // No rotar si el candidato es solo un apellido conocido
+  // (entrada de solo apellidos, sin nombres).
+  if (isSurname(words[splitAt]!) && !isGivenName(words[splitAt]!)) {
     return toTitleCase(clean);
   }
-
-  if (words.length === 2) {
-    const [w0, w1] = upperWords as [string, string];
-    const w0IsSurname = COMMON_SURNAMES.has(w0);
-    const w1IsGiven = COMMON_GIVEN_NAMES.has(w1);
-    if (w0IsSurname && w1IsGiven) return `${toTitleCase(words[1]!)} ${toTitleCase(words[0]!)}`;
-    return toTitleCase(clean);
-  }
-
-  return toTitleCase(clean);
+  const nombres = words.slice(splitAt).join(' ');
+  const apellidos = words.slice(0, splitAt).join(' ');
+  return `${toTitleCase(nombres)} ${toTitleCase(apellidos)}`;
 }
 
 export function getInitials(rawName: string | null | undefined): string {

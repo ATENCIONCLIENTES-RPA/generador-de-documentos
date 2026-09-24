@@ -1,4 +1,4 @@
-import PizZip from 'pizzip';
+﻿import PizZip from 'pizzip';
 import { TemplateHandler, MimeType } from 'easy-template-x';
 import type { Record as EssaRecord } from '@/types/record';
 import type { Profile } from '@/types/profile';
@@ -643,272 +643,378 @@ export async function generateDocx(
     };
 
     const processXml = (xml: string): string => {
-      // Procesar cada párrafo para aplicar colores y reemplazar marcadores remanentes
-      let outXml = xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (pBlock: string) => {
-        // Extraer pPr intacto para preservarlo
-        const pPrMatch = pBlock.match(/<w:pPr[\s\S]*?<\/w:pPr>/);
-        const pPr = pPrMatch ? pPrMatch[0] : '';
-        const pOpenMatch = pBlock.match(/^<w:p\b[^>]*>/);
-        const pOpen = pOpenMatch ? pOpenMatch[0] : '<w:p>';
-        const pClose = '</w:p>';
+      // Divide el interior de un párrafo en segmentos: grupos de runs con texto
+      // (reconstruibles) y elementos que se conservan intactos en su posición
+      // (dibujos, imágenes, hipervínculos, runs vacíos, marcadores).
+      interface TextSeg {
+        kind: 'text';
+        runs: string[];
+        text: string;
+        base: string;
+      }
+      interface KeepSeg {
+        kind: 'keep';
+        xml: string;
+      }
+      type Seg = TextSeg | KeepSeg;
 
-        // Texto combinado decodificando w:t (manteniendo entidades tal cual vienen del xml)
-        const texts: string[] = [];
-        pBlock.replace(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g, (_m: string, t: string) => {
-          texts.push(t);
-          return '';
-        });
-        const combined = texts.join('');
-        if (combined === '') return pBlock;
-
-        const hasMarker = /\[[A-Z0-9_ ]+\]/.test(combined);
-        const shouldColorCorreo = correoRaw !== '—' && correoRaw.trim() !== '' && correoRaw !== '—';
-        const hasCorreoValue =
-          shouldColorCorreo &&
-          ((correoEsc && combined.includes(correoEsc)) ||
-            (correoRaw && combined.includes(correoRaw)));
-        const containsRadicado = hasRadicadoValue(combined);
-        const containsFechaRad = hasFechaRadValue(combined);
-        // Textos/números estáticos 7200 y 7280 -> Arial 7 (sz 14).
-        // Se detecta 7200 o 7280 en el texto combinado (el docx los trae en runs
-        // separados "7200" + " · 7" + "280", por eso se busca por separado).
-        const isSmall7200Para = /7200|7280/.test(combined);
-
-        // Extraer base limpia (sin fuentes/tamaños/colores) para reconstruir con tamaño variable
-        const firstRPrMatch = pBlock.match(/<w:rPr[^>]*>[\s\S]*?<\/w:rPr>/);
-        let baseCleanInner = '';
-        if (firstRPrMatch) {
-          const full = firstRPrMatch[0];
-          const innerM = full.match(/<w:rPr[^>]*>([\s\S]*?)<\/w:rPr>/);
-          let inner = innerM ? innerM[1] : '';
-          inner = inner
-            .replace(/<w:rFonts[^>]*\/>/g, '')
-            .replace(/<w:rFonts[^>]*>[\s\S]*?<\/w:rFonts>/g, '')
-            .replace(/<w:sz[^>]*\/>/g, '')
-            .replace(/<w:szCs[^>]*\/>/g, '')
-            .replace(/<w:color[^>]*\/>/g, '')
-            .replace(/<w:u[^>]*\/>/g, '')
-            .replace(/<w:u\b[^>]*>[\s\S]*?<\/w:u>/g, '');
-          baseCleanInner = inner;
-        }
-
-        const rPrFor = (color: string, underline: boolean, szVal: string = SZ_DEFAULT): string => {
-          let inner = enforceArialSizedInner(baseCleanInner, szVal);
-          inner += `<w:color w:val="${color}"/>`;
-          if (underline) inner += `<w:u w:val="single" w:color="${color}"/>`;
-          return `<w:rPr>${inner}</w:rPr>`;
-        };
-
-        // Caso 0: párrafo con 7200 / 7280 ESTÁTICO (sin marcadores ni valores de
-        // campos) -> forzar Arial 7 en todo el párrafo. Los párrafos mixtos
-        // (con valores de radicado/fecha/correo + 7200) se manejan en Caso 2
-        // para dar a cada fragmento su tamaño (10 vs 7).
-        if (
-          isSmall7200Para &&
-          !hasMarker &&
-          !hasCorreoValue &&
-          !containsRadicado &&
-          !containsFechaRad
-        ) {
-          const tokenRegex = /(7200|7280)/g;
-          let lastPos = 0;
-          let m0: RegExpExecArray | null;
-          let newRuns0 = '';
-          while ((m0 = tokenRegex.exec(combined)) !== null) {
-            if (m0.index > lastPos) {
-              const before = combined.slice(lastPos, m0.index);
-              if (before)
-                newRuns0 += `<w:r>${rPrFor('000000', false, SZ_SMALL_7200)}<w:t xml:space="preserve">${before}</w:t></w:r>`;
-            }
-            newRuns0 += `<w:r>${rPrFor('000000', false, SZ_SMALL_7200)}<w:t xml:space="preserve">${m0[0]}</w:t></w:r>`;
-            lastPos = m0.index + m0[0].length;
-          }
-          if (lastPos < combined.length) {
-            const tail = combined.slice(lastPos);
-            if (tail)
-              newRuns0 += `<w:r>${rPrFor('000000', false, SZ_SMALL_7200)}<w:t xml:space="preserve">${tail}</w:t></w:r>`;
-          }
-          if (!newRuns0)
-            newRuns0 = `<w:r>${rPrFor('000000', false, SZ_SMALL_7200)}<w:t xml:space="preserve">${combined}</w:t></w:r>`;
-          return `${pOpen}${pPr}${newRuns0}${pClose}`;
-        }
-
-        // Si no hay marcador ni valor de correo/radicado/fecha, verificar otros campos para forzar negro
-        if (!hasMarker && !hasCorreoValue && !containsRadicado && !containsFechaRad) {
-          // Detectar si el párrafo contiene algún otro valor de campo (para asegurar negro)
-          // Si no contiene marcadores ni correo, pero contiene otros valores, forzamos negro en sus runs
-          // Para no alterar párrafos 100% estáticos, solo tocamos si contiene algún valor de templateData
-          let containsOtherField = false;
-          for (const [k, v] of Object.entries(templateData as globalThis.Record<string, unknown>)) {
-            if (k === 'CORREO_SOLICITANTE' || k === 'FIRMA_DOCUMENTO') continue;
-            if (v === null || v === undefined || typeof v === 'object') continue;
-            const s = String(v).trim();
-            if (!s || s === '—') continue;
-            const esc = escapeXml(s);
-            if ((esc && combined.includes(esc)) || combined.includes(s)) {
-              containsOtherField = true;
+      const splitSegments = (inner: string): Seg[] => {
+        const segs: Seg[] = [];
+        let pending: string[] = [];
+        const flushPending = (): void => {
+          if (pending.length === 0) return;
+          let base = '';
+          for (const r of pending) {
+            const m = r.match(/<w:rPr[^>]*>([\s\S]*?)<\/w:rPr>/);
+            if (m && m[1].trim()) {
+              base = m[1];
               break;
             }
           }
-          if (!containsOtherField) return pBlock;
-          // Forzar negro y Arial 11 en todos los w:r de este párrafo que contengan campos
-          let newPBlock = pBlock;
-          // Añadir o reemplazar color en rPr existentes y forzar Arial 11
-          newPBlock = newPBlock.replace(/<w:rPr[^>]*>[\s\S]*?<\/w:rPr>/g, (rPrBlock: string) => {
-            const innerMatch = rPrBlock.match(/<w:rPr[^>]*>([\s\S]*?)<\/w:rPr>/);
-            let inner = innerMatch ? innerMatch[1] : '';
+          const text = pending.map(runTextOf).join('');
+          segs.push({ kind: 'text', runs: pending, text, base });
+          pending = [];
+        };
+        const tokenRe =
+          /<w:hyperlink\b[^>]*>[\s\S]*?<\/w:hyperlink>|<w:r\b[^>]*>[\s\S]*?<\/w:r>|<w:r\b[^>]*\/>/g;
+        let lastPos = 0;
+        let tm: RegExpExecArray | null;
+        while ((tm = tokenRe.exec(inner)) !== null) {
+          if (tm.index > lastPos) {
+            flushPending();
+            segs.push({ kind: 'keep', xml: inner.slice(lastPos, tm.index) });
+          }
+          const txml = tm[0];
+          const isLink = txml.startsWith('<w:hyperlink');
+          const hasText = /<w:t(?:\s[^>]*)?>/.test(txml);
+          const hasGraphic =
+            /<w:drawing[\s>]|<w:pict[\s>]|<w:object[\s>]|<mc:AlternateContent[\s>]/.test(txml);
+          if (isLink || !hasText || hasGraphic) {
+            flushPending();
+            segs.push({ kind: 'keep', xml: txml });
+          } else {
+            pending.push(txml);
+          }
+          lastPos = tm.index + txml.length;
+        }
+        if (lastPos < inner.length) {
+          flushPending();
+          segs.push({ kind: 'keep', xml: inner.slice(lastPos) });
+        } else {
+          flushPending();
+        }
+        return segs;
+      };
+
+      const runTextOf = (runXml: string): string => {
+        const parts: string[] = [];
+        const re = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g;
+        let mm: RegExpExecArray | null;
+        while ((mm = re.exec(runXml)) !== null) parts.push(mm[1]);
+        return parts.join('');
+      };
+
+      // rPr con color/tamaño/fuente impuestos, conservando el resto del formato
+      // original del run (negrita, itálica, sombreado, etc.).
+      const rPrFor = (
+        baseCarried: string,
+        color: string,
+        underline: boolean,
+        szVal: string = SZ_DEFAULT
+      ): string => {
+        let inner = baseCarried.replace(/<w:color[^>]*\/>/g, '');
+        if (underline) {
+          inner = inner.replace(/<w:u[^>]*\/>/g, '').replace(/<w:u\b[^>]*>[\s\S]*?<\/w:u>/g, '');
+        }
+        inner = enforceArialSizedInner(inner, szVal);
+        inner += `<w:color w:val="${color}"/>`;
+        if (underline) inner += `<w:u w:val="single" w:color="${color}"/>`;
+        return `<w:rPr>${inner}</w:rPr>`;
+      };
+
+      // Parche in situ de un run existente: impone Arial+color/tamaño sin tocar
+      // el resto (negrita, itálica, subrayados de la plantilla, etc.).
+      const patchRun = (runXml: string, color: string, szVal: string = SZ_DEFAULT): string => {
+        if (/<w:rPr[^>]*>[\s\S]*?<\/w:rPr>/.test(runXml)) {
+          return runXml.replace(/<w:rPr[^>]*>[\s\S]*?<\/w:rPr>/, (block: string) => {
+            const m = block.match(/<w:rPr[^>]*>([\s\S]*?)<\/w:rPr>/);
+            let inner = m ? m[1] : '';
             inner = inner
               .replace(/<w:color[^>]*\/>/g, '')
-              .replace(/<w:u[^>]*\/>/g, '')
-              .replace(/<w:u\b[^>]*>[\s\S]*?<\/w:u>/g, '');
-            inner = enforceArial11Inner(inner);
-            inner += '<w:color w:val="000000"/>';
+              .replace(/<w:rFonts[^>]*\/>/g, '')
+              .replace(/<w:rFonts[^>]*>[\s\S]*?<\/w:rFonts>/g, '')
+              .replace(/<w:sz[^>]*\/>/g, '')
+              .replace(/<w:szCs[^>]*\/>/g, '');
+            inner = enforceArialSizedInner(inner, szVal);
+            inner += `<w:color w:val="${color}"/>`;
             return `<w:rPr>${inner}</w:rPr>`;
           });
-          // Para w:r sin rPr, añadir uno con negro y Arial 11
-          newPBlock = newPBlock.replace(
-            /<w:r(\b[^>]*)>(?!\s*<w:rPr)/g,
-            '<w:r$1><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="Arial"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="000000"/></w:rPr>'
-          );
-          return newPBlock;
+        }
+        return runXml.replace(
+          /<w:r(\b[^>]*)>/,
+          '<w:r$1><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="Arial"/><w:sz w:val="' +
+            szVal +
+            '"/><w:szCs w:val="' +
+            szVal +
+            '"/><w:color w:val="' +
+            color +
+            '"/></w:rPr>'
+        );
+      };
+
+      const buildRuns = (
+        fragments: { text: string; isCorreo: boolean; sz: string }[],
+        base: string
+      ): string => {
+        let newRuns = '';
+        for (const frag of fragments) {
+          if (!frag.text) continue;
+          const color = frag.isCorreo ? '0000FF' : '000000';
+          const underline = frag.isCorreo;
+          newRuns += `<w:r>${rPrFor(base, color, underline, frag.sz)}<w:t xml:space="preserve">${frag.text}</w:t></w:r>`;
+        }
+        return newRuns;
+      };
+
+      // Procesar cada párrafo para aplicar colores y reemplazar marcadores remanentes.
+      // Solo se reconstruyen los segmentos de texto; dibujos, hipervínculos y
+      // resto de elementos se conservan intactos en su posición original.
+      let outXml = xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, (pBlock: string) => {
+        const pOpenMatch = pBlock.match(/^<w:p\b[^>]*>/);
+        const pOpen = pOpenMatch ? pOpenMatch[0] : '<w:p>';
+        const pClose = '</w:p>';
+        // pPr intacto (soporta forma autocerrada <w:pPr/> para no perder
+        // alineación, listas, bordes ni espaciados del párrafo).
+        const pPrMatch = pBlock.match(/<w:pPr\b[^>]*?(?:\/>|>[\s\S]*?<\/w:pPr>)/);
+        const pPr = pPrMatch ? pPrMatch[0] : '';
+        const innerFull = pBlock.slice(pOpen.length, pBlock.length - pClose.length);
+        const inner = pPr ? innerFull.replace(pPr, '') : innerFull;
+
+        const segments = splitSegments(inner);
+        let rebuiltInner = '';
+        let touched = false;
+
+        for (const seg of segments) {
+          if (seg.kind === 'keep') {
+            rebuiltInner += seg.xml;
+            continue;
+          }
+          const combined = seg.text;
+          if (combined === '') {
+            rebuiltInner += seg.runs.join('');
+            continue;
+          }
+          const hasMarker = /\[[A-Z0-9_ ]+\]/.test(combined);
+          const shouldColorCorreo =
+            correoRaw !== '—' && correoRaw.trim() !== '' && correoRaw !== '—';
+          const hasCorreoValue =
+            shouldColorCorreo &&
+            ((correoEsc && combined.includes(correoEsc)) ||
+              (correoRaw && combined.includes(correoRaw)));
+          const containsRadicado = hasRadicadoValue(combined);
+          const containsFechaRad = hasFechaRadValue(combined);
+          const isSmall7200Para = /7200|7280/.test(combined);
+
+          // Caso 0: segmento con 7200 / 7280 estático -> Arial 7 en todo el segmento.
+          if (
+            isSmall7200Para &&
+            !hasMarker &&
+            !hasCorreoValue &&
+            !containsRadicado &&
+            !containsFechaRad
+          ) {
+            const tokenRegex = /(7200|7280)/g;
+            let lastPos = 0;
+            let m0: RegExpExecArray | null;
+            const fragments: { text: string; isCorreo: boolean; sz: string }[] = [];
+            while ((m0 = tokenRegex.exec(combined)) !== null) {
+              if (m0.index > lastPos) {
+                const before = combined.slice(lastPos, m0.index);
+                if (before) fragments.push({ text: before, isCorreo: false, sz: SZ_SMALL_7200 });
+              }
+              fragments.push({ text: m0[0], isCorreo: false, sz: SZ_SMALL_7200 });
+              lastPos = m0.index + m0[0].length;
+            }
+            if (lastPos < combined.length) {
+              const tail = combined.slice(lastPos);
+              if (tail) fragments.push({ text: tail, isCorreo: false, sz: SZ_SMALL_7200 });
+            }
+            const newRuns = buildRuns(fragments, seg.base);
+            rebuiltInner += newRuns || seg.runs.join('');
+            touched = true;
+            continue;
+          }
+
+          // Sin marcador ni valores de correo/radicado/fecha: verificar otros
+          // campos; si no hay ninguno, el segmento queda intacto.
+          if (!hasMarker && !hasCorreoValue && !containsRadicado && !containsFechaRad) {
+            let containsOtherField = false;
+            for (const [k, v] of Object.entries(
+              templateData as globalThis.Record<string, unknown>
+            )) {
+              if (k === 'CORREO_SOLICITANTE' || k === 'FIRMA_DOCUMENTO') continue;
+              if (v === null || v === undefined || typeof v === 'object') continue;
+              const s = String(v).trim();
+              if (!s || s === '—') continue;
+              const esc = escapeXml(s);
+              if ((esc && combined.includes(esc)) || combined.includes(s)) {
+                containsOtherField = true;
+                break;
+              }
+            }
+            if (!containsOtherField) {
+              rebuiltInner += seg.runs.join('');
+              continue;
+            }
+            // Forzar negro y Arial 11 parcheando los runs existentes
+            // (se conserva negrita, itálica y demás formato original).
+            rebuiltInner += seg.runs.map((r) => patchRun(r, '000000', SZ_DEFAULT)).join('');
+            touched = true;
+            continue;
+          }
+
+          // Caso 1: segmento con marcadores remanentes -> fragmentar por marcadores
+          // Soporta tanto [CORREO_SOLICITANTE] como [CORREO SOLICITANTE].
+          // [RADICADO_SALIDA] y [FECHA_RAD_SALIDA] -> Arial 10 (sz 20).
+          if (hasMarker) {
+            const markerRegex = /\[[A-Z0-9_ ]+\]/g;
+            let lastPos = 0;
+            let m: RegExpExecArray | null;
+            const fragments: { text: string; isCorreo: boolean; sz: string }[] = [];
+            while ((m = markerRegex.exec(combined)) !== null) {
+              if (m.index > lastPos) {
+                const staticPart = combined.slice(lastPos, m.index);
+                if (staticPart)
+                  fragments.push({ text: staticPart, isCorreo: false, sz: SZ_DEFAULT });
+              }
+              const marker = m[0];
+              const rawKey = marker.slice(1, -1);
+              const normalizedKey = rawKey.trim().replace(/\s+/g, '_').toUpperCase();
+              const val =
+                (templateData as globalThis.Record<string, unknown>)[rawKey] ??
+                (templateData as globalThis.Record<string, unknown>)[normalizedKey];
+              let rep: string;
+              if (val !== undefined && val !== null && val !== '' && typeof val !== 'object') {
+                rep = escapeXml(String(val));
+              } else if (
+                typeof val === 'object' &&
+                val !== null &&
+                (val as globalThis.Record<string, unknown>)._type === 'image'
+              ) {
+                rep = '';
+              } else {
+                rep = '—';
+              }
+              const isCorreoFrag =
+                normalizedKey === 'CORREO_SOLICITANTE' && rep !== '—' && rep.trim() !== '';
+              if (rep)
+                fragments.push({
+                  text: rep,
+                  isCorreo: isCorreoFrag,
+                  sz: szForField(normalizedKey),
+                });
+              lastPos = m.index + marker.length;
+            }
+            if (lastPos < combined.length) {
+              const tail = combined.slice(lastPos).replace(/\[[A-Z0-9_ ]+\]/g, '—');
+              if (tail) fragments.push({ text: tail, isCorreo: false, sz: SZ_DEFAULT });
+            }
+            for (const frag of fragments) {
+              if (!frag.isCorreo && frag.sz === SZ_DEFAULT && /7200|7280/.test(frag.text)) {
+                frag.sz = SZ_SMALL_7200;
+              }
+            }
+            const newRuns = buildRuns(fragments, seg.base);
+            rebuiltInner +=
+              newRuns ||
+              `<w:r>${rPrFor(seg.base, '000000', false, SZ_DEFAULT)}<w:t xml:space="preserve">—</w:t></w:r>`;
+            touched = true;
+            continue;
+          }
+
+          // Caso 2: segmento sin marcadores pero con valores ya insertados
+          // (correo, radicado salida, fecha rad salida) -> fragmentar con formato.
+          if (hasCorreoValue || containsRadicado || containsFechaRad) {
+            const splitTokens: {
+              raw: string;
+              esc: string;
+              color: string;
+              underline: boolean;
+              sz: string;
+            }[] = [];
+            if (hasCorreoValue) {
+              const delimEsc = combined.includes(correoEsc) ? correoEsc : correoRaw;
+              splitTokens.push({
+                raw: correoRaw,
+                esc: delimEsc,
+                color: '0000FF',
+                underline: true,
+                sz: SZ_DEFAULT,
+              });
+            }
+            if (containsRadicado) {
+              const delimEsc = combined.includes(radicadoEsc) ? radicadoEsc : radicadoRaw;
+              splitTokens.push({
+                raw: radicadoRaw,
+                esc: delimEsc,
+                color: '000000',
+                underline: false,
+                sz: SZ_RADICADO_FECHA,
+              });
+            }
+            if (containsFechaRad) {
+              const delimEsc = combined.includes(fechaRadEsc) ? fechaRadEsc : fechaRadRaw;
+              splitTokens.push({
+                raw: fechaRadRaw,
+                esc: delimEsc,
+                color: '000000',
+                underline: false,
+                sz: SZ_RADICADO_FECHA,
+              });
+            }
+            const pattern = splitTokens.map((t) => `(${escapeRegExp(t.esc)})`).join('|');
+            const parts = combined
+              .split(new RegExp(pattern, 'g'))
+              .filter((p) => p !== undefined && p !== '');
+            const fragments: { text: string; isCorreo: boolean; sz: string }[] = [];
+            for (const part of parts) {
+              const tok = splitTokens.find((t) => part === t.esc);
+              if (tok) {
+                fragments.push({ text: tok.esc, isCorreo: tok.color === '0000FF', sz: tok.sz });
+              } else if (/7200|7280/.test(part)) {
+                fragments.push({ text: part, isCorreo: false, sz: SZ_SMALL_7200 });
+              } else {
+                fragments.push({ text: part, isCorreo: false, sz: SZ_DEFAULT });
+              }
+            }
+            const newRuns = buildRuns(fragments, seg.base);
+            if (!newRuns) {
+              rebuiltInner += seg.runs.join('');
+              continue;
+            }
+            rebuiltInner += newRuns;
+            touched = true;
+            continue;
+          }
+
+          rebuiltInner += seg.runs.join('');
         }
 
-        // Caso 1: párrafo con marcadores remanentes -> reconstruir fragmentando por marcadores
-        // Soporta tanto [CORREO_SOLICITANTE] como [CORREO SOLICITANTE] (espacio o guion bajo)
-        // [RADICADO_SALIDA] y [FECHA_RAD_SALIDA] -> Arial 10 (sz 20)
-        if (hasMarker) {
-          const markerRegex = /\[[A-Z0-9_ ]+\]/g;
-          let lastPos = 0;
-          let m: RegExpExecArray | null;
-          const fragments: { text: string; isCorreo: boolean; sz: string }[] = [];
-          while ((m = markerRegex.exec(combined)) !== null) {
-            if (m.index > lastPos) {
-              const staticPart = combined.slice(lastPos, m.index);
-              if (staticPart) fragments.push({ text: staticPart, isCorreo: false, sz: SZ_DEFAULT });
-            }
-            const marker = m[0];
-            const rawKey = marker.slice(1, -1);
-            const normalizedKey = rawKey.trim().replace(/\s+/g, '_').toUpperCase();
-            const val =
-              (templateData as globalThis.Record<string, unknown>)[rawKey] ??
-              (templateData as globalThis.Record<string, unknown>)[normalizedKey];
-            let rep: string;
-            if (val !== undefined && val !== null && val !== '' && typeof val !== 'object') {
-              rep = escapeXml(String(val));
-            } else if (
-              typeof val === 'object' &&
-              val !== null &&
-              (val as globalThis.Record<string, unknown>)._type === 'image'
-            ) {
-              rep = '';
-            } else {
-              rep = '—';
-            }
-            const isCorreoFrag =
-              normalizedKey === 'CORREO_SOLICITANTE' && rep !== '—' && rep.trim() !== '';
-            if (rep)
-              fragments.push({ text: rep, isCorreo: isCorreoFrag, sz: szForField(normalizedKey) });
-            lastPos = m.index + marker.length;
-          }
-          if (lastPos < combined.length) {
-            const tail = combined.slice(lastPos).replace(/\[[A-Z0-9_ ]+\]/g, '—');
-            if (tail) fragments.push({ text: tail, isCorreo: false, sz: SZ_DEFAULT });
-          }
-          // Si el párrafo contenía 7200/7280 estáticos junto a marcadores, esos
-          // fragmentos estáticos también deben ir en Arial 7
-          for (const frag of fragments) {
-            if (!frag.isCorreo && frag.sz === SZ_DEFAULT && /7200|7280/.test(frag.text)) {
-              frag.sz = SZ_SMALL_7200;
-            }
-          }
-          // Construir nuevos runs
-          let newRuns = '';
-          for (const frag of fragments) {
-            if (!frag.text) continue;
-            const color = frag.isCorreo ? '0000FF' : '000000';
-            const underline = frag.isCorreo;
-            newRuns += `<w:r>${rPrFor(color, underline, frag.sz)}<w:t xml:space="preserve">${frag.text}</w:t></w:r>`;
-          }
-          if (!newRuns)
-            newRuns = `<w:r>${rPrFor('000000', false, SZ_DEFAULT)}<w:t xml:space="preserve">—</w:t></w:r>`;
-          return `${pOpen}${pPr}${newRuns}${pClose}`;
-        }
-
-        // Caso 2: párrafo sin marcadores pero con valores ya insertados
-        // (correo, radicado salida, fecha rad salida) -> fragmentar con su formato
-        if (hasCorreoValue || containsRadicado || containsFechaRad) {
-          const splitTokens: {
-            raw: string;
-            esc: string;
-            color: string;
-            underline: boolean;
-            sz: string;
-          }[] = [];
-          if (hasCorreoValue) {
-            const delimEsc = combined.includes(correoEsc) ? correoEsc : correoRaw;
-            splitTokens.push({
-              raw: correoRaw,
-              esc: delimEsc,
-              color: '0000FF',
-              underline: true,
-              sz: SZ_DEFAULT,
-            });
-          }
-          if (containsRadicado) {
-            const delimEsc = combined.includes(radicadoEsc) ? radicadoEsc : radicadoRaw;
-            splitTokens.push({
-              raw: radicadoRaw,
-              esc: delimEsc,
-              color: '000000',
-              underline: false,
-              sz: SZ_RADICADO_FECHA,
-            });
-          }
-          if (containsFechaRad) {
-            const delimEsc = combined.includes(fechaRadEsc) ? fechaRadEsc : fechaRadRaw;
-            splitTokens.push({
-              raw: fechaRadRaw,
-              esc: delimEsc,
-              color: '000000',
-              underline: false,
-              sz: SZ_RADICADO_FECHA,
-            });
-          }
-          const pattern = splitTokens.map((t) => `(${escapeRegExp(t.esc)})`).join('|');
-          const parts = combined
-            .split(new RegExp(pattern, 'g'))
-            .filter((p) => p !== undefined && p !== '');
-          let newRuns = '';
-          for (const part of parts) {
-            const tok = splitTokens.find((t) => part === t.esc);
-            if (tok) {
-              newRuns += `<w:r>${rPrFor(tok.color, tok.underline, tok.sz)}<w:t xml:space="preserve">${tok.esc}</w:t></w:r>`;
-            } else if (/7200|7280/.test(part)) {
-              newRuns += `<w:r>${rPrFor('000000', false, SZ_SMALL_7200)}<w:t xml:space="preserve">${part}</w:t></w:r>`;
-            } else {
-              newRuns += `<w:r>${rPrFor('000000', false, SZ_DEFAULT)}<w:t xml:space="preserve">${part}</w:t></w:r>`;
-            }
-          }
-          if (!newRuns) {
-            return pBlock;
-          }
-          return `${pOpen}${pPr}${newRuns}${pClose}`;
-        }
-
-        return pBlock;
+        if (!touched) return pBlock;
+        return `${pOpen}${pPr}${rebuiltInner}${pClose}`;
       });
 
-      // Eliminar controles estructurados (w:sdt) — conservar solo el contenido con su formato original
-      // Maneja tanto SDT de bloque (<w:p> dentro) como inline (<w:r> dentro)
-      outXml = outXml.replace(
-        /<w:sdt\b[^>]*>(?:<w:sdtPr[\s\S]*?<\/w:sdtPr>)?\s*<w:sdtContent\b[^>]*>([\s\S]*?)<\/w:sdtContent>\s*<\/w:sdt>/g,
-        '$1'
-      );
-      // Por si quedan SDT sin sdtPr explícito o con namespaces adicionales, segundo pase genérico
-      outXml = outXml.replace(
-        /<w:sdt[^>]*>[\s\S]*?<w:sdtContent[^>]*>([\s\S]*?)<\/w:sdtContent>[\s\S]*?<\/w:sdt>/g,
-        '$1'
-      );
+      // Eliminar controles estructurados (w:sdt) conservando el contenido.
+      // Se procesa de adentro hacia afuera (bucle acotado) para soportar
+      // SDT anidados sin corromper la estructura.
+      for (let pass = 0; pass < 10; pass++) {
+        const next = outXml.replace(
+          /<w:sdt\b[^>]*>(?:<w:sdtPr(?:(?!<w:sdt\b)[\s\S])*?<\/w:sdtPr>)?\s*<w:sdtContent\b[^>]*>((?:(?!<\/?w:sdt\b)[\s\S])*?)<\/w:sdtContent>\s*<\/w:sdt>/g,
+          '$1'
+        );
+        if (next === outXml) break;
+        outXml = next;
+      }
 
       // Barrido final: cualquier marcador suelto fuera de párrafos -> —
       outXml = outXml.replace(/\[[A-Z0-9_ ]+\]/g, '—');

@@ -324,25 +324,26 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     // CSS handles background via class; jsdom won't compute it but we verify class is present
   });
 
-  it('ACCIONES Editar abre modal 3 secciones, guarda y warning unsaved', async () => {
+  it('ACCIONES Editar abre modal 1 sección, guarda y warning unsaved', async () => {
     const recs = seedRecords(6);
-    recs[0].nombreSolicitante = 'Original Nombre';
+    recs[0].numeroProceso = 'PROC-ORIGINAL';
     useDataStore.getState().setRecords(recs as unknown as EssaRecord[]);
     render(<DataView />);
     fireEvent.click(screen.getByTestId('dv-edit-row_0_test'));
     // modal should open
     expect(await screen.findByText('Editar registro')).toBeInTheDocument();
     expect(screen.getByTestId('rem-section-tramite')).toBeInTheDocument();
-    expect(screen.getByTestId('rem-section-solicitante')).toBeInTheDocument();
-    expect(screen.getByTestId('rem-section-descripciones')).toBeInTheDocument();
-    // edit nombre
-    const nombreInput = screen.getByDisplayValue('Original Nombre') as HTMLInputElement;
-    fireEvent.change(nombreInput, { target: { value: 'Nuevo Nombre Editado' } });
+    // Solicitante y Descripciones se editan ahora en el Módulo 4
+    expect(screen.queryByTestId('rem-section-solicitante')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('rem-section-descripciones')).not.toBeInTheDocument();
+    // edit proceso (sección Trámite)
+    const procesoInput = screen.getByDisplayValue('PROC-ORIGINAL') as HTMLInputElement;
+    fireEvent.change(procesoInput, { target: { value: 'PROC-EDITADO' } });
     // Save
     fireEvent.click(screen.getByTestId('rem-save'));
     await waitFor(() => {
       const updated = useDataStore.getState().records.find((r) => r.rowId === 'row_0_test');
-      expect(updated?.nombreSolicitante).toBe('Nuevo Nombre Editado');
+      expect(updated?.numeroProceso).toBe('PROC-EDITADO');
     });
     // modal closes after save
     await waitFor(() => expect(screen.queryByText('Editar registro')).not.toBeInTheDocument());
@@ -350,8 +351,8 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     // reopen, test unsaved warning on close
     fireEvent.click(screen.getByTestId('dv-edit-row_0_test'));
     expect(await screen.findByText('Editar registro')).toBeInTheDocument();
-    const nombre2 = screen.getByDisplayValue('Nuevo Nombre Editado') as HTMLInputElement;
-    fireEvent.change(nombre2, { target: { value: 'Otro Cambio' } });
+    const proceso2 = screen.getByDisplayValue('PROC-EDITADO') as HTMLInputElement;
+    fireEvent.change(proceso2, { target: { value: 'Otro Cambio' } });
     fireEvent.click(screen.getByTestId('rem-cancel'));
     // should show unsaved warning instead of closing
     expect(screen.getByTestId('rem-unsaved-warning')).toBeInTheDocument();
@@ -366,7 +367,7 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     await waitFor(() => expect(screen.queryByText('Editar registro')).not.toBeInTheDocument());
     // record should not have "Otro Cambio" (discarded)
     const rec = useDataStore.getState().records.find((r) => r.rowId === 'row_0_test');
-    expect(rec?.nombreSolicitante).toBe('Nuevo Nombre Editado');
+    expect(rec?.numeroProceso).toBe('PROC-EDITADO');
   });
 
   it('Continuar gate deshabilitado sin selección y habilitado con selección, navega a generación', async () => {
@@ -554,13 +555,12 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     expect(screen.getByText('Tipo Proceso')).toBeInTheDocument();
   });
 
-  it('modal de edición: botón "Mejorar texto" mejora la redacción y guarda cambios', async () => {
+  it('modal de edición: solo Trámite; Solicitante y Descripciones viven en el Módulo 4', async () => {
     const recs = [
       makeRecord({
         rowId: 'row_test_modal',
         id: 1,
-        observacionProceso:
-          'el cliente solicita revision del medidor , no esta de acuerdo con el cobro .',
+        observacionProceso: 'Texto de la solicitud.',
         observacionRevision: 'Revision inicial',
       }),
     ];
@@ -568,36 +568,14 @@ describe('DataView — M3 rowId Set filtros 10/page modal', () => {
     render(<DataView />);
 
     fireEvent.click(screen.getByTestId('dv-edit-row_test_modal'));
-    expect(await screen.findByText('Descripción de la solicitud')).toBeInTheDocument();
-    expect(screen.getAllByText(/Observaci/).length).toBeGreaterThanOrEqual(2);
-
-    const descTextarea = screen.getByTestId('rem-textarea-descripcion') as HTMLTextAreaElement;
-    expect(descTextarea.value).toBe(
-      'el cliente solicita revision del medidor , no esta de acuerdo con el cobro .'
-    );
-
-    // Clic en botón "Mejorar texto" (async con rAF + idle, avanzar timers)
-    const btnMejorar = screen.getByTestId('rem-btn-mejorar-texto');
-    expect(btnMejorar).toBeInTheDocument();
-    fireEvent.click(btnMejorar);
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(500);
-    });
-
-    // El texto mejorado debe haber capitalizado, acentuado y corregido puntuación
-    await waitFor(() => {
-      expect(descTextarea.value).toBe(
-        'El cliente solicita revisión del medidor, no está de acuerdo con el cobro.'
-      );
-    });
-
-    fireEvent.click(screen.getByTestId('rem-save'));
-    await waitFor(() => {
-      const updated = useDataStore.getState().records.find((r) => r.rowId === 'row_test_modal');
-      expect(updated?.observacionProceso).toBe(
-        'El cliente solicita revisión del medidor, no está de acuerdo con el cobro.'
-      );
-    });
+    expect(await screen.findByTestId('rem-section-tramite')).toBeInTheDocument();
+    // Solicitante y Descripciones se editan ahora en el Módulo 4
+    expect(screen.queryByTestId('rem-section-solicitante')).not.toBeInTheDocument();
+    // La sección Descripciones y Mejorar texto viven ahora en el Módulo 4
+    expect(screen.queryByTestId('rem-section-descripciones')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('rem-textarea-descripcion')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('rem-btn-mejorar-texto')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('rem-btn-mejorar-texto-insumo')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('rem-btn-mejorar-texto-decision')).not.toBeInTheDocument();
   });
 });
