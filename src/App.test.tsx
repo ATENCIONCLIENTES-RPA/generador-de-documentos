@@ -17,79 +17,52 @@ describe('App routing currentStep → view render', () => {
     localStorage.clear();
   });
 
-  it('renderiza HomeView en inicio (hero + Comenzar Flujo)', () => {
+  it('renderiza Configuración de Recursos por defecto al cargar el asistente', () => {
     render(<App />);
-    expect(screen.getByTestId('home-view')).toBeInTheDocument();
-    expect(screen.getByTestId('home-title')).toHaveTextContent('Asistente Documental');
-    expect(screen.getByTestId('home-cta')).toBeInTheDocument();
-    expect(screen.getByText('GENERADOR DE PLANTILLAS')).toBeInTheDocument();
-    expect(screen.getByTestId('energy-illustration')).toBeInTheDocument();
+    expect(screen.getByTestId('config-view')).toBeInTheDocument();
+    expect(screen.getByTestId('header-nav-configuracion')).toHaveAttribute(
+      'aria-label',
+      'Ir a Módulo 1: Configuración de Recursos'
+    );
   });
 
-  it('navega a perfil al hacer clic en Comenzar Flujo', async () => {
+  it('AppHeader navigation funciona: click Cuadro de Mando → goTo', async () => {
     render(<App />);
-    fireEvent.click(screen.getByTestId('home-cta'));
-    expect(await screen.findByTestId('profile-view')).toBeInTheDocument();
-    expect(screen.getByTestId('view-perfil')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('header-nav-inicio'));
+    expect(await screen.findByTestId('home-view')).toBeInTheDocument();
   });
 
-  it('AppHeader navigation funciona: click Perfil → goTo', async () => {
+  it('ConfigView integra la configuración de perfil y abre ProfileModal', async () => {
     render(<App />);
-    fireEvent.click(screen.getByTestId('header-nav-perfil'));
-    expect(await screen.findByTestId('profile-view')).toBeInTheDocument();
-  });
+    expect(screen.getByTestId('config-profile-card')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('config-open-profile'));
+    expect(await screen.findByTestId('profile-card')).toBeInTheDocument();
 
-  it('StepperBar refleja completed: tras completar perfil', async () => {
-    render(<App />);
-    // go to perfil
-    fireEvent.click(screen.getByTestId('header-nav-perfil'));
-    expect(await screen.findByTestId('profile-view')).toBeInTheDocument();
-    // stepper should be visible outside inicio
-    expect(screen.getByTestId('stepper-bar')).toBeInTheDocument();
-    // perfil active
-    expect(screen.getByTestId('stepper-step-perfil')).toHaveAttribute('data-status', 'active');
-    // inicio pending initially (not completed yet)
-    // fill form and save to complete perfil
+    // Rellenar nombre y guardar
     const nameInput = screen.getByTestId('profile-name') as HTMLInputElement;
     fireEvent.change(nameInput, { target: { value: 'Jaime Rizo' } });
     fireEvent.click(screen.getByTestId('profile-save'));
-    // after save navigates to configuracion
-    expect(await screen.findByTestId('config-view')).toBeInTheDocument();
-    // now perfil should be completed in store
-    expect(useNavigationStore.getState().completed.has('perfil')).toBe(true);
+
+    // Perfil guardado en el store
+    expect(useProfileStore.getState().profile.name).toBe('Jaime Rizo');
   });
 
-  it('profile persist + signature pad modal abre', async () => {
+  it('profile modal abre el signature pad para dibujar firma', async () => {
     render(<App />);
-    fireEvent.click(screen.getByTestId('header-nav-perfil'));
-    expect(await screen.findByTestId('profile-view')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('config-open-profile'));
+    expect(await screen.findByTestId('profile-card')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('profile-open-pad'));
     expect(await screen.findByTestId('signature-pad-overlay')).toBeInTheDocument();
     expect(screen.getByTestId('signature-canvas')).toBeInTheDocument();
     // close via cancel
     fireEvent.click(screen.getByTestId('signature-cancel'));
-    // overlay removed
     expect(screen.queryByTestId('signature-pad-overlay')).not.toBeInTheDocument();
-  });
-
-  it('Home 4 cards y Cómo funciona visibles', () => {
-    render(<App />);
-    expect(screen.getByTestId('home-features')).toBeInTheDocument();
-    expect(screen.getByTestId('feature-card-rápido')).toBeInTheDocument();
-    expect(screen.getByTestId('feature-card-seguro')).toBeInTheDocument();
-    expect(screen.getByTestId('feature-card-personalizado')).toBeInTheDocument();
-    expect(screen.getByTestId('feature-card-en la nube')).toBeInTheDocument();
-    expect(screen.getByTestId('home-como-funciona')).toBeInTheDocument();
-    expect(screen.getByTestId('home-como-funciona')).toHaveTextContent('1. Configura tu perfil');
-    expect(screen.getByTestId('home-como-funciona')).toHaveTextContent('4. Elige la plantilla');
   });
 
   it('focus-visible y aria-labels en elementos interactivos', () => {
     render(<App />);
-    const cta = screen.getByTestId('home-cta');
-    expect(cta).toHaveAttribute('aria-label', 'Comenzar Flujo');
     expect(screen.getByTestId('header-nav-inicio')).toHaveAttribute('aria-label');
-    expect(screen.getByTestId('header-nav-perfil')).toHaveAttribute('aria-label');
+    expect(screen.getByTestId('header-nav-configuracion')).toHaveAttribute('aria-label');
   });
 
   it('navega por todas las vistas via store goTo', async () => {
@@ -104,10 +77,11 @@ describe('App routing currentStep → view render', () => {
     expect(await screen.findByTestId('home-view')).toBeInTheDocument();
   });
 
-  it('StepperBar no visible en inicio, visible en otras vistas', async () => {
+  it('StepperBar visible en todas las vistas incluyendo inicio', async () => {
     render(<App />);
-    expect(screen.queryByTestId('stepper-bar')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('header-nav-configuracion'));
-    expect(await screen.findByTestId('stepper-bar')).toBeInTheDocument();
+    expect(screen.getByTestId('stepper-bar')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('header-nav-inicio'));
+    expect(screen.getByTestId('stepper-bar')).toBeInTheDocument();
+    expect(screen.getByTestId('stepper-step-inicio')).toHaveAttribute('data-status', 'active');
   });
 });

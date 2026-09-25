@@ -9,6 +9,8 @@ import { useDataStore } from '@/store/dataStore';
 import { useTemplateStore } from '@/store/templateStore';
 import { fileToTemplate } from '@/utils/docxHelpers';
 import { parseMercurioFile } from '@/utils/excelParser';
+import { useProfileStore } from '@/store/profileStore';
+import { ProfileModal } from '@/components/features/ProfileModal';
 import ExcelUploadCard from '@/components/features/ExcelUploadCard';
 import Button from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -33,6 +35,9 @@ export function ConfigView() {
 
   const goTo = useNavigationStore((s) => s.goTo);
   const complete = useNavigationStore((s) => s.complete);
+
+  const profile = useProfileStore((s) => s.profile);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const [dragSac, setDragSac] = useState(false);
   const [dragMercurio, setDragMercurio] = useState(false);
@@ -349,15 +354,14 @@ export function ConfigView() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }} data-testid="config-view">
       <style>{`
-        .m2-hero { position:relative; overflow:hidden; border-radius:14px; padding:14px 16px; background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 45%, #F0FDF4 100%); border:1px solid #E0F2FE; flex-shrink:0; }
+        .m2-hero { position:relative; overflow:hidden; border-radius:14px; padding:16px 20px; background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 45%, #F0FDF4 100%); border:1px solid #E0F2FE; flex-shrink:0; }
         .m2-blur { position:absolute; border-radius:999px; filter: blur(28px); opacity:0.45; pointer-events:none; }
-        .m2-grid { display:grid; grid-template-columns: 1fr 1fr; gap:10px; flex-shrink:0; }
+        .m2-grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; flex-shrink:0; }
         @media (max-width: 860px) { .m2-grid { grid-template-columns: 1fr; } }
         .m2-segment { flex:1; height:100%; border-radius:999px; transition: background 220ms ease-out, opacity 220ms ease-out; }
-        .m2-scroll-area { display:flex; flex-direction:column; gap:10px; }
-        .m2-card{padding:14px !important;gap:10px !important}
-        .m2-drop{padding:14px 12px !important;min-height:118px !important;gap:8px !important}
-        .m2-drop--completed{min-height:118px !important}
+        .m2-scroll-area { display:flex; flex-direction:column; gap:14px; }
+        .m2-profile-btn { display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #fed7aa; border-radius:999px; padding:5px 12px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.04); transition:all 180ms ease; }
+        .m2-profile-btn:hover { background:#fff7ed; border-color:#ee7419; transform:translateY(-1px); box-shadow:0 3px 8px rgba(238,116,25,0.15); }
         .m2-cancelar-btn:hover:not(:disabled) { background: #f8fafc !important; border-color: #cbd5e1 !important; color: #0f172a !important; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(15,23,42,0.06) !important; }
         .m2-cancelar-btn:hover .m2-cancelar-icon { background: #e2e8f0 !important; transform: rotate(90deg); }
         .m2-cancelar-btn:active:not(:disabled) { transform: translateY(0) scale(0.97) !important; }
@@ -420,7 +424,7 @@ export function ConfigView() {
                   letterSpacing: '0.07em',
                 }}
               >
-                MÓDULO 2: CONFIGURACIÓN DE RECURSOS
+                MÓDULO 1: CONFIGURACIÓN DE RECURSOS
               </Badge>
             </div>
 
@@ -469,51 +473,132 @@ export function ConfigView() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 10,
-                  background: '#fff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 999,
-                  padding: '6px 10px',
-                  boxShadow: 'var(--shadow-xs)',
+                  flexWrap: 'wrap',
                   alignSelf: 'flex-start',
                 }}
               >
-                <span
+                <button
+                  type="button"
+                  onClick={() => setIsProfileModalOpen(true)}
+                  data-testid="config-open-profile-btn"
+                  className="m2-profile-btn"
+                  title="Configurar Perfil y Firma del Funcionario"
+                >
+                  <span
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: 999,
+                      background: profile.name ? '#dbeafe' : '#f1f5f9',
+                      color: profile.name ? '#004B93' : '#64748b',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {profile.name ? profile.name.charAt(0).toUpperCase() : '👤'}
+                  </span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      lineHeight: 1.15,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.62rem',
+                        fontWeight: 700,
+                        color: '#64748b',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      Perfil del Funcionario
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '0.76rem',
+                        fontWeight: 800,
+                        color: '#0f172a',
+                        maxWidth: 160,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {profile.name || 'Configurar Perfil y Firma'}
+                    </span>
+                  </div>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#64748b"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </button>
+
+                <div
                   style={{
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    color: 'var(--neutral-500)',
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    background: '#fff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 999,
+                    padding: '6px 10px',
+                    boxShadow: 'var(--shadow-xs)',
                   }}
                 >
-                  Progreso
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 800,
-                    color: readyCount === totalRequired ? '#15803d' : '#334155',
-                  }}
-                >
-                  {readyCount}/{totalRequired}
-                </span>
-                <span
-                  style={{
-                    width: 1,
-                    height: 14,
-                    background: 'var(--border)',
-                    display: 'inline-block',
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 800,
-                    color: readyCount === totalRequired ? '#15803d' : 'var(--neutral-600)',
-                  }}
-                >
-                  {progressPct}%
-                </span>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      color: 'var(--neutral-500)',
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Progreso
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      color: readyCount === totalRequired ? '#15803d' : '#334155',
+                    }}
+                  >
+                    {readyCount}/{totalRequired}
+                  </span>
+                  <span
+                    style={{
+                      width: 1,
+                      height: 14,
+                      background: 'var(--border)',
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      color: readyCount === totalRequired ? '#15803d' : 'var(--neutral-600)',
+                    }}
+                  >
+                    {progressPct}%
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -602,7 +687,7 @@ export function ConfigView() {
         <div className="m2-grid" data-testid="m2-grid">
           <ExcelUploadCard
             title="Archivo SAC"
-            subtitle="Base principal de trámites — 119 columnas"
+            subtitle="Base principal de trámites"
             fileState={sacFile}
             setFileState={setSacFile}
             dragOver={dragSac}
@@ -616,7 +701,7 @@ export function ConfigView() {
           />
           <ExcelUploadCard
             title="Archivo Mercurio"
-            subtitle="Base complementaria de correspondencia — Opcional (habilita columna PQR)"
+            subtitle="Base complementaria de correspondencia"
             fileState={mercurioFile}
             setFileState={setMercurioFile}
             dragOver={dragMercurio}
@@ -629,79 +714,312 @@ export function ConfigView() {
             locationLabel="Consultar archivo Mercurio"
           />
 
-          {/* folder full-width */}
-          <div style={{ gridColumn: '1 / -1' }}>
-            <ExcelUploadCard
-              title="Carpeta de Plantillas"
-              subtitle="Selecciona la carpeta que contiene los .docx — se listarán automáticamente"
-              fileState={templateFolder}
-              setFileState={(s) => {
-                setTemplateFolder(s);
-                if (!s) {
-                  setFolderName('');
-                  folderFilesRef.current = [];
-                  useTemplateStore.getState().clearTemplates();
-                  if (folderRef.current) folderRef.current.value = '';
-                }
-              }}
-              dragOver={dragFolder}
-              setDragOver={setDragFolder}
-              inputRef={folderRef}
-              onDrop={onFolderDrop}
-              onSelect={onFolderSelect}
-              accent="folder"
-              locationUrl={PLANTILLAS_URL}
-              locationLabel="Consultar carpeta de Plantillas"
-            />
-            {(folderName || templateFolderPath || templateFolder?.folderPath) && (
+          <ExcelUploadCard
+            title="Carpeta de Plantillas"
+            subtitle="Selecciona la carpeta que contiene los .docx — se listarán automáticamente"
+            fileState={templateFolder}
+            setFileState={(s) => {
+              setTemplateFolder(s);
+              if (!s) {
+                setFolderName('');
+                folderFilesRef.current = [];
+                useTemplateStore.getState().clearTemplates();
+                if (folderRef.current) folderRef.current.value = '';
+              }
+            }}
+            dragOver={dragFolder}
+            setDragOver={setDragFolder}
+            inputRef={folderRef}
+            onDrop={onFolderDrop}
+            onSelect={onFolderSelect}
+            accent="folder"
+            locationUrl={PLANTILLAS_URL}
+            locationLabel="Consultar carpeta de Plantillas"
+          />
+
+          {/* Tarjeta de Perfil y Firma del Funcionario */}
+          <div
+            className="m2-card m2-profile-card"
+            data-testid="config-profile-card"
+            style={{
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderTop: '3.5px solid #EE7419',
+              borderRadius: 14,
+              padding: 20,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 14,
+              boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
+              minHeight: 180,
+              transition:
+                'transform 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease',
+              animation: 'm2-enter 280ms cubic-bezier(0.16,1,0.3,1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow =
+                '0 8px 20px rgba(15, 23, 42, 0.07), 0 2px 6px rgba(238, 116, 25, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 23, 42, 0.04)';
+            }}
+          >
+            <div>
               <div
-                data-testid="m2-folder-path"
                 style={{
-                  marginTop: 8,
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: '0.76rem',
-                  color: '#334155',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 8,
-                  padding: '7px 10px',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  marginBottom: 12,
                 }}
               >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#64748b"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                </svg>
-                <span style={{ fontWeight: 700, color: '#475569' }}>Ruta:</span>
-                <span
+                <div
                   style={{
-                    fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 11,
                     flex: 1,
+                    minWidth: 0,
                   }}
-                  title={folderName || templateFolderPath || templateFolder?.folderPath || ''}
                 >
-                  {folderName || templateFolderPath || templateFolder?.folderPath}
-                </span>
-                {templateFolder?.recordCount ? (
-                  <span style={{ fontWeight: 700, color: '#15803d', whiteSpace: 'nowrap' }}>
-                    {templateFolder.recordCount} plantillas
+                  <span
+                    className="m2-icon-box"
+                    style={{
+                      background: '#FFF7ED',
+                      color: '#EE7419',
+                      border: '1px solid #FED7AA',
+                      boxShadow: '0 2px 6px rgba(238, 116, 25, 0.2)',
+                    }}
+                    aria-hidden
+                  >
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#EE7419"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
                   </span>
-                ) : null}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: '0.96rem',
+                        fontWeight: 800,
+                        color: '#0f172a',
+                        lineHeight: 1.25,
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      Perfil del Funcionario
+                    </h3>
+                    <p
+                      style={{
+                        margin: '3px 0 0',
+                        fontSize: '0.76rem',
+                        color: '#64748b',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      Datos del firmante y firma digital para los documentos
+                    </p>
+                  </div>
+                </div>
+                {profile.name ? (
+                  <span
+                    className="m2-badge m2-pop-in"
+                    style={{
+                      background: '#f0fdf4',
+                      color: '#15803d',
+                      borderColor: '#bbf7d0',
+                    }}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#15803d"
+                      strokeWidth="2.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Configurado
+                  </span>
+                ) : (
+                  <span
+                    className="m2-badge"
+                    style={{
+                      background: '#fffbeb',
+                      color: '#b45309',
+                      borderColor: '#fde68a',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: '#f59e0b',
+                        display: 'inline-block',
+                      }}
+                      aria-hidden
+                    />
+                    Pendiente
+                  </span>
+                )}
               </div>
-            )}
+
+              {/* Detalle del perfil */}
+              <div
+                style={{
+                  background: 'linear-gradient(180deg, #FFFDF9 0%, #FFF8EE 100%)',
+                  border: '1.5px solid #FED7AA',
+                  borderRadius: 14,
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  boxShadow:
+                    '0 2px 6px rgba(238, 116, 25, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.9)',
+                }}
+              >
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <span style={{ fontSize: '0.74rem', color: '#78350f', fontWeight: 700 }}>
+                    Nombre:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      color: profile.name ? '#0f172a' : '#94a3b8',
+                    }}
+                  >
+                    {profile.name || 'Sin nombre registrado'}
+                  </span>
+                </div>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <span style={{ fontSize: '0.74rem', color: '#78350f', fontWeight: 700 }}>
+                    Cargo:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      color: profile.position ? '#334155' : '#94a3b8',
+                    }}
+                  >
+                    {profile.position || 'Sin cargo especificado'}
+                  </span>
+                </div>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <span style={{ fontSize: '0.74rem', color: '#78350f', fontWeight: 700 }}>
+                    Firma digital:
+                  </span>
+                  {profile.signatureUrl ? (
+                    <span
+                      style={{
+                        fontSize: '0.76rem',
+                        fontWeight: 800,
+                        color: '#15803d',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                      }}
+                    >
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      Cargada ({profile.signatureScale ?? 100}%)
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '0.76rem', fontWeight: 600, color: '#94a3b8' }}>
+                      Sin firma digital
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsProfileModalOpen(true)}
+              data-testid="config-open-profile"
+              style={{
+                width: '100%',
+                padding: '9px 14px',
+                borderRadius: 10,
+                background: '#FFF7ED',
+                border: '1px solid #EE7419',
+                color: '#C2410C',
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 7,
+                transition: 'all 180ms ease',
+                boxShadow: '0 1px 3px rgba(238, 116, 25, 0.15)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#EE7419';
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(238, 116, 25, 0.28)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#FFF7ED';
+                e.currentTarget.style.color = '#C2410C';
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(238, 116, 25, 0.15)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              {profile.name ? 'Modificar Perfil y Firma' : 'Configurar Perfil y Firma'}
+            </button>
           </div>
         </div>
 
@@ -906,10 +1224,10 @@ export function ConfigView() {
               title={
                 !allReady
                   ? 'Carga SAC y carpeta de plantillas para continuar (Mercurio es opcional)'
-                  : 'Continuar al Módulo 3'
+                  : 'Continuar a Revisión de Datos'
               }
             >
-              Continuar al Módulo 3
+              Continuar a Revisión de Datos
               <svg
                 width="16"
                 height="16"
@@ -929,6 +1247,9 @@ export function ConfigView() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Configuración de Perfil y Firma */}
+      <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
     </div>
   );
 }

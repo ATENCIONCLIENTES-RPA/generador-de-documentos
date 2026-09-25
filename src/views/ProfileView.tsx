@@ -195,7 +195,7 @@ export function ProfileView(): JSX.Element {
                       lineHeight: 1.1,
                     }}
                   >
-                    Módulo 1: Configuración de Perfil
+                    Módulo 2: Configuración de Perfil
                   </h2>
                   <p style={{ fontSize: '0.8rem', color: 'var(--neutral-500)', margin: 0 }}>
                     Información del funcionario firmante

@@ -557,7 +557,7 @@ export function DataView() {
           </div>
           <h3 className="dv-empty-title">No hay registros cargados</h3>
           <p className="dv-empty-subtitle">
-            Carga un archivo Excel en el Módulo 2 para ver los datos aquí.
+            Carga un archivo Excel en el Módulo 1 para ver los datos aquí.
           </p>
           <Button
             variant="primary"

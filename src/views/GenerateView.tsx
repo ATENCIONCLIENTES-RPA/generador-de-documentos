@@ -566,7 +566,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         <div className="dg-empty" data-testid="dg-empty">
           <div className="dg-empty-title">No hay plantillas disponibles</div>
           <div className="dg-empty-sub">
-            Carga plantillas .docx en el Módulo 2 para verlas aquí.
+            Carga plantillas .docx en el Módulo 1 para verlas aquí.
           </div>
           <Button
             variant="primary"
@@ -1046,7 +1046,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
                         data-testid="dg-go-datos"
                         style={{ marginTop: 8, fontSize: '0.74rem', height: 32 }}
                       >
-                        Ir al Módulo 3
+                        Ir a Revisión de Datos
                       </Button>
                     </div>
                   ) : (

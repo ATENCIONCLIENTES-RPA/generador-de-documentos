@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import * as XLSX from 'xlsx';
 import {
   parseExcelFile,
+  parseMercurioFile,
   buildRecord,
   getEstadoSemaforo,
   crossReferenceSacAndMercurio,
@@ -25,7 +26,7 @@ describe('excelParser', () => {
     expect(rec.numeroCuenta).toBe('123');
   });
 
-  it('parseExcelFile filtra NUMERO_CUENTA 0/null', async () => {
+  it('parseExcelFile conserva filas sin NUMERO_CUENTA (paridad con tablero de referencia)', async () => {
     const file = makeFile([
       { NOMBRE_SOLICITANTE: 'A', NUMERO_CUENTA: '123', RADICADO_ENTRADA: 'R1' },
       { NOMBRE_SOLICITANTE: 'B', NUMERO_CUENTA: 0, RADICADO_ENTRADA: 'R2' },
@@ -34,9 +35,35 @@ describe('excelParser', () => {
       { NOMBRE_SOLICITANTE: 'E', NUMERO_CUENTA: '456', RADICADO_ENTRADA: 'R5' },
     ]);
     const records = await parseExcelFile(file);
-    expect(records).toHaveLength(2);
+    expect(records).toHaveLength(5);
     expect(records[0]!.numeroCuenta).toBe('123');
-    expect(records[1]!.numeroCuenta).toBe('456');
+    expect(records[3]!.numeroCuenta).toBe('');
+    expect(records[4]!.numeroCuenta).toBe('456');
+  });
+
+  it('parseMercurioFile conserva filas sin fecha (quedan Sin fecha) y captura Ruta/Estado', async () => {
+    const file = makeFile([
+      {
+        'No. Radicado': '20260320040001',
+        'Fecha  Radicacion': '24/09/2026',
+        'Nombre del Gestor': 'Gestor Uno',
+        Estado: 'P',
+      },
+      {
+        'No. Radicado': '20260320040002',
+        'Fecha  Radicacion': '',
+        'Nombre del Gestor': 'Gestor Dos',
+        'Nombre de la Ruta': 'RUTA X',
+        Estado: 'P',
+      },
+    ]);
+    const records = await parseMercurioFile(file);
+    expect(records).toHaveLength(2);
+    expect(records[0]!.fechaSolicitud).toBe('24/09/2026');
+    expect(records[1]!.fechaSolicitud).toBe('');
+    expect(records[1]!['Nombre del Gestor']).toBe('Gestor Dos');
+    expect(records[1]!['Nombre de la Ruta']).toBe('RUTA X');
+    expect(records[1]!.Estado).toBe('P');
   });
 
   it('parseExcelFile genera rowId único por fila y mapea fechas', async () => {

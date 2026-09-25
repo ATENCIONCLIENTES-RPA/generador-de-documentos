@@ -6,6 +6,7 @@ import { useExcelStore } from '@/store/excelStore';
 import { useDataStore } from '@/store/dataStore';
 import { useNavigationStore } from '@/store/navigationStore';
 import { useTemplateStore } from '@/store/templateStore';
+import { useProfileStore } from '@/store/profileStore';
 
 // Mock excelParser to avoid real xlsx parsing in unit test
 vi.mock('@/utils/excelParser', () => ({
@@ -38,6 +39,7 @@ function resetStores() {
   useExcelStore.getState().clearAll();
   useNavigationStore.getState().reset();
   useTemplateStore.getState().clearTemplates();
+  useProfileStore.getState().clearProfile();
   // ensure allReady false initially
 }
 
@@ -58,7 +60,7 @@ describe('ConfigView allReady gate', () => {
     render(<ConfigView />);
     expect(screen.getByTestId('m2-hero')).toBeInTheDocument();
     expect(screen.getByTestId('m2-grid')).toBeInTheDocument();
-    expect(screen.getByText(/MÓDULO 2: CONFIGURACIÓN DE RECURSOS/)).toBeInTheDocument();
+    expect(screen.getByText(/MÓDULO 1: CONFIGURACIÓN DE RECURSOS/)).toBeInTheDocument();
     expect(screen.getByText('Archivo SAC')).toBeInTheDocument();
     expect(screen.getByText('Archivo Mercurio')).toBeInTheDocument();
     expect(screen.getByText('Carpeta de Plantillas')).toBeInTheDocument();
@@ -246,5 +248,39 @@ describe('ConfigView allReady gate', () => {
     expect(useExcelStore.getState().templateFolder?.error).toEqual(
       expect.stringContaining('No se encontraron plantillas')
     );
+  });
+
+  it('integra el Perfil del Funcionario y abre el modal de edición', async () => {
+    render(<ConfigView />);
+    expect(screen.getByTestId('config-profile-card')).toBeInTheDocument();
+    expect(screen.getAllByText('Perfil del Funcionario').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Sin nombre registrado')).toBeInTheDocument();
+
+    // Abrir modal desde el botón de la tarjeta
+    fireEvent.click(screen.getByTestId('config-open-profile'));
+    expect(await screen.findByTestId('profile-card')).toBeInTheDocument();
+
+    // Diligenciar nombre y cargo
+    fireEvent.change(screen.getByTestId('profile-name'), {
+      target: { value: 'Jaime Arley Rizo' },
+    });
+    fireEvent.change(screen.getByTestId('profile-position'), {
+      target: { value: 'Profesional de Soporte' },
+    });
+
+    // Guardar perfil
+    fireEvent.click(screen.getByTestId('profile-save'));
+
+    // Validar actualización en store
+    expect(useProfileStore.getState().profile.name).toBe('Jaime Arley Rizo');
+    expect(useProfileStore.getState().profile.position).toBe('Profesional de Soporte');
+
+    // Modal se cierra
+    await waitFor(() => {
+      expect(screen.queryByTestId('profile-modal-overlay')).not.toBeInTheDocument();
+    });
+
+    // Tarjeta refleja el nuevo nombre
+    expect(screen.getAllByText('Jaime Arley Rizo').length).toBeGreaterThanOrEqual(1);
   });
 });

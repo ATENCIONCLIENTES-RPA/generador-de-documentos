@@ -9,16 +9,13 @@ test.describe('ESSA flujo completo', () => {
   test('flujo inicio → perfil → configuracion → datos → generacion', async ({ page }) => {
     await page.goto('http://localhost:5173');
 
-    // M1 inicio: hero + CTA
+    // M1 Cuadro de Mando: encabezado + estado vacío (sin archivos cargados)
     await expect(page.getByTestId('home-view')).toBeVisible();
-    await expect(page.getByTestId('home-title')).toContainText('Asistente Documental');
-    await expect(page.getByTestId('home-cta')).toBeVisible();
-    await expect(page.getByTestId('energy-illustration')).toBeVisible();
-    await expect(page.getByTestId('feature-card-rápido')).toBeVisible();
-    await expect(page.getByTestId('home-como-funciona')).toContainText('1. Configura tu perfil');
+    await expect(page.getByText('Cuadro de Mando')).toBeVisible();
+    await expect(page.getByTestId('dashboard-empty')).toBeVisible();
 
-    // Ir a perfil
-    await page.getByTestId('home-cta').click();
+    // Ir a perfil desde el header
+    await page.getByTestId('header-nav-perfil').click();
     await expect(page.getByTestId('profile-view')).toBeVisible();
     await expect(page.getByTestId('stepper-bar')).toBeVisible();
     await expect(page.getByTestId('stepper-step-perfil')).toHaveAttribute('data-status', 'active');

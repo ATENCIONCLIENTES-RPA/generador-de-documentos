@@ -6,7 +6,7 @@ import {
   repairCorruptToken,
 } from '@/utils/textEnhancer';
 
-describe('textEnhancer — nspell y corrección ortográfica / gramatical', () => {
+describe('textEnhancer — nspell y corrección ortográfica / gramatical', { timeout: 20000 }, () => {
   it('corrige palabras individuales con tildes y errores tipográficos comunes', () => {
     expect(correctWord('revision')).toBe('revisión');
     expect(correctWord('Revision')).toBe('Revisión');

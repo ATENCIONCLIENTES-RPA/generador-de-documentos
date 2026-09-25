@@ -12,7 +12,7 @@ interface NavigationStore {
 }
 
 export const useNavigationStore = create<NavigationStore>((set, get) => ({
-  currentStep: 'inicio',
+  currentStep: 'configuracion',
   completed: new Set<StepId>(),
 
   goTo: (step) => set({ currentStep: step }),
@@ -24,7 +24,7 @@ export const useNavigationStore = create<NavigationStore>((set, get) => ({
       return { completed: next };
     }),
 
-  reset: () => set({ currentStep: 'inicio', completed: new Set<StepId>() }),
+  reset: () => set({ currentStep: 'configuracion', completed: new Set<StepId>() }),
 
   isCompleted: (step) => get().completed.has(step),
 }));

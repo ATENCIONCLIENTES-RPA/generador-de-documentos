@@ -746,15 +746,6 @@ function isValidRow(item: unknown): boolean {
   return values.length > 0;
 }
 
-function isFilteredCuenta(value: unknown): boolean {
-  if (value === null || value === undefined) return true;
-  const s = String(value).trim();
-  if (s === '' || s === '0' || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined')
-    return true;
-  if (!isNaN(Number(s)) && Number(s) === 0) return true;
-  return false;
-}
-
 export interface ParseProgressInfo {
   stage: string;
   progress: number;
@@ -860,10 +851,9 @@ export async function parseExcelFile(
   for (let i = 0; i < total; i++) {
     const item = validRows[i];
     if (item) {
-      const rec = buildRecord(item, i);
-      if (!isFilteredCuenta(rec.numeroCuenta)) {
-        records.push(rec);
-      }
+      // Paridad con el tablero de referencia: se conservan todas las filas
+      // no vacías, incluso sin número de cuenta.
+      records.push(buildRecord(item, i));
     }
 
     if (i % batchSize === 0 || i === total - 1) {
@@ -904,17 +894,18 @@ export function buildMercurioRecord(row: RawExcelRow, index: number): EssaRecord
     'FECHA_RADICACION',
     'FECHA RADICACION',
     'FECHA_RADICACION_MERCURIO',
+    'Fecha de Entrada',
+    'FECHA_DE_ENTRADA',
   ]);
 
   const strFecha = String(fechaRadRaw ?? '').trim();
-  if (
+  // Paridad con el tablero de referencia: las filas sin fecha se conservan
+  // (quedan "Sin fecha" en el Cuadro de Mando en lugar de descartarse).
+  const sinFecha =
     !strFecha ||
     strFecha === '—' ||
     strFecha.toLowerCase() === 'null' ||
-    strFecha.toLowerCase() === 'undefined'
-  ) {
-    return null;
-  }
+    strFecha.toLowerCase() === 'undefined';
 
   const noRadicadoRaw = getExcelCellValue(row, [
     'No. Radicado',
@@ -958,18 +949,25 @@ export function buildMercurioRecord(row: RawExcelRow, index: number): EssaRecord
     'NOMBRE_GESTOR',
     'GESTOR',
   ]);
+  const nombreRutaRaw = getExcelCellValue(row, [
+    'Nombre de la Ruta',
+    'NOMBRE DE LA RUTA',
+    'NOMBRE_RUTA',
+    'RUTA',
+  ]);
+  const estadoRaw = getExcelCellValue(row, ['Estado', 'ESTADO']);
 
   const timestamp = Date.now();
   const rowId = `merc_${index}_${timestamp}`;
   const recordId = index + 1;
-  const fechaSolicitud = formatExcelDate(fechaRadRaw);
+  const fechaSolicitud = sinFecha ? '' : formatExcelDate(fechaRadRaw);
 
   const radicadoEntrada = String(noRadicadoRaw ?? '').trim();
   const cedulaSolicitante = String(nitEntidadRaw ?? '').trim();
   const nombreSolicitante = String(nombreEntidadRaw ?? '').trim();
   const pqrInfo = calculatePqrBusinessDays(fechaRadRaw || fechaSolicitud);
 
-  // Solo tomar las 7 columnas del Archivo Mercurio
+  // Columnas del Archivo Mercurio (incluye Ruta y Estado para el Cuadro de Mando)
   const mercurioData: RawExcelRow = {
     'No. Radicado': radicadoEntrada,
     'Fecha  Radicacion': fechaSolicitud,
@@ -978,6 +976,8 @@ export function buildMercurioRecord(row: RawExcelRow, index: number): EssaRecord
     'Refencia del Documento': String(referenciaDocRaw ?? '').trim(),
     'ID del Gestor': String(idGestorRaw ?? '').trim(),
     'Nombre del Gestor': String(nombreGestorRaw ?? '').trim(),
+    'Nombre de la Ruta': String(nombreRutaRaw ?? '').trim(),
+    Estado: String(estadoRaw ?? '').trim(),
   };
 
   return {
@@ -1115,8 +1115,6 @@ export function parseExcelBinary(dataBinary: string | ArrayBuffer): {
   const rawRows = XLSX.utils.sheet_to_json<RawExcelRow>(ws);
   if (!rawRows || rawRows.length === 0) return { records: [], rawCount: 0 };
   const validRows = rawRows.filter(isValidRow);
-  const parsed = validRows
-    .map((item, index) => buildRecord(item, index))
-    .filter((rec) => !isFilteredCuenta(rec.numeroCuenta));
+  const parsed = validRows.map((item, index) => buildRecord(item, index));
   return { records: parsed, rawCount: validRows.length };
 }
