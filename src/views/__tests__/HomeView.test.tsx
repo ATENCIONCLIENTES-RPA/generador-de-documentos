@@ -326,6 +326,14 @@ describe('HomeView — Cuadro de Mando', () => {
     // El grupo de correo sí: aplicar fecha real más antigua mueve el día
     fireEvent.click(screen.getByTestId('dash-daydetail-R:900021'));
     expect(screen.getByTestId('dash-detail-mailbox')).toBeInTheDocument();
+
+    // Antes de corregir: la tarjeta usa el vencimiento oficial del sistema
+    const vence = () => screen.getByTestId('dash-detail-vence').textContent?.trim() ?? '';
+    const restan = () => screen.getByTestId('dash-detail-restan').textContent?.trim() ?? '';
+    expect(restan()).toBe('40');
+    expect(vence()).toBe(`Vence ${fechaFutura(40)}`);
+    expect(screen.queryByText(/\(sistema:/)).not.toBeInTheDocument();
+
     const iso10 = (() => {
       const s = WIN.find((x) => x.dia === 10)!;
       const d = s.fecha;
@@ -337,14 +345,147 @@ describe('HomeView — Cuadro de Mando', () => {
     // Hero y ficha muestran el nuevo día (dos menciones)
     expect(screen.getAllByText('Día 10 de 15')).toHaveLength(2);
     expect(screen.queryByText('Día 2 de 15')).not.toBeInTheDocument();
+
+    // La tarjeta de días restantes se recalcula con la fecha corregida
+    expect(restan()).not.toBe('40');
+    expect(vence()).not.toBe(`Vence ${fechaFutura(40)}`);
+    const venceTxt = /Vence (\d{2})\/(\d{2})\/(\d{4})/.exec(vence());
+    expect(venceTxt).not.toBeNull();
+    const venceDate = new Date(
+      Number(venceTxt![3]),
+      Number(venceTxt![2]) - 1,
+      Number(venceTxt![1])
+    );
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    expect(Number(restan())).toBe(Math.round((venceDate.getTime() - hoy.getTime()) / 86400000));
+    // F. radicación y F. vencimiento muestran la fecha oficial entre paréntesis
+    expect(screen.getAllByText(/\(sistema:/)).toHaveLength(2);
+
     expect(JSON.parse(localStorage.getItem('essa-dashboard-ajustes-correo') ?? '{}')).toEqual({
       'R:900021': iso10,
     });
 
-    // Quitar el ajuste restaura el día oficial
+    // Quitar el ajuste restaura el día oficial y el vencimiento original
     fireEvent.click(screen.getByTestId('dash-detail-quitar'));
     expect(screen.getAllByText('Día 2 de 15')).toHaveLength(2);
+    expect(restan()).toBe('40');
+    expect(vence()).toBe(`Vence ${fechaFutura(40)}`);
+    expect(screen.queryByText(/\(sistema:/)).not.toBeInTheDocument();
     expect(localStorage.getItem('essa-dashboard-ajustes-correo')).toBe('{}');
+    localStorage.clear();
+  });
+
+  it('notas del trabajo diario: crear, consultar, editar y eliminar con persistencia', () => {
+    localStorage.clear();
+    seed(sacRows, merRows);
+    const first = render(<HomeView />);
+
+    // El botón vive en el bloque derecho de la sección 04
+    fireEvent.click(screen.getByTestId('dash-notas-open'));
+    const modal = screen.getByTestId('dash-notas-modal');
+    expect(modal).toBeInTheDocument();
+    expect(screen.getByTestId('dash-notas-empty')).toBeInTheDocument();
+
+    // Crear una nota general
+    fireEvent.change(screen.getByTestId('dash-notas-texto'), {
+      target: { value: 'Confirmar radicación con jurídica' },
+    });
+    expect(screen.getByTestId('dash-notas-guardar')).toBeEnabled();
+    fireEvent.click(screen.getByTestId('dash-notas-guardar'));
+
+    expect(screen.queryByTestId('dash-notas-empty')).not.toBeInTheDocument();
+    expect(screen.getByText('Confirmar radicación con jurídica')).toBeInTheDocument();
+    expect(screen.getByText('General')).toBeInTheDocument();
+    expect(screen.getByTestId('dash-notas-guardar')).toBeDisabled();
+    expect(JSON.parse(localStorage.getItem('essa-dashboard-notas') ?? '[]')).toHaveLength(1);
+
+    // Recargar la vista: la nota sigue en la caché del navegador
+    first.unmount();
+    render(<HomeView />);
+    fireEvent.click(screen.getByTestId('dash-notas-open'));
+    expect(screen.getByText('Confirmar radicación con jurídica')).toBeInTheDocument();
+
+    // Editar
+    const guardadas = JSON.parse(localStorage.getItem('essa-dashboard-notas') ?? '[]');
+    const id = guardadas[0].id as string;
+    fireEvent.click(screen.getByTestId(`dash-nota-edit-${id}`));
+    expect(screen.getByTestId('dash-notas-texto')).toHaveValue('Confirmar radicación con jurídica');
+    fireEvent.change(screen.getByTestId('dash-notas-texto'), {
+      target: { value: 'Llamar al solicitante hoy' },
+    });
+    fireEvent.click(screen.getByTestId('dash-notas-guardar'));
+
+    expect(screen.getByText('Llamar al solicitante hoy')).toBeInTheDocument();
+    expect(screen.queryByText('Confirmar radicación con jurídica')).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('essa-dashboard-notas') ?? '[]')[0].texto).toBe(
+      'Llamar al solicitante hoy'
+    );
+
+    // Buscar (consultar)
+    fireEvent.change(screen.getByTestId('dash-notas-buscar'), {
+      target: { value: 'otra cosa' },
+    });
+    expect(screen.getByTestId('dash-notas-empty')).toHaveTextContent(/Ninguna nota coincide/);
+    fireEvent.change(screen.getByTestId('dash-notas-buscar'), { target: { value: '' } });
+
+    // Eliminar con confirmación en dos pasos
+    const id2 = JSON.parse(localStorage.getItem('essa-dashboard-notas') ?? '[]')[0].id as string;
+    fireEvent.click(screen.getByTestId(`dash-nota-del-${id2}`));
+    expect(screen.getByTestId(`dash-nota-del-yes-${id2}`)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId(`dash-nota-del-yes-${id2}`));
+
+    expect(screen.getByTestId('dash-notas-empty')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('essa-dashboard-notas') ?? '[]')).toHaveLength(0);
+
+    // Escape cierra el gestor
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByTestId('dash-notas-modal')).not.toBeInTheDocument();
+    localStorage.clear();
+  });
+
+  it('detalle del radicado muestra sus notas y su atajo abre el gestor precargado', () => {
+    localStorage.clear();
+    seed(sacRows, merRows);
+    render(<HomeView />);
+
+    fireEvent.click(screen.getByTestId('dash-bar-2'));
+    fireEvent.click(screen.getByTestId('dash-daydetail-R:900001'));
+
+    expect(screen.getByTestId('dash-detail-notas')).toBeInTheDocument();
+    expect(screen.getByTestId('dash-detail-notas-empty')).toBeInTheDocument();
+
+    // Atajo: abre el gestor con el radicado precargado
+    fireEvent.click(screen.getByTestId('dash-detail-notas-edit'));
+    expect(screen.getByTestId('dash-notas-modal')).toBeInTheDocument();
+    expect((screen.getByTestId('dash-notas-radicado') as HTMLInputElement).value).toContain(
+      '900001'
+    );
+
+    fireEvent.change(screen.getByTestId('dash-notas-texto'), {
+      target: { value: 'Pendiente confirmación del área' },
+    });
+    fireEvent.click(screen.getByTestId('dash-notas-guardar'));
+    fireEvent.click(screen.getByTestId('dash-notas-cerrar'));
+
+    // El detalle muestra la nota de SU radicado
+    expect(screen.getByTestId('dash-detail-notas')).toHaveTextContent(
+      'Pendiente confirmación del área'
+    );
+    expect(screen.queryByTestId('dash-detail-notas-empty')).not.toBeInTheDocument();
+
+    // Otra nota de otro radicado no aparece en este detalle
+    fireEvent.click(screen.getByTestId('dash-detail-notas-edit'));
+    fireEvent.change(screen.getByTestId('dash-notas-texto'), {
+      target: { value: 'Nota de otro radicado' },
+    });
+    fireEvent.change(screen.getByTestId('dash-notas-radicado'), {
+      target: { value: '900004' },
+    });
+    fireEvent.click(screen.getByTestId('dash-notas-guardar'));
+    fireEvent.click(screen.getByTestId('dash-notas-cerrar'));
+
+    expect(screen.getByTestId('dash-detail-notas')).not.toHaveTextContent('Nota de otro radicado');
     localStorage.clear();
   });
 

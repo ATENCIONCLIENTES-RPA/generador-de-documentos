@@ -10,6 +10,7 @@ import {
   esCorreoMedio,
   estadoCounts,
   fuzzyMatchResponsable,
+  formatDMY,
   groupFilterOptions,
   groupRadicados,
   isAtencionClientes,
@@ -438,6 +439,96 @@ describe('dashboardGroups (lógica del tablero de referencia)', () => {
     // ISO inválido se ignora
     const gBad = groupRadicados([email], [], REF, { [base[0]!.key]: 'no-fecha' });
     expect(gBad[0]!.dia).toBe(2);
+  });
+
+  it('recalcula vencimiento y días restantes al corregir la fecha de radicación', () => {
+    const key = 'R:20260320047777';
+    const email = sac({
+      rowId: 'vto1',
+      radicadoEntrada: '20260320047777',
+      FECHA_SOLICITUD: fechaDe(15), // 07/09/2026 — día 15 de la ventana
+      fechaSolicitud: fechaDe(15),
+      FECHA_VENCIMIENTO: '25/09/2026', // = REF (hoy)
+      fechaVencimiento: '25/09/2026',
+      MEDIO_SOLICITUD: 'E-Mail',
+      medioSolicitud: 'E-Mail',
+      NOMBRE_USUARIO_INICIAL_PROCESO: 'Ana',
+    });
+
+    // Sin corrección: manda el vencimiento oficial (0 días → Crítico)
+    const base = groupRadicados([email], [], REF);
+    expect(base[0]!.dia).toBe(15);
+    expect(formatDMY(base[0]!.fVto)).toBe('25/09/2026');
+    expect(base[0]!.fVtoEfe).toEqual(base[0]!.fVto);
+    expect(base[0]!.restan).toBe(0);
+    expect(base[0]!.estadoV).toBe('Crítico');
+
+    // Corrección a un día hábil después (día 14 = 08/09/2026) → vence 28/09/2026
+    const iso14 = dayKeyOf(WIN.find((s) => s.dia === 14)!.fecha);
+    const despues = groupRadicados([email], [], REF, { [key]: iso14 });
+    expect(despues[0]!.dia).toBe(14);
+    expect(formatDMY(despues[0]!.fVto)).toBe('25/09/2026'); // oficial intacta
+    expect(formatDMY(despues[0]!.fVtoEfe!)).toBe('28/09/2026'); // +1 día hábil
+    expect(despues[0]!.restan).toBe(3);
+    expect(despues[0]!.estadoV).toBe('Próximo');
+
+    // Corrección a un día hábil antes (día 16 = 04/09/2026) → vence 24/09/2026
+    const iso16 = dayKeyOf(WIN.find((s) => s.dia === 16)!.fecha);
+    const antes = groupRadicados([email], [], REF, { [key]: iso16 });
+    expect(antes[0]!.dia).toBe(16);
+    expect(formatDMY(antes[0]!.fVtoEfe!)).toBe('24/09/2026'); // −1 día hábil
+    expect(antes[0]!.restan).toBe(-1);
+    expect(antes[0]!.estadoV).toBe('Vencido');
+
+    // Fecha corregida en fin de semana → se cuenta desde el lunes siguiente
+    const finde = groupRadicados([email], [], REF, { [key]: '2026-09-12' });
+    expect(finde[0]!.dia).toBe(10); // lunes 14/09/2026
+    expect(formatDMY(finde[0]!.fVtoEfe!)).toBe('02/10/2026');
+    expect(finde[0]!.restan).toBe(7);
+
+    // Medio no-correo: la corrección se ignora y el vencimiento no se mueve
+    const escrito = sac({
+      rowId: 'vto3',
+      radicadoEntrada: '20260320049888',
+      FECHA_SOLICITUD: fechaDe(15),
+      fechaSolicitud: fechaDe(15),
+      FECHA_VENCIMIENTO: '25/09/2026',
+      fechaVencimiento: '25/09/2026',
+      MEDIO_SOLICITUD: 'Escrito',
+      medioSolicitud: 'Escrito',
+    });
+    const gEsc = groupRadicados([escrito], [], REF, { 'R:20260320049888': iso14 });
+    expect(gEsc[0]!.ajuste).toBeNull();
+    expect(formatDMY(gEsc[0]!.fVtoEfe!)).toBe('25/09/2026');
+    expect(gEsc[0]!.restan).toBe(0);
+  });
+
+  it('corrige el respaldo de días hábiles (diasPqr) cuando no hay fecha de vencimiento', () => {
+    const sinVto = sac({
+      rowId: 'vto2',
+      radicadoEntrada: '20260320048888',
+      FECHA_SOLICITUD: fechaDe(2), // 24/09/2026
+      fechaSolicitud: fechaDe(2),
+      fechaVencimiento: '',
+      MEDIO_SOLICITUD: 'E-Mail',
+      medioSolicitud: 'E-Mail',
+      diasPqr: 10,
+      diasPqrLabel: '10 días hábiles',
+      NOMBRE_USUARIO_INICIAL_PROCESO: 'Ana',
+    });
+
+    const base = groupRadicados([sinVto], [], REF);
+    expect(base[0]!.fVto).toBeNull();
+    expect(base[0]!.fVtoEfe).toBeNull();
+    expect(base[0]!.restan).toBe(10);
+
+    // Corrección dos días hábiles antes → quedan 8
+    const iso4 = dayKeyOf(WIN.find((s) => s.dia === 4)!.fecha);
+    const movido = groupRadicados([sinVto], [], REF, { 'R:20260320048888': iso4 });
+    expect(movido[0]!.dia).toBe(4);
+    expect(movido[0]!.fVtoEfe).toBeNull();
+    expect(movido[0]!.restan).toBe(8);
+    expect(movido[0]!.estadoV).toBe('En plazo');
   });
 
   describe('Relacionamiento Perfil (M2) ↔ Responsable (M3) & Fuzzy Matching', () => {

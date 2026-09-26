@@ -1,4 +1,9 @@
-import { isBusinessDay, parseDateOnly } from './businessDays';
+import {
+  addBusinessDays,
+  countBusinessDaysBetween,
+  isBusinessDay,
+  parseDateOnly,
+} from './businessDays';
 import { parseIsoDate } from './dashboardAjustes';
 import type { Record as EssaRecord } from '@/types/record';
 
@@ -60,6 +65,12 @@ export interface RadicadoGroup {
   radicado: string;
   fSol: Date | null;
   fVto: Date | null;
+  /**
+   * F. vencimiento efectiva: `fVto` desplazada por el ajuste de fecha real
+   * (solo correos). Es la fecha que alimenta `restan` y la que se muestra en
+   * la tarjeta de días restantes; `fVto` conserva el valor oficial del sistema.
+   */
+  fVtoEfe: Date | null;
   /** Fecha real de recepción (solo correos con ajuste manual). */
   ajuste: Date | null;
   /** Fecha efectiva para contar días: ajuste ?? fSol. */
@@ -184,6 +195,25 @@ export function snapToBusinessDay(d: Date): Date {
     guard += 1;
   }
   return x;
+}
+
+/**
+ * Desplaza una fecha `delta` días hábiles (acepta negativos, espejo de
+ * `addBusinessDays`). Se usa para mover el vencimiento cuando se corrige la
+ * fecha real de radicación.
+ */
+function shiftBusinessDays(fecha: Date, delta: number): Date {
+  if (delta === 0) return fecha;
+  if (delta > 0) return addBusinessDays(fecha, delta);
+  const out = midnight(fecha);
+  let restantes = -delta;
+  let guard = 0;
+  while (restantes > 0 && guard < 1000) {
+    guard += 1;
+    out.setDate(out.getDate() - 1);
+    if (isBusinessDay(out)) restantes -= 1;
+  }
+  return out;
 }
 
 function toNumber(value: unknown): number | null {
@@ -648,11 +678,24 @@ export function groupRadicados(
     if (fEfe) dia = diaByKey.get(dayKeyOf(snapToBusinessDay(fEfe))) ?? null;
     const enVentana = dia !== null && dia <= DIAS_HABILES;
 
+    // Desplazamiento en días hábiles que implica la corrección de fecha real:
+    // positivo si el correo llegó después de la fecha oficial, negativo si llegó
+    // antes. Mismo criterio con el que se mueve `dia` (fechas sin día hábil se
+    // ajustan al siguiente para no contar de más).
+    const delta =
+      fSol && ajuste
+        ? countBusinessDaysBetween(snapToBusinessDay(fSol), snapToBusinessDay(ajuste))
+        : 0;
+    // Vencimiento recalculado a partir de la fecha corregida (si no hay ajuste
+    // se mantiene el oficial).
+    const fVtoEfe = fVto && delta !== 0 ? shiftBusinessDays(fVto, delta) : fVto;
+
     let restan: number | null = null;
-    if (fVto) {
-      restan = Math.round((midnight(fVto).getTime() - today.getTime()) / 86400000);
+    if (fVtoEfe) {
+      restan = Math.round((midnight(fVtoEfe).getTime() - today.getTime()) / 86400000);
     } else if (minDias !== null) {
-      restan = minDias;
+      // Respaldo: días hábiles que calculó el sistema, corregidos por el ajuste.
+      restan = minDias + delta;
     }
     const estadoV: EstadoV =
       restan === null
@@ -692,6 +735,7 @@ export function groupRadicados(
       radicado: acc.radicado || procesos[0]?.numero || '—',
       fSol,
       fVto,
+      fVtoEfe,
       ajuste,
       fEfe,
       dia,
@@ -729,6 +773,7 @@ export function groupRadicados(
       radicado: k,
       fSol: m.fRad,
       fVto: null,
+      fVtoEfe: null,
       ajuste: null,
       fEfe: m.fRad,
       dia,

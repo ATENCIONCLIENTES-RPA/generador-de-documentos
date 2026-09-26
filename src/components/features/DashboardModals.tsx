@@ -8,6 +8,7 @@ import {
 } from '@/utils/dashboardGroups';
 import { formatDateToSpanish } from '@/utils/businessDays';
 import { toIsoDate, parseIsoDate } from '@/utils/dashboardAjustes';
+import { formatNotaFecha, notasDe, type NotaTrabajo } from '@/utils/dashboardNotas';
 
 const ESTADO_COLOR: Record<EstadoV, string> = {
   Vencido: '#d93025',
@@ -305,7 +306,7 @@ export function RadicadoListModal({
                       </span>
                     </td>
                     <td className="mono">{formatDMY(g.fSol)}</td>
-                    <td className="mono">{formatDMY(g.fVto)}</td>
+                    <td className="mono">{formatDMY(g.fVtoEfe ?? g.fVto)}</td>
                     <td>
                       <span className={`dmod-badge ${ESTADO_BADGE[g.estadoV]}`}>
                         <i
@@ -368,14 +369,19 @@ function revisionState(estadoRevision: string): { cls: string; label: string; co
 
 export function RadicadoDetailModal({
   group,
+  notas,
   onClose,
   onAplicarAjuste,
   onQuitarAjuste,
+  onAbrirNotas,
 }: {
   group: RadicadoGroup | null;
+  /** Notas guardadas para este radicado. */
+  notas?: NotaTrabajo[];
   onClose: () => void;
   onAplicarAjuste: (key: string, iso: string) => void;
   onQuitarAjuste: (key: string) => void;
+  onAbrirNotas?: (radicado: string) => void;
 }): JSX.Element | null {
   useModalBehavior(group !== null);
   const [obsOpen, setObsOpen] = useState<number | null>(null);
@@ -396,7 +402,7 @@ export function RadicadoDetailModal({
             : ''
         : ''
     );
-  }, [group?.key]);
+  }, [group?.key, group?.ajuste]);
 
   const filteredProcs = useMemo(() => {
     if (!group) return [];
@@ -417,6 +423,7 @@ export function RadicadoDetailModal({
   const conRev = g.procesos.filter((p) => p.responsableRevision).length;
   const conObs = g.procesos.filter((p) => p.observacion).length;
   const medio = medioInfo(g.medio);
+  const notasRad = notasDe(notas ?? [], g.radicado);
   const pctDia = g.dia !== null ? Math.min(100, Math.max(0, (g.dia / 15) * 100)) : 0;
   const revTxt =
     g.nProc === 0
@@ -528,7 +535,11 @@ export function RadicadoDetailModal({
                   </>
                 ) : (
                   <>
-                    <div className="ddet-reloj-n" style={{ color: ESTADO_COLOR[g.estadoV] }}>
+                    <div
+                      className="ddet-reloj-n"
+                      style={{ color: ESTADO_COLOR[g.estadoV] }}
+                      data-testid="dash-detail-restan"
+                    >
                       {Math.abs(g.restan)}
                     </div>
                     <div className="ddet-reloj-u">
@@ -540,8 +551,8 @@ export function RadicadoDetailModal({
                           ? 'día restante'
                           : 'días restantes'}
                     </div>
-                    <div className="ddet-reloj-f">
-                      Vence <b>{formatDMY(g.fVto)}</b>
+                    <div className="ddet-reloj-f" data-testid="dash-detail-vence">
+                      Vence <b>{formatDMY(g.fVtoEfe ?? g.fVto)}</b>
                     </div>
                   </>
                 )}
@@ -564,12 +575,32 @@ export function RadicadoDetailModal({
             {stat(
               'F. radicación',
               <>
-                {formatDMY(g.fSol)}
-                {g.ajuste && <small> → {formatDMY(g.ajuste)}</small>}
+                {g.ajuste ? (
+                  <>
+                    {formatDMY(g.ajuste)}
+                    <small style={{ color: '#7d8ba1', marginLeft: 4 }}>
+                      (sistema: {formatDMY(g.fSol)})
+                    </small>
+                  </>
+                ) : (
+                  formatDMY(g.fSol)
+                )}
               </>
             )}
             {g.fVto
-              ? stat('F. vencimiento', formatDMY(g.fVto))
+              ? stat(
+                  'F. vencimiento',
+                  g.ajuste && g.fVtoEfe ? (
+                    <>
+                      {formatDMY(g.fVtoEfe)}
+                      <small style={{ color: '#7d8ba1', marginLeft: 4 }}>
+                        (sistema: {formatDMY(g.fVto)})
+                      </small>
+                    </>
+                  ) : (
+                    formatDMY(g.fVto)
+                  )
+                )
               : stat('F. vencimiento', 'Sin fecha', true)}
             {g.nProc > 0
               ? stat('Procesos en SAC', fmt(g.nProc))
@@ -592,8 +623,8 @@ export function RadicadoDetailModal({
               </div>
               <p className="dmail-text">
                 Fecha oficial del sistema: <b>{formatDMY(g.fSol)}</b>. Si el correo llegó antes,
-                registra la fecha real para contar los días desde ahí. El ajuste queda guardado en
-                este equipo.
+                registra la fecha real para contar los días desde ahí: la fecha de vencimiento y los
+                días restantes se recalculan con ella. El ajuste queda guardado en este equipo.
               </p>
               <div className="dmail-row">
                 <label className="dmail-field">
@@ -632,6 +663,54 @@ export function RadicadoDetailModal({
             </div>
           )}
 
+          {/* ── Notas y observaciones del trabajo diario ── */}
+          <div className="ddet-notas" data-testid="dash-detail-notas">
+            <div className="ddet-notas-head">
+              <span className="ddet-notas-title">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+                Notas y observaciones
+              </span>
+              {onAbrirNotas && (
+                <button
+                  type="button"
+                  className="ddet-notas-btn"
+                  onClick={() => onAbrirNotas(g.radicado)}
+                  data-testid="dash-detail-notas-edit"
+                >
+                  {notasRad.length > 0 ? 'Editar / añadir' : 'Añadir nota'}
+                </button>
+              )}
+            </div>
+            {notasRad.length === 0 ? (
+              <p className="ddet-notas-empty" data-testid="dash-detail-notas-empty">
+                Sin notas para este radicado. Registra una observación o información adicional del
+                trabajo diario.
+              </p>
+            ) : (
+              <ul className="ddet-notas-list">
+                {notasRad.map((n) => (
+                  <li key={n.id} data-testid={`dash-detail-nota-${n.id}`}>
+                    <span className="ddet-notas-fecha">{formatNotaFecha(n.actualizadaEn)}</span>
+                    <p>{n.texto}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           {/* ── Cuerpo: Ficha (izq) y Procesos (der) ── */}
           <div className="ddet-cuerpo">
             {/* Ficha técnica */}
@@ -667,6 +746,14 @@ export function RadicadoDetailModal({
                   'F. vencimiento',
                   <>
                     {formatDMY(g.fVto)}{' '}
+                    {g.fVto && g.fVtoEfe && g.fVtoEfe.getTime() !== g.fVto.getTime() && (
+                      <span
+                        className="dmod-badge b-a"
+                        title="Fecha recalculada con la fecha de radicación corregida"
+                      >
+                        → {formatDMY(g.fVtoEfe)}
+                      </span>
+                    )}
                     <span className={`dmod-badge ${ESTADO_BADGE[g.estadoV]}`}>{g.estadoV}</span>
                   </>
                 )}
@@ -1443,6 +1530,69 @@ export const modalStyles = `
     font-variant-numeric: tabular-nums;
   }
   .ddet-stat-v.muted { color: var(--neutral-400); font-weight: 600; font-size: 0.78rem; }
+
+  /* ═══════════════ NOTAS EN EL DETALLE ═══════════════ */
+  .ddet-notas {
+    margin: 14px 24px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 14px 16px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+  .ddet-notas-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .ddet-notas-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--neutral-500);
+  }
+  .ddet-notas-title svg { color: var(--essa-primary); }
+  .ddet-notas-btn {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--essa-primary-100);
+    background: var(--essa-primary-50);
+    color: var(--essa-primary);
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  }
+  .ddet-notas-btn:hover { background: var(--essa-primary); border-color: var(--essa-primary); color: #ffffff; }
+  .ddet-notas-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 75, 147, 0.25); }
+  .ddet-notas-empty { margin: 10px 0 0; font-size: 0.76rem; line-height: 1.55; color: var(--neutral-500); }
+  .ddet-notas-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .ddet-notas-list li {
+    border-left: 3px solid var(--essa-primary-100);
+    background: var(--bg-muted);
+    border-radius: 0 8px 8px 0;
+    padding: 8px 12px;
+  }
+  .ddet-notas-fecha { font-size: 0.64rem; font-weight: 700; color: var(--neutral-400); font-variant-numeric: tabular-nums; }
+  .ddet-notas-list p {
+    margin: 4px 0 0;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: var(--neutral-700);
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
 
   /* ═══════════════ DETALLE CUERPO (FICHA & PROCESOS) ═══════════════ */
   .ddet-cuerpo {

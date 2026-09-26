@@ -31,10 +31,18 @@ import {
 } from '@/utils/dashboardGroups';
 import { loadAjustes, saveAjuste, removeAjuste } from '@/utils/dashboardAjustes';
 import {
+  deleteNota,
+  loadNotas,
+  upsertNota,
+  type NotaInput,
+  type NotaTrabajo,
+} from '@/utils/dashboardNotas';
+import {
   RadicadoDetailModal,
   RadicadoListModal,
   modalStyles,
 } from '@/components/features/DashboardModals';
+import { NotasTrabajoModal } from '@/components/features/NotasTrabajoModal';
 
 const C_VERDE = '#2e9e5b';
 const C_VIOLETA = '#7b61d8';
@@ -572,6 +580,10 @@ export function HomeView(): JSX.Element {
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [ajustes, setAjustes] = useState<Record<string, string>>(() => loadAjustes());
+  // Notas / observaciones del trabajo diario (persisten en la caché del navegador)
+  const [notas, setNotas] = useState<NotaTrabajo[]>(() => loadNotas());
+  const [notasOpen, setNotasOpen] = useState(false);
+  const [notasRadicado, setNotasRadicado] = useState('');
   const listadosRef = useRef<HTMLDivElement>(null);
 
   const today = useMemo(() => {
@@ -654,17 +666,26 @@ export function HomeView(): JSX.Element {
     setAjustes(removeAjuste(key));
   }, []);
 
-  // Escape con prioridad: detalle > listado > análisis
+  const handleGuardarNota = useCallback((nota: NotaInput) => setNotas(upsertNota(nota)), []);
+  const handleEliminarNota = useCallback((id: string) => setNotas(deleteNota(id)), []);
+  /** Abre el gestor de notas; `radicado` precarga el campo (desde el detalle). */
+  const abrirNotas = useCallback((radicado = '') => {
+    setNotasRadicado(radicado);
+    setNotasOpen(true);
+  }, []);
+
+  // Escape con prioridad: notas > detalle > listado > análisis
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
-      if (detailKey) setDetailKey(null);
+      if (notasOpen) setNotasOpen(false);
+      else if (detailKey) setDetailKey(null);
       else if (listState) setListState(null);
       else if (analysisOpen) setAnalysisOpen(false);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [detailKey, listState, analysisOpen]);
+  }, [notasOpen, detailKey, listState, analysisOpen]);
 
   const set = (patch: Partial<GroupFilters>): void => setFilters((f) => ({ ...f, ...patch }));
 
@@ -799,6 +820,14 @@ export function HomeView(): JSX.Element {
   }, [diaBase]);
   const diaSinProc = diaBase.filter((g) => g.nProc === 0).length;
   const diaFecha = selectedDia !== null ? (fechaPorDia.get(selectedDia) ?? null) : null;
+
+  // Sugerencias de radicado del gestor de notas: los del día + los ya usados
+  const notasSugerencias = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of diaBase) if (g.radicado && g.radicado !== '—') set.add(g.radicado);
+    for (const n of notas) if (n.radicado) set.add(n.radicado);
+    return [...set].sort();
+  }, [diaBase, notas]);
 
   return (
     <div data-testid="home-view" className="dash-root">
@@ -1305,6 +1334,34 @@ export function HomeView(): JSX.Element {
                 </div>
               </div>
               <div className="dash-card dash-anim" style={{ animationDelay: '360ms' }}>
+                <div className="dash-notas-bar">
+                  <div className="dash-notas-bar-txt">
+                    <b>Notas y observaciones</b>
+                    <span>Registra información adicional del trabajo diario</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="dash-notas-btn"
+                    onClick={() => abrirNotas()}
+                    data-testid="dash-notas-open"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                    Añadir nota
+                  </button>
+                </div>
                 {selectedDia === null ? (
                   <div className="dash-dayempty" data-testid="dash-day-empty">
                     <b>Ningún día seleccionado</b>
@@ -1473,9 +1530,20 @@ export function HomeView(): JSX.Element {
       />
       <RadicadoDetailModal
         group={detail}
+        notas={notas}
         onClose={() => setDetailKey(null)}
         onAplicarAjuste={handleAplicarAjuste}
         onQuitarAjuste={handleQuitarAjuste}
+        onAbrirNotas={(rad) => abrirNotas(rad)}
+      />
+      <NotasTrabajoModal
+        open={notasOpen}
+        notas={notas}
+        radicadoPrefill={notasRadicado}
+        sugerencias={notasSugerencias}
+        onGuardar={handleGuardarNota}
+        onEliminar={handleEliminarNota}
+        onClose={() => setNotasOpen(false)}
       />
     </div>
   );
@@ -2364,6 +2432,15 @@ const dashStyles = `
   /* ═══ 04 Listados operativos ═══ */
   .dash-diario { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 14px; align-items: start; }
   @media (max-width: 1024px) { .dash-diario { grid-template-columns: minmax(0, 1fr); } }
+
+  /* Barra de notas del bloque derecho */
+  .dash-notas-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px dashed var(--border); }
+  .dash-notas-bar-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .dash-notas-bar-txt b { font-size: 0.8rem; font-weight: 800; color: var(--neutral-900); }
+  .dash-notas-bar-txt span { font-size: 0.7rem; color: var(--neutral-500); }
+  .dash-notas-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--essa-primary-100); background: var(--essa-primary-50); color: var(--essa-primary); font-size: 0.74rem; font-weight: 700; font-family: inherit; white-space: nowrap; cursor: pointer; transition: background 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease; }
+  .dash-notas-btn:hover { background: var(--essa-primary); border-color: var(--essa-primary); color: #ffffff; box-shadow: 0 4px 12px rgba(0, 75, 147, 0.25); }
+  .dash-notas-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 75, 147, 0.25); }
   .dash-dias { display: flex; flex-direction: column; gap: 5px; max-height: 540px; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; }
   .dash-sepdias { font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--neutral-400); margin: 8px 0 2px; }
   .dash-sepdias--rojo { color: #dc2626; }
