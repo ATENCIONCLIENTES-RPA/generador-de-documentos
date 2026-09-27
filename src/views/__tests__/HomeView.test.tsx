@@ -163,6 +163,43 @@ describe('HomeView — Cuadro de Mando', () => {
     expect(screen.getByTestId('dash-count')).toHaveTextContent('5 de 6');
   });
 
+  it('sección 03: tarjeta de promedio por semana y tooltip explicativo en cada tarjeta', () => {
+    seed(sacRows, merRows);
+    render(<HomeView />);
+
+    // Nueva tarjeta: promedio semanal = total del periodo ÷ 3 semanas (15 días hábiles / 5)
+    const totalCard = screen.getByTestId('dash-gstat-total');
+    const promSem = screen.getByTestId('dash-gstat-promsem');
+    expect(promSem).toHaveTextContent('Promedio por semana');
+    const n = (el: HTMLElement): number =>
+      Number((el.querySelector('.v')?.textContent ?? '').replace(/\D/g, ''));
+    expect(n(promSem)).toBe(Math.round(n(totalCard) / 3));
+    expect(promSem.querySelector('.v')?.textContent).toMatch(/PQRS$/);
+
+    // Cada una de las 6 tarjetas tiene su tooltip con explicación
+    const tips = screen.getAllByRole('tooltip');
+    expect(tips).toHaveLength(6);
+    for (const tip of tips) {
+      expect(tip.querySelector('b')?.textContent ?? '').not.toBe('');
+      expect((tip.textContent ?? '').length).toBeGreaterThan(30);
+    }
+    expect(
+      screen.getAllByText(/Total repartido en 3 semanas de 5 días hábiles/).length
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Día hábil con más radicados del periodo/).length).toBeGreaterThan(
+      0
+    );
+
+    // El botón de ayuda queda vinculado a su tooltip
+    const info = screen.getByTestId('dash-gstat-info-promsem');
+    expect(info).toHaveAttribute('aria-describedby', 'dash-tip-promsem');
+    expect(info).toHaveAttribute('aria-label', 'Qué significa: Promedio por semana');
+    expect(screen.getByTestId('dash-gstat-info-pico')).toHaveAttribute(
+      'aria-describedby',
+      'dash-tip-pico'
+    );
+  });
+
   it('clic en KPI abre el modal de listado con sus radicados', () => {
     seed(sacRows, merRows);
     render(<HomeView />);
@@ -171,6 +208,9 @@ describe('HomeView — Cuadro de Mando', () => {
     const modal = screen.getByTestId('dash-list-modal');
     expect(modal).toBeInTheDocument();
     expect(within(modal).getByText('900002')).toBeInTheDocument();
+    // La columna "Origen" fue eliminada del listado
+    expect(within(modal).queryByText('Origen')).not.toBeInTheDocument();
+    expect(within(modal).queryByText(/SAC \+ Mercurio|Solo SAC|Solo Mercurio/)).toBeNull();
 
     fireEvent.click(screen.getByTestId('dash-list-close'));
     expect(screen.queryByTestId('dash-list-modal')).not.toBeInTheDocument();
@@ -191,6 +231,9 @@ describe('HomeView — Cuadro de Mando', () => {
     expect(screen.getByTestId('dash-detail-radicado')).toHaveTextContent('900001');
     expect(within(detail).getByText(/Procesos asociados/)).toBeInTheDocument();
     expect(within(detail).getByText('Estado en Mercurio')).toBeInTheDocument();
+    // El campo "Origen" fue eliminado de la ficha y de los chips del detalle
+    expect(within(detail).queryByText('Origen')).not.toBeInTheDocument();
+    expect(within(detail).queryByText(/SAC \+ Mercurio|Solo SAC|Solo Mercurio/)).toBeNull();
 
     fireEvent.click(screen.getByTestId('dash-detail-close'));
     expect(screen.queryByTestId('dash-detail-modal')).not.toBeInTheDocument();

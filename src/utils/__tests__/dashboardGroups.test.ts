@@ -193,7 +193,6 @@ describe('dashboardGroups (lógica del tablero de referencia)', () => {
     const g1 = groups.find((g) => g.key === 'R:20260320045635')!;
     expect(g1.nProc).toBe(2);
     expect(g1.tramites).toEqual(['2931 - Inconformidad consumo']);
-    expect(g1.fuente).toBe('Solo SAC');
   });
 
   it('responsable prioriza SAC y agrupa variantes con el gestor', () => {
@@ -202,7 +201,6 @@ describe('dashboardGroups (lógica del tablero de referencia)', () => {
     expect(g1.responsable).toBe('API_PROCESOS_PQR');
     const solo = groups.find((g) => g.key === 'M:20260320047777')!;
     expect(solo.responsable).toBe('Gestor Solo');
-    expect(solo.fuente).toBe('Solo Mercurio');
     expect(solo.medio).toBe('Escrito (Mercurio)');
   });
 
@@ -295,7 +293,6 @@ describe('dashboardGroups (lógica del tablero de referencia)', () => {
     expect(g2.vencida).toBe(true);
     expect(g2.estadoMer).toBe('P');
     expect(g2.nProc).toBe(1);
-    expect(g2.fuente).toBe('SAC + Mercurio');
 
     const g3 = groups.find((g) => g.key === 'P:PROC-9')!;
     expect(g3.dia).toBe(1);

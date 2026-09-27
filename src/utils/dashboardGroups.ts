@@ -36,7 +36,6 @@ const RUTAS_EXCLUIDAS = [
 const MEDIOS_OK = ['escrito', 'página web', 'e-mail'];
 
 export type EstadoV = 'Vencido' | 'Crítico' | 'Próximo' | 'En plazo' | 'Sin fecha';
-export type FuenteGrupo = 'SAC + Mercurio' | 'Solo SAC' | 'Solo Mercurio';
 
 export interface DaySlot {
   dia: number;
@@ -99,7 +98,6 @@ export interface RadicadoGroup {
   solicitante: string;
   municipio: string;
   estadoMer: string;
-  fuente: FuenteGrupo;
   searchText: string;
 }
 
@@ -757,7 +755,6 @@ export function groupRadicados(
       solicitante,
       municipio: municipio || '—',
       estadoMer: m?.estadoMer ?? '',
-      fuente: m ? (nProc > 0 ? 'SAC + Mercurio' : 'Solo Mercurio') : 'Solo SAC',
       searchText,
     });
   }
@@ -796,7 +793,6 @@ export function groupRadicados(
       solicitante: m.entidad,
       municipio: '—',
       estadoMer: m.estadoMer,
-      fuente: 'Solo Mercurio',
       searchText: [k, m.ruta, m.entidad, m.gestor, m.referencia].join(' ').toLowerCase(),
     });
   }

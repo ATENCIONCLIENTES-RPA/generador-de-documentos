@@ -95,6 +95,21 @@ function rankColor(value: number, values: number[]): string {
   return hexLerp(stops[i]!, stops[i + 1]!, pos - i);
 }
 
+/** Barra con las esquinas superiores redondeadas y la base recta sobre el eje. */
+function barPath(x: number, y: number, w: number, h: number, r: number): string {
+  if (h <= 0 || w <= 0) return '';
+  const rr = Math.max(0, Math.min(r, w / 2, h));
+  return [
+    `M${x.toFixed(2)} ${(y + h).toFixed(2)}`,
+    `L${x.toFixed(2)} ${(y + rr).toFixed(2)}`,
+    `Q${x.toFixed(2)} ${y.toFixed(2)} ${(x + rr).toFixed(2)} ${y.toFixed(2)}`,
+    `L${(x + w - rr).toFixed(2)} ${y.toFixed(2)}`,
+    `Q${(x + w).toFixed(2)} ${y.toFixed(2)} ${(x + w).toFixed(2)} ${(y + rr).toFixed(2)}`,
+    `L${(x + w).toFixed(2)} ${(y + h).toFixed(2)}`,
+    'Z',
+  ].join(' ');
+}
+
 function weekdayShort(d: Date): string {
   const days = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
   return days[d.getDay()] ?? '';
@@ -775,6 +790,10 @@ export function HomeView(): JSX.Element {
   const minVal = conDatos > 0 ? Math.min(...diaVals.filter((v) => v > 0)) : 0;
   const valleDia = conDatos > 0 ? (perDia.find((d) => d.value === minVal) ?? null) : null;
   const ultimos3 = perDia.filter((d) => d.dia <= 3).reduce((a, b) => a + b.value, 0);
+  /* Promedio semanal: el total del periodo repartido en semanas de 5 días hábiles
+     (la gráfica cubre DIAS_HABILES días hábiles = semanasPeriodo semanas). */
+  const semanasPeriodo = Math.max(1, Math.round(DIAS_HABILES / 5));
+  const promSemana = Math.round(totalPeriodo / semanasPeriodo);
 
   /* ── Vencidas: chips por día ── */
   const vencPorDia = useMemo(() => {
@@ -1153,23 +1172,86 @@ export function HomeView(): JSX.Element {
                 </div>
                 <div className="dash-gstats">
                   {[
-                    { l: 'Total del periodo', v: fmt(totalPeriodo), c: C_AZUL },
-                    { l: 'Promedio por día', v: `${fmt(promedio)} PQRS`, c: C_AZUL },
                     {
+                      k: 'total',
+                      l: 'Total del periodo',
+                      v: fmt(totalPeriodo),
+                      c: C_AZUL,
+                      d: `Suma de todas las PQRs radicadas en los ${DIAS_HABILES} días hábiles que muestra esta gráfica.`,
+                    },
+                    {
+                      k: 'promdia',
+                      l: 'Promedio por día',
+                      v: `${fmt(promedio)} PQRS`,
+                      c: C_AZUL,
+                      d: 'Total del periodo dividido entre los días hábiles con carga: los días sin radicados no lo bajan.',
+                    },
+                    {
+                      k: 'promsem',
+                      l: 'Promedio por semana',
+                      v: `${fmt(promSemana)} PQRS`,
+                      c: C_AZUL,
+                      d: `Total repartido en ${semanasPeriodo} semanas de 5 días hábiles: cuántas PQRs llegan, en promedio, cada semana.`,
+                    },
+                    {
+                      k: 'pico',
                       l: 'Día pico',
                       v: picoDia ? `${fmt(maxDia)} D${picoDia.dia}` : '—',
                       c: C_ROJO,
+                      d: 'Día hábil con más radicados del periodo: señala dónde se concentra la carga.',
                     },
                     {
+                      k: 'valle',
                       l: 'Día más liviano',
                       v: valleDia ? `${fmt(minVal)} D${valleDia.dia}` : '—',
                       c: C_VERDE,
+                      d: 'Día hábil con menos radicados (con al menos 1): el de menor presión de la semana.',
                     },
-                    { l: 'Últimos 3 días', v: `${fmt(ultimos3)} PQRS`, c: C_VERDE },
+                    {
+                      k: 'ultimos3',
+                      l: 'Últimos 3 días',
+                      v: `${fmt(ultimos3)} PQRS`,
+                      c: C_VERDE,
+                      d: 'PQRs recibidas en los 3 días hábiles más recientes: qué tan al día está la bandeja.',
+                    },
                   ].map((s) => (
-                    <div className="dash-gstat" key={s.l} style={{ ['--gc' as string]: s.c }}>
+                    <div
+                      className="dash-gstat"
+                      key={s.k}
+                      style={{ ['--gc' as string]: s.c }}
+                      data-testid={`dash-gstat-${s.k}`}
+                    >
                       <div className="l">{s.l}</div>
-                      <div className="v">{s.v}</div>
+                      <div className="dash-gstat-bot">
+                        <div className="v">{s.v}</div>
+                        <button
+                          type="button"
+                          className="dash-gstat-info"
+                          aria-label={`Qué significa: ${s.l}`}
+                          aria-describedby={`dash-tip-${s.k}`}
+                          data-testid={`dash-gstat-info-${s.k}`}
+                        >
+                          <svg
+                            width="10"
+                            height="10"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 16v-4" />
+                            <path d="M12 8h.01" />
+                          </svg>
+                        </button>
+                      </div>
+                      <span className="dash-gstat-tip" id={`dash-tip-${s.k}`} role="tooltip">
+                        <b>{s.l}</b>
+                        {s.d}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1571,7 +1653,7 @@ function BandejaChart({
 
   const orden = [...perDia].sort((a, b) => b.dia - a.dia);
   const W = 740;
-  const H = 230;
+  const H = 300;
   const padL = 42;
   const padR = 16;
   const padT = 28;
@@ -1664,36 +1746,6 @@ function BandejaChart({
         </g>
       ))}
 
-      {/* Línea de promedio */}
-      {promedio > 0 && (
-        <g>
-          <line
-            x1={padL}
-            y1={yOf(promedio)}
-            x2={W - padR}
-            y2={yOf(promedio)}
-            className="dash-prom"
-          />
-          <rect
-            x={W - padR - 74}
-            y={yOf(promedio) - 14}
-            width={74}
-            height={16}
-            rx={8}
-            fill="#1565d8"
-            opacity="0.92"
-          />
-          <text
-            x={W - padR - 37}
-            y={yOf(promedio) - 3}
-            textAnchor="middle"
-            className="dash-prom-lab"
-          >
-            Promedio {fmt(promedio)}
-          </text>
-        </g>
-      )}
-
       {/* Curva de tendencia */}
       {showTendencia && pts.length > 0 && (
         <g>
@@ -1742,37 +1794,35 @@ function BandejaChart({
 
             {/* Glow de selección / hover */}
             {(isSel || isHov) && d.value > 0 && (
-              <rect
-                x={bx - 3}
-                y={by - 3}
-                width={barW + 6}
-                height={h + 6}
-                rx={barRx + 3}
+              <path
+                d={barPath(bx - 3, by - 3, barW + 6, h + 6, barRx + 3)}
                 fill={c}
                 opacity="0.15"
                 style={{ filter: 'blur(5px)' }}
               />
             )}
 
+            {/* Halo pulsante del día pico (identificación rápida) */}
+            {esPico && (
+              <path
+                d={barPath(bx - 4, by - 4, barW + 8, h + 8, barRx + 4)}
+                fill={c}
+                className="dash-pico-halo"
+                style={{ filter: 'blur(6px)' }}
+              />
+            )}
+
             {d.value > 0 ? (
               <>
-                <rect x={bx} y={by} width={barW} height={h} rx={barRx} fill={c} />
-                <rect
-                  x={bx}
-                  y={by}
-                  width={barW}
-                  height={Math.min(h * 0.45, h)}
-                  rx={barRx}
+                <path className="dash-bar-main" d={barPath(bx, by, barW, h, barRx)} fill={c} />
+                <path
+                  d={barPath(bx, by, barW, Math.min(h * 0.45, h), barRx)}
                   fill="url(#bandeja-bar-grad)"
                   style={{ pointerEvents: 'none' }}
                 />
                 {isSel && (
-                  <rect
-                    x={bx - 2}
-                    y={by - 2}
-                    width={barW + 4}
-                    height={h + 4}
-                    rx={barRx + 2}
+                  <path
+                    d={barPath(bx, by, barW, h, barRx)}
                     fill="none"
                     stroke={c}
                     strokeWidth="2.5"
@@ -1797,7 +1847,7 @@ function BandejaChart({
               y={d.value > 0 ? by - 7 : padT + innerH - 9}
               textAnchor="middle"
               className="dash-val"
-              fill={d.value > 0 ? c : '#c3ccdb'}
+              fill={d.value > 0 ? hexLerp(c, '#0f172a', 0.45) : '#96a2b6'}
             >
               {d.value}
             </text>
@@ -1858,6 +1908,64 @@ function BandejaChart({
         );
       })}
 
+      {/* Línea de promedio + chip: se pintan después de las barras para no quedar tapados */}
+      {promedio > 0 &&
+        (() => {
+          const lab = `Promedio ${fmt(promedio)}`;
+          const chipH = 16;
+          const chipY = yOf(promedio) - chipH / 2;
+          const labW = Math.max(66, Math.min(132, Math.round(lab.length * 5.9 + 14)));
+          // Cajas aproximadas de las etiquetas de valor (se estiran un poco por seguridad)
+          const etiquetas = orden
+            .map((d, i) => ({ d, i }))
+            .filter(({ d }) => d.value > 0)
+            .map(({ d, i }) => {
+              const cx = padL + slot * (i + 0.5);
+              const ancho = String(d.value).length * 6.8 + 6;
+              const base = yOf(d.value) - 7;
+              return { x1: cx - ancho / 2, x2: cx + ancho / 2, y1: base - 9, y2: base + 3 };
+            });
+          // El chip se queda a la derecha salvo que tape un valor: entonces corre a la izquierda
+          const choca = (x: number) =>
+            etiquetas.some(
+              (e) => e.x1 < x + labW && e.x2 > x && e.y1 < chipY + chipH && e.y2 > chipY
+            );
+          let labX = W - padR - labW;
+          for (let x = labX; x >= padL; x -= 6) {
+            if (!choca(x)) {
+              labX = x;
+              break;
+            }
+          }
+          return (
+            <g style={{ pointerEvents: 'none' }}>
+              <line
+                x1={padL}
+                y1={yOf(promedio)}
+                x2={W - padR}
+                y2={yOf(promedio)}
+                className="dash-prom"
+              />
+              <rect
+                x={labX}
+                y={chipY}
+                width={labW}
+                height={chipH}
+                rx={8}
+                className="dash-prom-chip"
+              />
+              <text
+                x={labX + labW / 2}
+                y={chipY + 11.5}
+                textAnchor="middle"
+                className="dash-prom-lab"
+              >
+                {lab}
+              </text>
+            </g>
+          );
+        })()}
+
       {/* Tooltip flotante */}
       {hover !== null &&
         (() => {
@@ -1871,7 +1979,13 @@ function BandejaChart({
           const tipW = 152;
           const tipH = tf ? 64 : 46;
           const tipX = Math.min(W - padR - tipW - 4, Math.max(padL, tcx - tipW / 2));
-          const tipY = yOf(dh.value) - tipH - 16;
+          // Si arriba no hay sitio (barras altas) se abre hacia abajo, dentro de la gráfica
+          const tipArriba = yOf(dh.value) - tipH - 16;
+          const abreAbajo = tipArriba < padT + 4;
+          const tipY = abreAbajo ? yOf(dh.value) + 14 : tipArriba;
+          const punta = abreAbajo
+            ? `${(tcx - 7).toFixed(1)},${tipY.toFixed(1)} ${(tcx + 7).toFixed(1)},${tipY.toFixed(1)} ${tcx.toFixed(1)},${(tipY - 8).toFixed(1)}`
+            : `${(tcx - 7).toFixed(1)},${(tipY + tipH).toFixed(1)} ${(tcx + 7).toFixed(1)},${(tipY + tipH).toFixed(1)} ${tcx.toFixed(1)},${(tipY + tipH + 8).toFixed(1)}`;
           return (
             <g style={{ pointerEvents: 'none' }}>
               <rect
@@ -1883,11 +1997,7 @@ function BandejaChart({
                 fill="#1e293b"
                 opacity="0.94"
               />
-              <polygon
-                points={`${(tcx - 7).toFixed(1)},${(tipY + tipH).toFixed(1)} ${(tcx + 7).toFixed(1)},${(tipY + tipH).toFixed(1)} ${tcx.toFixed(1)},${(tipY + tipH + 8).toFixed(1)}`}
-                fill="#1e293b"
-                opacity="0.94"
-              />
+              <polygon points={punta} fill="#1e293b" opacity="0.94" />
               <circle cx={tcx} cy={yOf(dh.value)} r={5} fill={tc} stroke="#fff" strokeWidth="2" />
               <text x={tipX + 12} y={tipY + 18} className="dash-tip-title" fill={tc}>
                 Día {dh.dia} · {dh.value} radicados
@@ -1975,6 +2085,11 @@ export default HomeView;
 
 const dashStyles = `
   @keyframes dashFadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes dashPicoHalo { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.46; } }
+  @keyframes dashPicoEstrella {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 0.9; }
+    50% { transform: translateY(-2px) scale(1.14); opacity: 1; }
+  }
   .dash-root { display: flex; flex-direction: column; gap: 16px; width: 100%; }
   .dash-anim { animation: dashFadeUp .45s cubic-bezier(.16,1,.3,1) both; }
 
@@ -2180,18 +2295,18 @@ const dashStyles = `
   /* ═══ 03 Mi bandeja (Distribución en el tiempo) ═══ */
   .dash-bandeja {
     display: grid;
-    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr);
     gap: 16px;
     align-items: stretch;
   }
   @media (min-width: 1101px) {
     .dash-bandeja {
-      height: 495px;
+      height: 585px;
     }
     .dash-bandeja > .dash-card {
       height: 100%;
-      min-height: 495px;
-      max-height: 495px;
+      min-height: 585px;
+      max-height: 585px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -2215,7 +2330,7 @@ const dashStyles = `
 
   .dash-gstats {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 8px;
     margin: 8px 0 6px;
     flex-shrink: 0;
@@ -2224,16 +2339,118 @@ const dashStyles = `
     .dash-gstats { grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); }
   }
   .dash-gstat {
+    position: relative;
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 6px 10px;
+    padding: 6px 8px 7px;
     background: #ffffff;
     box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     border-top: 2.5px solid var(--gc);
+    transition: border-color 150ms ease, box-shadow 150ms ease;
   }
-  .dash-gstat .l { font-size: 0.56rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--neutral-500); }
-  .dash-gstat .v { font-size: 0.96rem; font-weight: 900; color: var(--gc); font-variant-numeric: tabular-nums; }
+  .dash-gstat:hover, .dash-gstat:focus-within { z-index: 5; box-shadow: 0 6px 16px -6px rgba(15,23,42,.18); }
+  /* Etiqueta en una sola línea: se ajusta al ancho real de la tarjeta (cqw)
+     para no partirse ni recortarse; a pantalla ancha mantiene 0.56rem. */
+  .dash-gstat .l {
+    min-width: 0;
+    font-size: min(0.56rem, 7.35cqw - 0.3px);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--neutral-500);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dash-gstat-bot { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-top: auto; min-width: 0; }
+  .dash-gstat .v { min-width: 0; font-size: min(0.96rem, 17.9cqw - 3.3px); font-weight: 900; color: var(--gc); font-variant-numeric: tabular-nums; }
   .dash-gstat .v small { font-size: 0.62rem; font-weight: 700; color: var(--neutral-400); }
+
+  /* ── Botón de ayuda + tooltip de cada tarjeta ── */
+  .dash-gstat-info {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--neutral-50);
+    color: var(--neutral-400);
+    cursor: help;
+    transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+  }
+  .dash-gstat-info:hover { color: var(--gc); border-color: var(--gc); background: #ffffff; }
+  .dash-gstat-info:focus-visible { outline: none; color: var(--gc); border-color: var(--gc); box-shadow: 0 0 0 3px rgba(15,23,42,.14); }
+
+  .dash-gstat-tip {
+    position: absolute;
+    top: calc(100% + 9px);
+    left: 0;
+    z-index: 30;
+    width: max-content;
+    max-width: 232px;
+    padding: 9px 11px;
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 10px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    box-shadow: 0 16px 34px -12px rgba(15,23,42,.55), 0 2px 6px rgba(15,23,42,.24);
+    color: #e2e8f0;
+    font-size: 0.67rem;
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: 0;
+    text-transform: none;
+    text-align: left;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-5px);
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+  .dash-gstat-tip b {
+    display: block;
+    margin-bottom: 3px;
+    color: #ffffff;
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .dash-gstat-tip::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 18px;
+    width: 9px;
+    height: 9px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border-top: 1px solid rgba(255,255,255,.10);
+    border-left: 1px solid rgba(255,255,255,.10);
+    border-radius: 2px 0 0 0;
+    transform: rotate(45deg);
+  }
+  /* Las dos últimas tarjetas alinean su tooltip a la derecha para no salirse de la tarjeta */
+  .dash-gstat:nth-child(n+5) .dash-gstat-tip { left: auto; right: 0; }
+  .dash-gstat:nth-child(n+5) .dash-gstat-tip::before { left: auto; right: 18px; }
+  .dash-gstat:hover .dash-gstat-tip,
+  .dash-gstat:focus-within .dash-gstat-tip {
+    opacity: 1;
+    transform: translateY(0);
+    transition-delay: 100ms;
+  }
+  @media (max-width: 800px) {
+    .dash-gstat-tip { max-width: min(232px, calc(100vw - 48px)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dash-gstat-tip { transition: none; }
+  }
 
   .dash-svg {
     width: 100%;
@@ -2243,23 +2460,60 @@ const dashStyles = `
     flex: 1 1 0;
     min-height: 0;
   }
-  .dash-grid { stroke: #e8edf5; stroke-width: 1; }
-  .dash-grid0 { stroke: #c7d0df; stroke-width: 1.2; stroke-dasharray: 3 3; }
-  .dash-ax { font-size: 9.5px; fill: #94a3b8; font-family: inherit; }
-  .dash-ax--b { font-weight: 800; fill: #475569; font-size: 10px; }
+  .dash-grid { stroke: #e9eef6; stroke-width: 1; }
+  .dash-grid0 { stroke: #cbd5e1; stroke-width: 1.3; }
+  .dash-ax { font-size: 10px; font-weight: 600; fill: #64748b; font-family: inherit; }
+  .dash-ax--b { font-weight: 800; fill: #334155; font-size: 10.5px; }
   .dash-ax--sel { fill: var(--essa-primary); }
   .dash-ax--date { font-size: 8.5px; fill: #94a3b8; }
   .dash-ax--wd { font-size: 8px; fill: #b4bfcf; }
-  .dash-val { font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  .dash-dif { font-size: 9px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  .dash-corona { font-size: 12px; fill: #f59e0b; filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.5)); }
+  /* Valor sobre la barra: color de la barra oscurecido + halo blanco
+     para que se lea sobre la cuadrícula y sobre cualquier fondo */
+  .dash-val {
+    font-size: 11.5px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    paint-order: stroke fill;
+    stroke: #ffffff;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .dash-dif {
+    font-size: 9px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    paint-order: stroke fill;
+    stroke: #ffffff;
+    stroke-width: 2.5px;
+    stroke-linejoin: round;
+  }
+  .dash-corona {
+    font-size: 12px;
+    fill: #f59e0b;
+    filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.55));
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: dashPicoEstrella 2.8s ease-in-out infinite;
+  }
+  .dash-pico-halo {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: dashPicoHalo 2.8s ease-in-out infinite;
+  }
   .dash-bar { cursor: pointer; transition: opacity 0.12s ease; }
-  .dash-bar rect { transition: filter 0.18s ease; }
-  .dash-bar:hover rect:first-of-type { filter: brightness(1.08) saturate(1.15); }
+  .dash-bar path { transition: filter 0.18s ease; }
+  .dash-bar:hover .dash-bar-main { filter: brightness(1.08) saturate(1.15); }
   .dash-bar.vacia { cursor: default; opacity: 0.6; }
   .dash-bar.hov { opacity: 1; }
   .dash-dot { transition: r 0.15s ease; }
-  .dash-prom { stroke: #1565d8; stroke-width: 1.5; stroke-dasharray: 5 3; opacity: 0.85; }
+  .dash-prom { stroke: #1565d8; stroke-width: 1.5; stroke-dasharray: 5 3; opacity: 0.7; }
+  .dash-prom-chip {
+    fill: #1565d8;
+    stroke: #ffffff;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 1px 3px rgba(15, 23, 42, 0.35));
+  }
   .dash-prom-lab { font-size: 10px; font-weight: 800; fill: #ffffff; font-family: inherit; }
   .dash-linea { fill: none; stroke: #1565d8; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
   .dash-tip-title { font-size: 11px; font-weight: 800; font-family: inherit; }
@@ -2555,5 +2809,7 @@ const dashStyles = `
 
   @media (prefers-reduced-motion: reduce) {
     .dash-anim { animation: none; }
+    .dash-pico-halo,
+    .dash-corona { animation: none; }
   }
 `;

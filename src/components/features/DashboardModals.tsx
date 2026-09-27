@@ -239,13 +239,12 @@ export function RadicadoListModal({
                 <th>F. vencimiento</th>
                 <th>Estado</th>
                 <th>Responsable</th>
-                <th>Origen</th>
               </tr>
             </thead>
             <tbody>
               {visible.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="dmod-empty">
+                  <td colSpan={8} className="dmod-empty">
                     <div className="dmod-empty-state">
                       <div className="dmod-empty-icon">🔍</div>
                       <p>
@@ -320,9 +319,6 @@ export function RadicadoListModal({
                       <span className="dmod-resp-txt" title={g.responsable}>
                         {g.responsable}
                       </span>
-                    </td>
-                    <td>
-                      <span className="dmod-badge b-g">{g.fuente}</span>
                     </td>
                   </tr>
                 ))
@@ -521,7 +517,6 @@ export function RadicadoDetailModal({
                     <i className="ddet-dot" style={{ background: medio.color }} />
                     {medio.etiqueta}
                   </span>
-                  <span className="ddet-chip">{g.fuente}</span>
                   {g.vencida && (
                     <span className="ddet-chip ddet-chip--alert">Fuera de los 15 días</span>
                   )}
@@ -783,7 +778,6 @@ export function RadicadoDetailModal({
                 {g.estadoMer
                   ? fila('Estado en Mercurio', g.estadoMer)
                   : fila('Estado en Mercurio', '—', true)}
-                {fila('Origen', g.fuente)}
               </div>
             </div>
 
