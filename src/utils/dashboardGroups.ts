@@ -65,6 +65,12 @@ export interface RadicadoGroup {
   fSol: Date | null;
   fVto: Date | null;
   /**
+   * true cuando el dato venía vacío y la F. vencimiento se calculó con el
+   * plazo legal (15 días hábiles desde la radicación). Es lo que distingue
+   * una fecha del archivo de origen de una fecha calculada por el sistema.
+   */
+  fVtoAuto: boolean;
+  /**
    * F. vencimiento efectiva: `fVto` desplazada por el ajuste de fecha real
    * (solo correos). Es la fecha que alimenta `restan` y la que se muestra en
    * la tarjeta de días restantes; `fVto` conserva el valor oficial del sistema.
@@ -98,6 +104,15 @@ export interface RadicadoGroup {
   solicitante: string;
   municipio: string;
   estadoMer: string;
+  /**
+   * Observaciones por origen que se muestran en «Detalle del radicado»:
+   * Mercurio (columna «Refencia del Documento») y las dos de SAC
+   * («OBSERVACION_REVISION» e «OBSERVACION_DECISION»). Las de SAC llegan como
+   * lista de valores distintos porque un radicado puede agrupar varias filas.
+   */
+  obsMercurio: string;
+  obsInsumo: string[];
+  obsDecision: string[];
   searchText: string;
 }
 
@@ -214,12 +229,28 @@ function shiftBusinessDays(fecha: Date, delta: number): Date {
   return out;
 }
 
-function toNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) {
-    return Number(value);
-  }
-  return null;
+/**
+ * Fecha de vencimiento que corresponde a una radicación cuando el dato viene
+ * vacío: 15 días hábiles después de la fecha de radicación (plazo legal del
+ * tablero, el mismo que usa el sistema para el contador de días PQR).
+ */
+export function vencimientoPorPlazo(fRad: Date | null): Date | null {
+  return fRad ? addBusinessDays(fRad, DIAS_HABILES) : null;
+}
+
+/** Estado del semáforo a partir de los días calendario restantes. */
+function estadoPorDias(restan: number | null): EstadoV {
+  if (restan === null) return 'Sin fecha';
+  if (restan < 0) return 'Vencido';
+  if (restan <= CRITICO_DIAS) return 'Crítico';
+  if (restan <= PROXIMO_DIAS) return 'Próximo';
+  return 'En plazo';
+}
+
+/** Días calendario entre hoy y `fecha` (negativo = ya venció). */
+function diasRestantes(fecha: Date | null, hoy: Date): number | null {
+  if (!fecha) return null;
+  return Math.round((midnight(fecha).getTime() - hoy.getTime()) / 86400000);
 }
 
 function rawOf(row: EssaRecord, ...keys: string[]): string {
@@ -505,6 +536,40 @@ function procesoOf(row: EssaRecord): ProcesoInfo {
   };
 }
 
+/* ── Observaciones por origen (ficha «Detalle del radicado») ── */
+
+/** Observación del Insumo · columna SAC «OBSERVACION_REVISION». */
+function obsInsumoOf(row: EssaRecord): string {
+  return (
+    normText(row.observacionRevision) ||
+    rawOf(row, 'OBSERVACION_REVISION', 'OBSERVACION REVISION', 'OBSERVACIONES_REVISION')
+  );
+}
+
+/** Observación de la Decisión · columna SAC «OBSERVACION_DECISION». */
+function obsDecisionOf(row: EssaRecord): string {
+  return (
+    normText(row.observacionDecision) ||
+    rawOf(
+      row,
+      'OBSERVACION_DECISION',
+      'OBSERVACION DECISION',
+      'OBSERVACION_DECISIÓN',
+      'OBS_DECISION'
+    )
+  );
+}
+
+/** Valores distintos y no vacíos entre las filas de un grupo. */
+function obsDistintas(rows: EssaRecord[], leer: (r: EssaRecord) => string): string[] {
+  const out: string[] = [];
+  for (const r of rows) {
+    const v = leer(r);
+    if (v && !out.includes(v)) out.push(v);
+  }
+  return out;
+}
+
 interface MercurioInfo {
   gestor: string;
   ruta: string;
@@ -619,7 +684,6 @@ export function groupRadicados(
     let solicitante = '';
     let municipio = '';
     let tipo = '';
-    let minDias: number | null = null;
 
     for (const r of rows) {
       const fs =
@@ -649,12 +713,15 @@ export function groupRadicados(
             'MUNICIPIO SOLICITANTE'
           ) || normText(r.municipioSolicitante);
       if (!tipo) tipo = rawOf(r, 'TIPO_TRAMITE', 'TIPO TRAMITE') || normText(r.tipoProceso);
-      // Respaldo para el plazo: días hábiles restantes ya calculados por el sistema
-      // (solo filas con fecha de solicitud válida).
-      if (fs !== null || parseDateOnly(r.fechaSolicitud) !== null) {
-        const rem = toNumber(r.diasPqr);
-        if (rem !== null && (minDias === null || rem < minDias)) minDias = rem;
-      }
+    }
+
+    // Regla establecida: si el registro no trae fecha de vencimiento, el
+    // sistema la calcula con el plazo legal (15 días hábiles después de la
+    // radicación). Cubre por igual los registros ya cargados y los nuevos.
+    let fVtoAuto = false;
+    if (!fVto && fSol) {
+      fVto = vencimientoPorPlazo(fSol);
+      fVtoAuto = fVto !== null;
     }
 
     const m = acc.digits.length >= 5 ? (merPorRad.get(acc.digits) ?? null) : null;
@@ -688,23 +755,11 @@ export function groupRadicados(
     // se mantiene el oficial).
     const fVtoEfe = fVto && delta !== 0 ? shiftBusinessDays(fVto, delta) : fVto;
 
-    let restan: number | null = null;
-    if (fVtoEfe) {
-      restan = Math.round((midnight(fVtoEfe).getTime() - today.getTime()) / 86400000);
-    } else if (minDias !== null) {
-      // Respaldo: días hábiles que calculó el sistema, corregidos por el ajuste.
-      restan = minDias + delta;
-    }
-    const estadoV: EstadoV =
-      restan === null
-        ? 'Sin fecha'
-        : restan < 0
-          ? 'Vencido'
-          : restan <= CRITICO_DIAS
-            ? 'Crítico'
-            : restan <= PROXIMO_DIAS
-              ? 'Próximo'
-              : 'En plazo';
+    // Días restantes: se cuentan desde la fecha actual hasta el vencimiento
+    // efectivo (la fecha calculada o la del sistema, desplazada por el ajuste
+    // de recepción). Negativo = vencido.
+    const restan = diasRestantes(fVtoEfe, today);
+    const estadoV = estadoPorDias(restan);
 
     const vencida =
       dia !== null && dia > DIAS_HABILES && dia <= DIAS_VENTANA && sinTilde(m?.estadoMer) === 'p';
@@ -713,6 +768,11 @@ export function groupRadicados(
     const tramites = [...new Set(procesos.map((p) => p.tramite))];
     // Como en la referencia: cada fila SAC cuenta como proceso del grupo
     const nProc = rows.length;
+
+    // Observaciones por origen para la ficha «Detalle del radicado»
+    const obsMercurio = m?.referencia ?? '';
+    const obsInsumo = obsDistintas(rows, obsInsumoOf);
+    const obsDecision = obsDistintas(rows, obsDecisionOf);
 
     const searchText = [
       acc.radicado,
@@ -733,6 +793,7 @@ export function groupRadicados(
       radicado: acc.radicado || procesos[0]?.numero || '—',
       fSol,
       fVto,
+      fVtoAuto,
       fVtoEfe,
       ajuste,
       fEfe,
@@ -755,6 +816,9 @@ export function groupRadicados(
       solicitante,
       municipio: municipio || '—',
       estadoMer: m?.estadoMer ?? '',
+      obsMercurio,
+      obsInsumo,
+      obsDecision,
       searchText,
     });
   }
@@ -765,20 +829,25 @@ export function groupRadicados(
     let dia: number | null = null;
     if (m.fRad) dia = diaByKey.get(dayKeyOf(snapToBusinessDay(m.fRad))) ?? null;
     const g1 = m.gestor ? grupoDe(clusters, m.gestor) : null;
+    // Mismo criterio que en SAC: sin fecha de vencimiento se calcula con el
+    // plazo legal a partir de la fecha de radicación que trae Mercurio.
+    const fVtoM = vencimientoPorPlazo(m.fRad);
+    const restanM = diasRestantes(fVtoM, today);
     groups.push({
       key: `M:${k}`,
       radicado: k,
       fSol: m.fRad,
-      fVto: null,
-      fVtoEfe: null,
+      fVto: fVtoM,
+      fVtoAuto: fVtoM !== null,
+      fVtoEfe: fVtoM,
       ajuste: null,
       fEfe: m.fRad,
       dia,
       enVentana: dia !== null && dia <= DIAS_HABILES,
       vencida:
         dia !== null && dia > DIAS_HABILES && dia <= DIAS_VENTANA && sinTilde(m.estadoMer) === 'p',
-      restan: null,
-      estadoV: 'Sin fecha',
+      restan: restanM,
+      estadoV: estadoPorDias(restanM),
       procesos: [],
       nProc: 0,
       cuenta: '',
@@ -793,6 +862,9 @@ export function groupRadicados(
       solicitante: m.entidad,
       municipio: '—',
       estadoMer: m.estadoMer,
+      obsMercurio: m.referencia,
+      obsInsumo: [],
+      obsDecision: [],
       searchText: [k, m.ruta, m.entidad, m.gestor, m.referencia].join(' ').toLowerCase(),
     });
   }

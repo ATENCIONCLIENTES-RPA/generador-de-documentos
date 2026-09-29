@@ -654,19 +654,39 @@ function classifyApplicant(rawName: string): ApplicantClass {
   return { kind: 'person', text: probe };
 }
 
+const LOWER_PARTICLES: ReadonlySet<string> = new Set<string>([
+  'de',
+  'del',
+  'la',
+  'las',
+  'los',
+  'y',
+  'e',
+  'von',
+  'van',
+]);
+
+/** Mayúscula inicial en cada palabra **sin alterar longitudes ni espacios**:
+ *  solo cambia caja. Pensada para aplicarse mientras se escribe (el cursor
+ *  nunca salta y los espacios escritos se conservan tal cual). */
+export function toTitleCaseInline(text: string | null | undefined): string {
+  if (!text) return '';
+  let index = -1;
+  return text.replace(/\S+/g, (word) => {
+    index += 1;
+    const lower = word.toLowerCase();
+    if (index > 0 && LOWER_PARTICLES.has(lower)) return lower;
+    return word.charAt(0).toUpperCase() + lower.slice(1);
+  });
+}
+
+/** Normaliza la caja de cada palabra (primera en mayúscula, resto en
+ *  minúscula) y colapsa separadores ruidosos. */
 export function toTitleCase(text: string | null | undefined): string {
   if (!text) return '';
   const clean = cleanSpecialCharacters(text);
   if (!clean) return '';
-  const words = clean.split(/\s+/);
-  const lowerParticles = new Set<string>(['de', 'del', 'la', 'las', 'los', 'y', 'e', 'von', 'van']);
-  return words
-    .map((word, index) => {
-      const lower = word.toLowerCase();
-      if (index > 0 && lowerParticles.has(lower)) return lower;
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    })
-    .join(' ');
+  return toTitleCaseInline(clean);
 }
 
 export function extractFirstName(rawName: string | null | undefined): string {
@@ -674,9 +694,10 @@ export function extractFirstName(rawName: string | null | undefined): string {
   const rawTrimmed = rawName.trim().replace(/\s+/g, ' ');
   if (!rawTrimmed) return '';
 
-  // Empresas: se conserva la razón social completa (sin siglas jurídicas).
+  // Empresas: se conserva la razón social completa (sin siglas jurídicas)
+  // y con la misma normalización de caja que las personas naturales.
   const applicant = classifyApplicant(rawTrimmed);
-  if (applicant.kind === 'company') return applicant.text;
+  if (applicant.kind === 'company') return toTitleCase(applicant.text);
 
   if (rawTrimmed.includes('/') || rawTrimmed.includes('\\')) {
     const parts = rawTrimmed.split(/[/|\\]/);
@@ -808,9 +829,10 @@ export function formatApplicantName(rawName: string | null | undefined): string 
     return toTitleCase(cleaned);
   }
 
-  // Empresas: se conserva la razón social completa, sin reordenar.
+  // Empresas: se conserva la razón social completa, sin reordenar, pero con
+  // la misma caja que las personas (primera letra de cada palabra en mayúscula).
   const applicant = classifyApplicant(rawTrimmed);
-  if (applicant.kind === 'company') return applicant.text;
+  if (applicant.kind === 'company') return toTitleCase(applicant.text);
 
   const clean = cleanSpecialCharacters(rawTrimmed);
   const words = clean.split(/\s+/).filter(Boolean);

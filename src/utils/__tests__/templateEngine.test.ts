@@ -209,6 +209,32 @@ describe('templateEngine', () => {
     expect(td['FECHA_SOLICITUD']).toBe('27 de agosto de 2026');
   });
 
+  it('NOMBRE_SOLICITANTE deja la primera letra de cada palabra en mayúscula (natural y jurídica)', () => {
+    const natural = buildTemplateData(
+      { ...baseRecord, nombreSolicitante: 'TATIANA SUAREZ CALA LEIBY' },
+      baseProfile
+    );
+    expect(natural['NOMBRE_SOLICITANTE']).toBe('Tatiana Suarez Cala Leiby');
+    expect(natural['PRIMER_NOMBRE']).toBe('Tatiana');
+
+    const juridica = buildTemplateData(
+      { ...baseRecord, nombreSolicitante: 'CONSTRUCTORA XYZ SAS' },
+      baseProfile
+    );
+    expect(juridica['NOMBRE_SOLICITANTE']).toBe('Constructora Xyz');
+    expect(juridica['PRIMER_NOMBRE']).toBe('Constructora Xyz');
+
+    // Lo mismo en el reemplazo de texto (vista previa / muestra).
+    const preview = replaceTemplateVariables('[NOMBRE_SOLICITANTE]', baseRecord, baseProfile);
+    expect(preview).toBe('Juan Carlos Carrillo Palacio');
+    const previewJuridica = replaceTemplateVariables(
+      '[NOMBRE_SOLICITANTE]',
+      { ...baseRecord, nombreSolicitante: 'CONSTRUCTORA XYZ SAS' },
+      baseProfile
+    );
+    expect(previewJuridica).toBe('Constructora Xyz');
+  });
+
   it('soporta generateDocx con TemplateData flat + opts signature', async () => {
     const file = fixtureFile('Bloqueodecuenta_Electronico_Accede 2.docx');
     const td = buildTemplateData(baseRecord, baseProfile);

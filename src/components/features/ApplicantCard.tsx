@@ -1,5 +1,7 @@
+import { useState, type FocusEvent } from 'react';
 import { useDataStore } from '@/store/dataStore';
 import Input from '@/components/ui/Input';
+import { formatApplicantName, toTitleCaseInline } from '@/utils/nameParser';
 import type { Record as EssaRecord } from '@/types/record';
 
 interface ApplicantFieldConfig {
@@ -57,6 +59,10 @@ export function ApplicantCard() {
   const records = useDataStore((s) => s.records);
   const selectedRows = useDataStore((s) => s.selectedRows);
   const editRecord = useDataStore((s) => s.editRecord);
+  /** Texto en edición del campo "Nombre" (null = sin foco). Al enfocar se
+   *  parte del nombre ya normalizado y mientras se escribe solo se ajusta
+   *  la caja: el texto nunca salta ni se recortan los espacios. */
+  const [nombreEdit, setNombreEdit] = useState<string | null>(null);
 
   const selectedRecord: EssaRecord | null =
     records && records.length > 0 && selectedRows.size > 0
@@ -79,6 +85,32 @@ export function ApplicantCard() {
   const rowId = (selectedRecord as unknown as { rowId: string }).rowId;
   const rec = selectedRecord as unknown as Record<string, unknown>;
 
+  const nombreBruto = String(rec['nombreSolicitante'] ?? '');
+  // Sin foco: el nombre completo con el mismo formato que usa el documento
+  // Word. Con foco: el texto en edición, con la caja normalizada en vivo.
+  const nombreVisible =
+    nombreEdit !== null ? toTitleCaseInline(nombreEdit) : formatApplicantName(nombreBruto);
+
+  // El "Nombre" arranca desde el valor ya normalizado (no hay salto de texto
+  // al entrar) y al salir vuelve al formato completo del documento.
+  const enfocarNombre = (e: FocusEvent<HTMLInputElement>) => {
+    setNombreEdit(nombreVisible);
+    e.currentTarget.style.borderColor = 'var(--essa-primary)';
+    e.currentTarget.style.boxShadow = 'var(--ring)';
+  };
+  const desenfocarNombre = (e: FocusEvent<HTMLInputElement>) => {
+    setNombreEdit(null);
+    e.currentTarget.style.borderColor = 'var(--border-strong)';
+    e.currentTarget.style.boxShadow = 'none';
+  };
+  const cambiarCampo = (key: string, valor: string, esNombre: boolean) => {
+    // El "Nombre" se guarda ya con la caja normalizada: lo que se ve en el
+    // campo es lo que queda en el registro y lo que viaja al documento.
+    const v = esNombre ? toTitleCaseInline(valor) : valor;
+    if (esNombre) setNombreEdit(v);
+    editRecord(rowId, { [key]: v } as Partial<EssaRecord>);
+  };
+
   return (
     <div className="dg-card dg-applicant" data-testid="dg-applicant-card">
       <style>{applicantStyles}</style>
@@ -87,17 +119,21 @@ export function ApplicantCard() {
         <span className="dg-panel-step">Registro</span>
       </div>
       <div className="dg-applicant-grid">
-        {FIELDS.map((f) => (
-          <Input
-            key={f.key}
-            label={f.label}
-            value={String(rec[f.key] ?? '')}
-            onChange={(e) => editRecord(rowId, { [f.key]: e.target.value } as Partial<EssaRecord>)}
-            placeholder={f.placeholder}
-            type={f.type}
-            data-testid={`dg-applicant-${f.testSuffix}`}
-          />
-        ))}
+        {FIELDS.map((f) => {
+          const esNombre = f.key === 'nombreSolicitante';
+          return (
+            <Input
+              key={f.key}
+              label={f.label}
+              value={esNombre ? nombreVisible : String(rec[f.key] ?? '')}
+              onChange={(e) => cambiarCampo(f.key, e.target.value, esNombre)}
+              placeholder={f.placeholder}
+              type={f.type}
+              data-testid={`dg-applicant-${f.testSuffix}`}
+              {...(esNombre ? { onFocus: enfocarNombre, onBlur: desenfocarNombre } : {})}
+            />
+          );
+        })}
       </div>
     </div>
   );

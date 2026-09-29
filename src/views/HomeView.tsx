@@ -38,11 +38,13 @@ import {
   type NotaTrabajo,
 } from '@/utils/dashboardNotas';
 import {
+  RadicadoDetailContent,
   RadicadoDetailModal,
   RadicadoListModal,
   modalStyles,
 } from '@/components/features/DashboardModals';
 import { NotasTrabajoModal } from '@/components/features/NotasTrabajoModal';
+import { PALETA_COLORES, loadColores, saveColor } from '@/utils/dashboardColores';
 
 const C_VERDE = '#2e9e5b';
 const C_VIOLETA = '#7b61d8';
@@ -553,6 +555,130 @@ function AnalysisModal({
   );
 }
 
+/* ── Colores personalizados por registro (sección 04 · Trabajo diario) ── */
+
+/**
+ * Fila con los cinco colores de la paleta y el botón «sin color».
+ * Se usa dentro de la tarjeta (fila desplegable) y en el panel de detalle.
+ */
+function PaletaColores({
+  idKey,
+  color,
+  onPick,
+  onQuitar,
+}: {
+  /** Identificador estable del registro (sirve para los testids). */
+  idKey: string;
+  color: string | null;
+  onPick: (hex: string) => void;
+  onQuitar: () => void;
+}): JSX.Element {
+  return (
+    <div className="dash-paleta" role="group" aria-label="Color del registro">
+      {PALETA_COLORES.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          className={`dash-paleta-dot${color === c.hex ? ' on' : ''}`}
+          style={{ background: c.hex }}
+          onClick={() => onPick(c.hex)}
+          aria-label={`Color ${c.nombre}`}
+          aria-pressed={color === c.hex}
+          title={`Color ${c.nombre}`}
+          data-testid={`dash-color-${idKey}-${c.id}`}
+        />
+      ))}
+      <button
+        type="button"
+        className={`dash-paleta-dot dash-paleta-none${color === null ? ' on' : ''}`}
+        onClick={onQuitar}
+        aria-label="Quitar color"
+        aria-pressed={color === null}
+        title="Quitar color"
+        data-testid={`dash-color-${idKey}-none`}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Botón de color de la tarjeta: al pulsarlo despliega la paleta en una fila
+ * propia dentro de la tarjeta (evita recortes por el scroll del listado).
+ */
+function ControlColorRegistro({
+  idKey,
+  color,
+  onPick,
+  onQuitar,
+}: {
+  idKey: string;
+  color: string | null;
+  onPick: (hex: string) => void;
+  onQuitar: () => void;
+}): JSX.Element {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className={`dash-colorbtn${color ? ' tiene' : ''}`}
+        style={{ ['--rc' as string]: color ?? '#cbd5e1' }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setAbierto((v) => !v);
+        }}
+        aria-label={
+          color ? 'Cambiar el color de este registro' : 'Asignar un color a este registro'
+        }
+        aria-expanded={abierto}
+        aria-controls={`dash-colorrow-${idKey}`}
+        title="Color del registro"
+        data-testid={`dash-colorbtn-${idKey}`}
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 3a9 9 0 1 0 0 18h1.2a2.3 2.3 0 0 0 0-4.6H12a1.9 1.9 0 0 1 0-3.8h4.6A4.4 4.4 0 0 0 21 8.2C21 5.3 16.9 3 12 3Z" />
+          <circle cx="7.6" cy="10.4" r="1.1" fill="currentColor" stroke="none" />
+          <circle cx="11" cy="7.2" r="1.1" fill="currentColor" stroke="none" />
+          <circle cx="15.4" cy="8.4" r="1.1" fill="currentColor" stroke="none" />
+        </svg>
+      </button>
+      {abierto && (
+        <div
+          className="dash-colorrow"
+          id={`dash-colorrow-${idKey}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="dash-colorrow-lab">Color del registro</span>
+          <PaletaColores
+            idKey={idKey}
+            color={color}
+            onPick={(hex) => {
+              onPick(hex);
+              setAbierto(false);
+            }}
+            onQuitar={() => {
+              onQuitar();
+              setAbierto(false);
+            }}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
 function VencCard({ g, onOpen }: { g: RadicadoGroup; onOpen: () => void }) {
   const nums = g.procesos.map((p) => p.numero).filter(Boolean);
   return (
@@ -592,7 +718,15 @@ export function HomeView(): JSX.Element {
   const [chartMode, setChartMode] = useState<'barras' | 'linea'>('barras');
   const [dayQuery, setDayQuery] = useState('');
   const [listState, setListState] = useState<ListState | null>(null);
-  const [detailKey, setDetailKey] = useState<string | null>(null);
+  /**
+   * Ficha de radicado abierta.
+   *
+   * `via: 'panel'` → panel en línea bajo el listado de la sección 04
+   * (Trabajo diario); `via: 'modal'` → ventana modal (tarjetas «Vencidas» y
+   * listado del análisis). Solo hay una ficha abierta a la vez.
+   */
+  const [detalle, setDetalle] = useState<{ key: string; via: 'panel' | 'modal' } | null>(null);
+  const [colores, setColores] = useState<Record<string, string>>(() => loadColores());
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [ajustes, setAjustes] = useState<Record<string, string>>(() => loadAjustes());
   // Notas / observaciones del trabajo diario (persisten en la caché del navegador)
@@ -672,7 +806,24 @@ export function HomeView(): JSX.Element {
     }
   }, [canFilterResponsable, profileName, options.responsables]);
 
-  const detail = detailKey ? (groupsAll.find((g) => g.key === detailKey) ?? null) : null;
+  const detail = detalle ? (groupsAll.find((g) => g.key === detalle.key) ?? null) : null;
+  /** Ficha mostrada en el panel en línea de la sección 04. */
+  const enPanel = detalle?.via === 'panel' ? detail : null;
+  /** Ficha mostrada en la ventana modal (Vencidas / listado del análisis). */
+  const enModal = detalle?.via === 'modal' ? detail : null;
+
+  /** Abre la ficha en el panel en línea bajo el listado del trabajo diario. */
+  const alternaPanel = useCallback((key: string) => {
+    setDetalle((d) => (d && d.via === 'panel' && d.key === key ? null : { key, via: 'panel' }));
+  }, []);
+  /** Abre la ficha en ventana modal (accesos distintos a la sección 04). */
+  const abrirModal = useCallback((key: string) => setDetalle({ key, via: 'modal' }), []);
+  const cerrarDetalle = useCallback(() => setDetalle(null), []);
+  /** Asigna (o elimina con `null`) el color de un registro y lo persiste. */
+  const pintarColor = useCallback(
+    (key: string, hex: string | null) => setColores(saveColor(key, hex)),
+    []
+  );
 
   const handleAplicarAjuste = useCallback((key: string, iso: string) => {
     setAjustes(saveAjuste(key, iso));
@@ -689,18 +840,37 @@ export function HomeView(): JSX.Element {
     setNotasOpen(true);
   }, []);
 
-  // Escape con prioridad: notas > detalle > listado > análisis
+  // Escape con prioridad: notas > ficha modal > listado > análisis > panel en línea
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
       if (notasOpen) setNotasOpen(false);
-      else if (detailKey) setDetailKey(null);
+      else if (detalle?.via === 'modal') setDetalle(null);
       else if (listState) setListState(null);
       else if (analysisOpen) setAnalysisOpen(false);
+      else if (detalle) setDetalle(null);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [notasOpen, detailKey, listState, analysisOpen]);
+  }, [notasOpen, detalle, listState, analysisOpen]);
+
+  // El panel en línea pertenece al día seleccionado: al cambiar de día se cierra
+  useEffect(() => {
+    setDetalle((d) => (d && d.via === 'panel' ? null : d));
+  }, [selectedDia]);
+
+  // Al abrir la ficha, se lleva el panel a la vista si queda fuera del pantalla
+  const panelKey = enPanel?.key ?? null;
+  useEffect(() => {
+    if (!panelKey) return;
+    const el = document.getElementById('dash-detail-panel');
+    if (!el || typeof el.scrollIntoView !== 'function') return;
+    try {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch {
+      // Entornos sin scroll real (jsdom)
+    }
+  }, [panelKey]);
 
   const set = (patch: Partial<GroupFilters>): void => setFilters((f) => ({ ...f, ...patch }));
 
@@ -850,6 +1020,7 @@ export function HomeView(): JSX.Element {
 
   return (
     <div data-testid="home-view" className="dash-root">
+      <style>{modalStyles}</style>
       <style>{dashStyles}</style>
 
       {/* ═══ Encabezado Principal (Módulo 2) ═══ */}
@@ -1333,7 +1504,7 @@ export function HomeView(): JSX.Element {
                       </div>
                       <div className="dash-venclist">
                         {vencVisibles.map((g) => (
-                          <VencCard key={g.key} g={g} onOpen={() => setDetailKey(g.key)} />
+                          <VencCard key={g.key} g={g} onOpen={() => abrirModal(g.key)} />
                         ))}
                       </div>
                       <div className="dash-vencpie">
@@ -1507,11 +1678,17 @@ export function HomeView(): JSX.Element {
                       )}
                       {diaVisibles.map((g) => {
                         const mi = medioInfo(g.medio);
+                        const color = colores[g.key] ?? null;
+                        const abierto = detalle?.via === 'panel' && detalle.key === g.key;
                         return (
                           <div
-                            className="dash-radcard"
+                            className={`dash-radcard${color ? ' con-color' : ''}${
+                              abierto ? ' abierta' : ''
+                            }`}
                             key={g.key}
                             data-testid={`dash-daycard-${g.key}`}
+                            style={color ? { ['--rc' as string]: color } : undefined}
+                            onClick={() => alternaPanel(g.key)}
                           >
                             <div className="dash-radmain">
                               <div className="dash-radln1">
@@ -1553,13 +1730,24 @@ export function HomeView(): JSX.Element {
                                 )}
                               </div>
                             </div>
+                            <ControlColorRegistro
+                              idKey={g.key}
+                              color={color}
+                              onPick={(hex) => pintarColor(g.key, hex)}
+                              onQuitar={() => pintarColor(g.key, null)}
+                            />
                             <button
                               type="button"
                               className="dash-btn-ghost"
-                              onClick={() => setDetailKey(g.key)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                alternaPanel(g.key);
+                              }}
                               data-testid={`dash-daydetail-${g.key}`}
+                              aria-expanded={abierto}
+                              aria-controls="dash-detail-panel"
                             >
-                              Detalles →
+                              {abierto ? 'Ocultar detalle' : 'Detalles →'}
                             </button>
                           </div>
                         );
@@ -1571,6 +1759,35 @@ export function HomeView(): JSX.Element {
                         {diaRegs.length > diaVisibles.length && <> de {fmt(diaRegs.length)}</>}{' '}
                         radicado(s) · Clic en una tarjeta para abrir su detalle
                       </p>
+                    )}
+                    {enPanel && (
+                      <div
+                        className="dash-detpanel"
+                        id="dash-detail-panel"
+                        data-testid="dash-detail-panel"
+                        role="region"
+                        aria-label={`Detalle del radicado ${enPanel.radicado}`}
+                      >
+                        <div className="dash-detpanel-color">
+                          <span className="dash-detpanel-lab">Color del registro</span>
+                          <PaletaColores
+                            idKey="panel"
+                            color={colores[enPanel.key] ?? null}
+                            onPick={(hex) => pintarColor(enPanel.key, hex)}
+                            onQuitar={() => pintarColor(enPanel.key, null)}
+                          />
+                        </div>
+                        <div className="dmod-box dmod-box--detail dash-detpanel-box">
+                          <RadicadoDetailContent
+                            group={enPanel}
+                            notas={notas}
+                            onClose={cerrarDetalle}
+                            onAplicarAjuste={handleAplicarAjuste}
+                            onQuitarAjuste={handleQuitarAjuste}
+                            onAbrirNotas={(rad) => abrirNotas(rad)}
+                          />
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -1608,12 +1825,12 @@ export function HomeView(): JSX.Element {
         sub={listState?.sub ?? ''}
         groups={listState?.regs ?? []}
         onClose={() => setListState(null)}
-        onSelect={(g) => setDetailKey(g.key)}
+        onSelect={(g) => abrirModal(g.key)}
       />
       <RadicadoDetailModal
-        group={detail}
+        group={enModal}
         notas={notas}
-        onClose={() => setDetailKey(null)}
+        onClose={cerrarDetalle}
         onAplicarAjuste={handleAplicarAjuste}
         onQuitarAjuste={handleQuitarAjuste}
         onAbrirNotas={(rad) => abrirNotas(rad)}
@@ -2737,8 +2954,14 @@ const dashStyles = `
   .dash-daytools input { flex: 1; height: 36px; border-radius: 8px; border: 1px solid var(--border); padding: 0 12px; font-size: 0.78rem; font-family: inherit; outline: none; transition: all 150ms ease; }
   .dash-daytools input:focus { border-color: var(--essa-primary); box-shadow: 0 0 0 3px rgba(0,75,147,.12); }
   .dash-daylist { display: flex; flex-direction: column; gap: 8px; max-height: 460px; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; }
-  .dash-radcard { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; background: #fff; transition: all 150ms ease; }
+  .dash-radcard { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; background: #fff; transition: all 150ms ease; cursor: pointer; }
   .dash-radcard:hover { border-color: #93c5fd; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,75,147,.06); }
+  /* Registro con color propio: franja lateral y tinte suave del mismo tono */
+  .dash-radcard.con-color { box-shadow: inset 4px 0 0 0 var(--rc); background: color-mix(in srgb, var(--rc) 8%, #ffffff); }
+  .dash-radcard.con-color:hover { box-shadow: inset 4px 0 0 0 var(--rc), 0 2px 8px rgba(0,75,147,.06); }
+  /* Tarjeta cuya ficha está abierta en el panel inferior */
+  .dash-radcard.abierta { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(147,197,253,.3); }
+  .dash-radcard.abierta.con-color { box-shadow: inset 4px 0 0 0 var(--rc), 0 0 0 3px rgba(147,197,253,.3); }
   .dash-radmain { flex: 1; min-width: 0; }
   .dash-radln1 { display: flex; align-items: center; gap: 8px; }
   .dash-radnum { font-size: 0.8rem; font-weight: 800; color: var(--neutral-900); font-variant-numeric: tabular-nums; }
@@ -2746,6 +2969,30 @@ const dashStyles = `
   .dash-medio { font-size: 0.64rem; font-weight: 800; border: 1px solid; border-radius: 999px; padding: 1px 8px; }
   .dash-sep { color: var(--neutral-300); }
   .dash-dayfoot { font-size: 0.7rem; color: var(--neutral-500); margin: 10px 0 0; }
+
+  /* ── Color del registro: botón, fila desplegable y paleta de 5 ── */
+  .dash-colorbtn { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px; border: 1px dashed #cbd5e1; background: #fff; color: #64748b; display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; transition: all 150ms ease; }
+  .dash-colorbtn:hover { border-color: var(--rc); color: var(--rc); background: #f8fafc; }
+  .dash-colorbtn.tiene { border-style: solid; border-color: transparent; background: var(--rc); color: #fff; box-shadow: 0 0 0 1px rgba(15,23,42,.1); }
+  .dash-colorbtn.tiene:hover { background: var(--rc); color: #fff; filter: brightness(1.08); }
+  .dash-colorrow { flex: 1 0 100%; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 9px; margin-top: 1px; border-top: 1px dashed var(--border); animation: dashFilaIn .16s ease both; }
+  @keyframes dashFilaIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+  .dash-colorrow-lab { font-size: 0.64rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--neutral-400); }
+  .dash-paleta { display: inline-flex; align-items: center; gap: 7px; }
+  .dash-paleta-dot { width: 19px; height: 19px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(15,23,42,.18); padding: 0; cursor: pointer; transition: transform 140ms ease, box-shadow 140ms ease; }
+  .dash-paleta-dot:hover { transform: scale(1.15); }
+  .dash-paleta-dot.on { box-shadow: 0 0 0 2px #0f172a; transform: scale(1.08); }
+  .dash-paleta-none { background: #fff; color: #94a3b8; font-size: 13px; line-height: 1; font-weight: 800; }
+  .dash-paleta-none:hover { color: #475569; }
+
+  /* ── Panel de detalle en línea (debajo del listado del trabajo diario) ── */
+  .dash-detpanel { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .dash-detpanel-color { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 9px 14px; border: 1px solid var(--border); border-radius: 10px; background: #f8fafc; }
+  .dash-detpanel-lab { font-size: 0.64rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--neutral-500); }
+  .dash-detpanel-box.dmod-box { max-height: none; border-radius: 14px; box-shadow: 0 16px 36px -26px rgba(15,23,42,.55); }
+  .dash-detpanel-box .dmod-head { padding: 14px 18px; }
+  .dash-detpanel-box .dmod-scroll--detail { max-height: min(60vh, 620px); padding: 4px 18px 14px; }
+  .dash-detpanel-box .dmod-foot { padding: 12px 18px; gap: 12px; background: #fbfcfe; }
   .dash-chart-empty { padding: 24px 12px; text-align: center; color: var(--neutral-400); font-size: 0.78rem; }
   .dash-vacio { color: var(--neutral-400); font-size: 0.76rem; }
 

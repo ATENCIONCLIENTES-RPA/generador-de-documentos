@@ -5,7 +5,8 @@ import { HomeView } from '@/views/HomeView';
 import { useDataStore } from '@/store/dataStore';
 import { useNavigationStore } from '@/store/navigationStore';
 import { useProfileStore } from '@/store/profileStore';
-import { buildBusinessWindow } from '@/utils/dashboardGroups';
+import { buildBusinessWindow, formatDMY } from '@/utils/dashboardGroups';
+import { addBusinessDays, parseDateOnly } from '@/utils/businessDays';
 import type { Record as EssaRecord } from '@/types/record';
 
 const WIN = buildBusinessWindow(new Date(), 20);
@@ -152,9 +153,11 @@ describe('HomeView — Cuadro de Mando', () => {
 
     expect(screen.getByTestId('kpi-total')).toHaveTextContent('5');
     expect(screen.getByTestId('kpi-vencidos')).toHaveTextContent('1');
-    expect(screen.getByTestId('kpi-criticos')).toHaveTextContent('1');
+    // Sin F. vencimiento el sistema calcula el plazo (15 días hábiles), así que
+    // los registros sin fecha ya no quedan como "Críticos" por diasPqr.
+    expect(screen.getByTestId('kpi-criticos')).toHaveTextContent('0');
     expect(screen.getByTestId('kpi-proximos')).toHaveTextContent('0');
-    expect(screen.getByTestId('kpi-plazo')).toHaveTextContent('2');
+    expect(screen.getByTestId('kpi-plazo')).toHaveTextContent('4');
     expect(screen.getByTestId('kpi-sinproceso')).toHaveTextContent('1');
 
     expect(screen.getByTestId('chart-carga')).toBeInTheDocument();
@@ -216,7 +219,7 @@ describe('HomeView — Cuadro de Mando', () => {
     expect(screen.queryByTestId('dash-list-modal')).not.toBeInTheDocument();
   });
 
-  it('clic en barra selecciona el día y Detalles abre el detalle del radicado', () => {
+  it('clic en barra selecciona el día y Detalles abre el panel en línea', () => {
     seed(sacRows, merRows);
     render(<HomeView />);
 
@@ -226,17 +229,133 @@ describe('HomeView — Cuadro de Mando', () => {
 
     const card = screen.getByTestId('dash-daycard-R:900001');
     fireEvent.click(within(card).getByText('Detalles →'));
-    const detail = screen.getByTestId('dash-detail-modal');
+    const detail = screen.getByTestId('dash-detail-panel');
     expect(detail).toBeInTheDocument();
+    // La sección 04 muestra el panel en línea, nunca una ventana modal
+    expect(screen.queryByTestId('dash-detail-modal')).not.toBeInTheDocument();
+    expect(within(card).getByText('Ocultar detalle')).toBeInTheDocument();
     expect(screen.getByTestId('dash-detail-radicado')).toHaveTextContent('900001');
-    expect(within(detail).getByText(/Procesos asociados/)).toBeInTheDocument();
-    expect(within(detail).getByText('Estado en Mercurio')).toBeInTheDocument();
+    expect(within(detail).getAllByText(/Procesos asociados/).length).toBeGreaterThan(0);
+    expect(within(detail).getAllByText('Estado en Mercurio').length).toBeGreaterThan(0);
+
+    // Pestañas: Resumen activo por defecto; cambiarla reemplaza el contenido
+    expect(within(detail).getByTestId('dash-detail-tab-resumen')).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    expect(within(detail).getByRole('tabpanel')).toHaveAttribute('id', 'ddet-cont-resumen');
+    expect(within(detail).getByText('Información del radicado')).toBeInTheDocument();
+    fireEvent.click(within(detail).getByTestId('dash-detail-tab-procesos'));
+    expect(within(detail).getByTestId('dash-detail-tab-procesos')).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    expect(within(detail).getByRole('tabpanel')).toHaveAttribute('id', 'ddet-cont-procesos');
+    expect(within(detail).queryByText('Información del radicado')).not.toBeInTheDocument();
+    expect(within(detail).getByText('PROC-1')).toBeInTheDocument();
+    fireEvent.click(within(detail).getByTestId('dash-detail-tab-resumen'));
     // El campo "Origen" fue eliminado de la ficha y de los chips del detalle
     expect(within(detail).queryByText('Origen')).not.toBeInTheDocument();
     expect(within(detail).queryByText(/SAC \+ Mercurio|Solo SAC|Solo Mercurio/)).toBeNull();
 
     fireEvent.click(screen.getByTestId('dash-detail-close'));
+    expect(screen.queryByTestId('dash-detail-panel')).not.toBeInTheDocument();
+    expect(within(card).getByText('Detalles →')).toBeInTheDocument();
+
+    // Cambiar de día cierra el panel: la ficha pertenecía al día anterior
+    fireEvent.click(screen.getByTestId('dash-daydetail-R:900001'));
+    expect(screen.getByTestId('dash-detail-panel')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('dash-bar-1'));
+    expect(screen.queryByTestId('dash-detail-panel')).not.toBeInTheDocument();
+  });
+
+  it('clic en la tarjeta alterna el panel y «Vencidas» sigue abriendo la ventana modal', () => {
+    localStorage.clear();
+    seed(sacRows, merRows);
+    render(<HomeView />);
+
+    fireEvent.click(screen.getByTestId('dash-bar-2'));
+    const card = screen.getByTestId('dash-daycard-R:900001');
+
+    // Clic en la tarjeta (no en el botón) abre el panel en línea
+    fireEvent.click(card);
+    expect(screen.getByTestId('dash-detail-panel')).toBeInTheDocument();
     expect(screen.queryByTestId('dash-detail-modal')).not.toBeInTheDocument();
+
+    // Un segundo clic la cierra
+    fireEvent.click(card);
+    expect(screen.queryByTestId('dash-detail-panel')).not.toBeInTheDocument();
+
+    // El acceso desde «Vencidas» (fuera de la sección 04) conserva el modal
+    fireEvent.click(screen.getByTestId('dash-venc-chip-18'));
+    fireEvent.click(screen.getByTestId('dash-venc-R:900002'));
+    expect(screen.getByTestId('dash-detail-modal')).toBeInTheDocument();
+    expect(screen.queryByTestId('dash-detail-panel')).not.toBeInTheDocument();
+    localStorage.clear();
+  });
+
+  it('colores por registro: paleta de 5, cambio, quitar y persistencia', () => {
+    localStorage.clear();
+    seed(sacRows, merRows);
+    render(<HomeView />);
+
+    fireEvent.click(screen.getByTestId('dash-bar-2'));
+    const card = screen.getByTestId('dash-daycard-R:900001');
+    expect(card.className).not.toContain('con-color');
+
+    // Se despliega la paleta: 5 colores + quitar color
+    fireEvent.click(within(card).getByTestId('dash-colorbtn-R:900001'));
+    const paleta = within(card).getByRole('group', { name: 'Color del registro' });
+    expect(within(paleta).getAllByRole('button')).toHaveLength(6);
+
+    fireEvent.click(within(paleta).getByTestId('dash-color-R:900001-violeta'));
+    expect(card.className).toContain('con-color');
+    expect(card.style.getPropertyValue('--rc')).toBe('#7b61d8');
+    expect(JSON.parse(localStorage.getItem('essa-dashboard-colores') ?? '{}')).toEqual({
+      'R:900001': '#7b61d8',
+    });
+    // Elegir un color cierra la fila
+    expect(within(card).queryByRole('group', { name: 'Color del registro' })).toBeNull();
+
+    // Cambiar a otro color
+    fireEvent.click(within(card).getByTestId('dash-colorbtn-R:900001'));
+    fireEvent.click(within(card).getByTestId('dash-color-R:900001-rosa'));
+    expect(card.style.getPropertyValue('--rc')).toBe('#e0508f');
+    expect(JSON.parse(localStorage.getItem('essa-dashboard-colores') ?? '{}')).toEqual({
+      'R:900001': '#e0508f',
+    });
+
+    // Quitar el color
+    fireEvent.click(within(card).getByTestId('dash-colorbtn-R:900001'));
+    fireEvent.click(within(card).getByTestId('dash-color-R:900001-none'));
+    expect(card.className).not.toContain('con-color');
+    expect(JSON.parse(localStorage.getItem('essa-dashboard-colores') ?? '{}')).toEqual({});
+    localStorage.clear();
+  });
+
+  it('la paleta también está en el panel de detalle y al recargar se mantiene', () => {
+    localStorage.clear();
+    seed(sacRows, merRows);
+    const first = render(<HomeView />);
+
+    fireEvent.click(screen.getByTestId('dash-bar-2'));
+    fireEvent.click(screen.getByTestId('dash-daydetail-R:900001'));
+
+    const panel = screen.getByTestId('dash-detail-panel');
+    const paleta = within(panel).getByRole('group', { name: 'Color del registro' });
+    fireEvent.click(within(paleta).getByTestId('dash-color-panel-teal'));
+    expect(JSON.parse(localStorage.getItem('essa-dashboard-colores') ?? '{}')).toEqual({
+      'R:900001': '#0d9488',
+    });
+
+    // Recarga: el color elegido se vuelve a pintar en la tarjeta
+    first.unmount();
+    render(<HomeView />);
+    fireEvent.click(screen.getByTestId('dash-bar-2'));
+    const card = screen.getByTestId('dash-daycard-R:900001');
+    expect(card.className).toContain('con-color');
+    expect(card.style.getPropertyValue('--rc')).toBe('#0d9488');
+    localStorage.clear();
   });
 
   it('panel Vencidas filtra por día y abre el listado completo', () => {
@@ -362,7 +481,8 @@ describe('HomeView — Cuadro de Mando', () => {
     // El grupo físico no ofrece la caja de ajuste
     fireEvent.click(screen.getByTestId('dash-bar-2'));
     fireEvent.click(screen.getByTestId('dash-daydetail-R:900022'));
-    expect(screen.getByTestId('dash-detail-modal')).toBeInTheDocument();
+    expect(screen.getByTestId('dash-detail-panel')).toBeInTheDocument();
+    expect(screen.queryByTestId('dash-detail-modal')).not.toBeInTheDocument();
     expect(screen.queryByTestId('dash-detail-mailbox')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('dash-detail-close'));
 
@@ -385,8 +505,8 @@ describe('HomeView — Cuadro de Mando', () => {
     fireEvent.change(screen.getByTestId('dash-detail-fecha'), { target: { value: iso10 } });
     fireEvent.click(screen.getByTestId('dash-detail-aplicar'));
 
-    // Hero y ficha muestran el nuevo día (dos menciones)
-    expect(screen.getAllByText('Día 10 de 15')).toHaveLength(2);
+    // Chips, información del radicado y tiempos muestran el nuevo día (tres menciones)
+    expect(screen.getAllByText('Día 10 de 15')).toHaveLength(3);
     expect(screen.queryByText('Día 2 de 15')).not.toBeInTheDocument();
 
     // La tarjeta de días restantes se recalcula con la fecha corregida
@@ -411,11 +531,116 @@ describe('HomeView — Cuadro de Mando', () => {
 
     // Quitar el ajuste restaura el día oficial y el vencimiento original
     fireEvent.click(screen.getByTestId('dash-detail-quitar'));
-    expect(screen.getAllByText('Día 2 de 15')).toHaveLength(2);
+    expect(screen.getAllByText('Día 2 de 15')).toHaveLength(3);
     expect(restan()).toBe('40');
     expect(vence()).toBe(`Vence ${fechaFutura(40)}`);
     expect(screen.queryByText(/\(sistema:/)).not.toBeInTheDocument();
     expect(localStorage.getItem('essa-dashboard-ajustes-correo')).toBe('{}');
+    localStorage.clear();
+  });
+
+  it('vencimiento vacío: lo calcula con el plazo y con él muestra los días restantes', () => {
+    localStorage.clear();
+    seed(sacRows, merRows);
+    render(<HomeView />);
+
+    // Fila sin fecha de vencimiento: P:PROC-9 (radicado el día 1 de la ventana)
+    fireEvent.click(screen.getByTestId('dash-bar-1'));
+    fireEvent.click(screen.getByTestId('dash-daydetail-P:PROC-9'));
+    expect(screen.getByTestId('dash-detail-panel')).toBeInTheDocument();
+
+    // Regla establecida: 15 días hábiles después de la fecha de radicación
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const vto = addBusinessDays(parseDateOnly(fechaDe(1))!, 15);
+    const restan = Math.round((vto.getTime() - hoy.getTime()) / 86400000);
+
+    expect(screen.getByTestId('dash-detail-vence')).toHaveTextContent(`Vence ${formatDMY(vto)}`);
+    expect(screen.getByTestId('dash-detail-vence')).toHaveTextContent('(calculada)');
+    expect(screen.getByTestId('dash-detail-restan')).toHaveTextContent(String(restan));
+    expect(screen.getByTestId('dash-detail-vtocalc')).toHaveTextContent('Calculada');
+    // Con fecha calculada ya no aparece el estado vacío del reloj
+    expect(screen.queryByText('Sin fecha de vencimiento')).not.toBeInTheDocument();
+    localStorage.clear();
+  });
+
+  it('detalle del radicado: bloque de observaciones diferenciadas por origen', () => {
+    localStorage.clear();
+    seed(
+      [
+        sacRow({
+          rowId: 'obs1',
+          radicadoEntrada: '900031',
+          FECHA_SOLICITUD: fechaDe(2),
+          fechaSolicitud: fechaDe(2),
+          MEDIO_SOLICITUD: 'Escrito',
+          medioSolicitud: 'Escrito',
+          OBSERVACION_REVISION: 'Insumo: se verificó el medidor del usuario.',
+          OBSERVACION_DECISION: 'Decisión: se aprueba el ajuste de la factura.',
+        }),
+        sacRow({
+          rowId: 'obs2',
+          radicadoEntrada: '900032',
+          FECHA_SOLICITUD: fechaDe(2),
+          fechaSolicitud: fechaDe(2),
+          MEDIO_SOLICITUD: 'Escrito',
+          medioSolicitud: 'Escrito',
+        }),
+      ],
+      [
+        merRow({
+          rowId: 'mobs',
+          'No. Radicado': '900031',
+          'Nombre del Gestor': 'Gestor Obs',
+          Estado: 'P',
+          'Fecha  Radicacion': fechaDe(2),
+          'Refencia del Documento': 'RAD-REF-001',
+        }),
+      ]
+    );
+    render(<HomeView />);
+
+    fireEvent.click(screen.getByTestId('dash-bar-2'));
+    fireEvent.click(screen.getByTestId('dash-daydetail-R:900031'));
+
+    // Las observaciones viven en su propia pestaña (no en Resumen)
+    expect(screen.queryByTestId('dash-detail-obs-mercurio')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('dash-detail-tab-observaciones'));
+
+    const mer = screen.getByTestId('dash-detail-obs-mercurio');
+    expect(screen.getByTestId('dash-detail-obs')).toBeInTheDocument();
+    expect(mer).toHaveTextContent('Observación Mercurio');
+    expect(mer).toHaveTextContent('RAD-REF-001');
+
+    const ins = screen.getByTestId('dash-detail-obs-insumo');
+    expect(ins).toHaveTextContent('Observación del Insumo');
+    expect(ins).toHaveTextContent('Insumo: se verificó el medidor del usuario.');
+
+    const dec = screen.getByTestId('dash-detail-obs-decision');
+    expect(dec).toHaveTextContent('Observación de la Decisión');
+    expect(dec).toHaveTextContent('Decisión: se aprueba el ajuste de la factura.');
+
+    // Solo etiquetas amigables: sin rótulos de archivo ni de columnas técnicas
+    for (const tecnica of [
+      'Archivo SAC',
+      'Archivo Mercurio',
+      'Refencia del Documento',
+      'OBSERVACION_REVISION',
+      'OBSERVACION_DECISION',
+    ]) {
+      expect(screen.queryByText(tecnica)).not.toBeInTheDocument();
+    }
+
+    // Sin observaciones: las tres tarjetas siguen presentes con su estado vacío
+    fireEvent.click(screen.getByTestId('dash-detail-close'));
+    fireEvent.click(screen.getByTestId('dash-daydetail-R:900032'));
+    fireEvent.click(screen.getByTestId('dash-detail-tab-observaciones'));
+    expect(screen.getByTestId('dash-detail-obs-mercurio-empty')).toBeInTheDocument();
+    expect(screen.getByTestId('dash-detail-obs-insumo-empty')).toBeInTheDocument();
+    expect(screen.getByTestId('dash-detail-obs-decision-empty')).toBeInTheDocument();
+    expect(screen.getByTestId('dash-detail-obs-mercurio')).toHaveTextContent(
+      'Sin referencia de documento en Mercurio para este radicado.'
+    );
     localStorage.clear();
   });
 

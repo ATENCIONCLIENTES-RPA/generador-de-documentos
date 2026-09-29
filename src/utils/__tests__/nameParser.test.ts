@@ -4,6 +4,7 @@ import {
   formatApplicantName,
   getInitials,
   toTitleCase,
+  toTitleCaseInline,
   cleanSpecialCharacters,
 } from '../nameParser';
 
@@ -103,16 +104,16 @@ describe('nameParser', () => {
   });
 
   it('extractFirstName: empresa conserva la razón social sin la sigla jurídica', () => {
-    expect(extractFirstName('INCOLYESOS SAS')).toBe('INCOLYESOS');
-    expect(extractFirstName('INCOLYESOS S.A.S.')).toBe('INCOLYESOS');
-    expect(extractFirstName('EMPRESA XYZ LTDA')).toBe('EMPRESA XYZ');
+    expect(extractFirstName('INCOLYESOS SAS')).toBe('Incolyesos');
+    expect(extractFirstName('INCOLYESOS S.A.S.')).toBe('Incolyesos');
+    expect(extractFirstName('EMPRESA XYZ LTDA')).toBe('Empresa Xyz');
   });
 
   it('extractFirstName: empresa sin sigla pero con nombre comercial se conserva', () => {
     expect(extractFirstName('INDUSTRIA NACIONAL DE SNACKS SAS')).toBe(
-      'INDUSTRIA NACIONAL DE SNACKS'
+      'Industria Nacional de Snacks'
     );
-    expect(extractFirstName('HG CONSTRUCTORA')).toBe('HG CONSTRUCTORA');
+    expect(extractFirstName('HG CONSTRUCTORA')).toBe('Hg Constructora');
   });
 
   it('extractFirstName: dos apellidos iguales + nombre no sobrestima el apellido', () => {
@@ -141,12 +142,28 @@ describe('nameParser', () => {
     expect(formatApplicantName('CASTRO MURILLO JAIME')).toBe('Jaime Castro Murillo');
   });
 
-  it('formatApplicantName: empresas conservan la razón social completa', () => {
-    expect(formatApplicantName('INCOLYESOS SAS')).toBe('INCOLYESOS');
+  it('formatApplicantName: empresas aplican la misma caja que las personas', () => {
+    expect(formatApplicantName('INCOLYESOS SAS')).toBe('Incolyesos');
     expect(formatApplicantName('INDUSTRIA NACIONAL DE SNACKS SAS')).toBe(
-      'INDUSTRIA NACIONAL DE SNACKS'
+      'Industria Nacional de Snacks'
     );
-    expect(formatApplicantName('HG CONSTRUCTORA')).toBe('HG CONSTRUCTORA');
-    expect(formatApplicantName('EMPRESA XYZ LTDA')).toBe('EMPRESA XYZ');
+    expect(formatApplicantName('HG CONSTRUCTORA')).toBe('Hg Constructora');
+    expect(formatApplicantName('EMPRESA XYZ LTDA')).toBe('Empresa Xyz');
+  });
+
+  it('formatApplicantName: persona natural en mayúsculas queda con inicial por palabra', () => {
+    expect(formatApplicantName('TATIANA SUAREZ CALA LEIBY')).toBe('Tatiana Suarez Cala Leiby');
+  });
+
+  it('toTitleCaseInline: solo cambia la caja, conserva espacios y longitudes', () => {
+    expect(toTitleCaseInline('TATIANA suarez CALA')).toBe('Tatiana Suarez Cala');
+    expect(toTitleCaseInline('DE LA CRUZ')).toBe('De la Cruz');
+    expect(toTitleCaseInline('')).toBe('');
+    expect(toTitleCaseInline(null as unknown as string)).toBe('');
+    // Sin trim: un espacio final escrito se conserva (clave al escribir).
+    expect(toTitleCaseInline('tatiana ')).toBe('Tatiana ');
+    expect(toTitleCaseInline('  suarez  cala')).toBe('  Suarez  Cala');
+    // Longitud idéntica: el cursor nunca salta al escribir.
+    expect(toTitleCaseInline('MARIA-JOSE').length).toBe('MARIA-JOSE'.length);
   });
 });

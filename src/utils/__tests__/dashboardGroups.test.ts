@@ -337,19 +337,24 @@ describe('dashboardGroups (lógica del tablero de referencia)', () => {
     expect(computeGrupoKpis(all)).toEqual({
       total: 6,
       vencidos: 1,
-      criticos: 1,
+      criticos: 0,
       proximos: 0,
-      enPlazo: 3,
+      enPlazo: 5,
       sinProceso: 1,
     });
     expect(vencidasList(all).map((g) => g.key)).toEqual(['R:20260320045636']);
     expect(estadoCounts(all)).toEqual([
       { estado: 'Vencido', value: 1 },
-      { estado: 'Crítico', value: 1 },
+      { estado: 'Crítico', value: 0 },
       { estado: 'Próximo', value: 0 },
-      { estado: 'En plazo', value: 3 },
-      { estado: 'Sin fecha', value: 1 },
+      { estado: 'En plazo', value: 5 },
+      { estado: 'Sin fecha', value: 0 },
     ]);
+    // La fecha del origen no se marca como calculada; la que sí calcula el
+    // sistema (grupos sin F. vencimiento, incluso los solo Mercurio) sí.
+    expect(all.find((g) => g.key === 'R:20260320045635')!.fVtoAuto).toBe(false);
+    expect(all.find((g) => g.key === 'P:PROC-9')!.fVtoAuto).toBe(true);
+    expect(all.find((g) => g.key === 'M:20260320047777')!.fVtoAuto).toBe(true);
   });
 
   it('opciones de filtro: responsables agrupados y trámites admitidos', () => {
@@ -500,7 +505,7 @@ describe('dashboardGroups (lógica del tablero de referencia)', () => {
     expect(gEsc[0]!.restan).toBe(0);
   });
 
-  it('corrige el respaldo de días hábiles (diasPqr) cuando no hay fecha de vencimiento', () => {
+  it('calcula la F. vencimiento y los días restantes cuando el dato viene vacío', () => {
     const sinVto = sac({
       rowId: 'vto2',
       radicadoEntrada: '20260320048888',
@@ -514,18 +519,107 @@ describe('dashboardGroups (lógica del tablero de referencia)', () => {
       NOMBRE_USUARIO_INICIAL_PROCESO: 'Ana',
     });
 
+    // Plazo legal: 15 días hábiles después de la radicación (24/09/2026)
     const base = groupRadicados([sinVto], [], REF);
-    expect(base[0]!.fVto).toBeNull();
-    expect(base[0]!.fVtoEfe).toBeNull();
-    expect(base[0]!.restan).toBe(10);
+    expect(formatDMY(base[0]!.fVto)).toBe('16/10/2026');
+    expect(base[0]!.fVtoAuto).toBe(true);
+    expect(base[0]!.fVtoEfe).toEqual(base[0]!.fVto);
+    // Días restantes: días calendario entre hoy (25/09/2026) y el vencimiento
+    expect(base[0]!.restan).toBe(21);
+    expect(base[0]!.estadoV).toBe('En plazo');
 
-    // Corrección dos días hábiles antes → quedan 8
+    // La corrección de fecha real desplaza el vencimiento calculado igual que
+    // a uno del origen: 2 días hábiles antes → vence 14/10/2026 (19 restantes)
     const iso4 = dayKeyOf(WIN.find((s) => s.dia === 4)!.fecha);
     const movido = groupRadicados([sinVto], [], REF, { 'R:20260320048888': iso4 });
     expect(movido[0]!.dia).toBe(4);
-    expect(movido[0]!.fVtoEfe).toBeNull();
-    expect(movido[0]!.restan).toBe(8);
+    expect(movido[0]!.fVtoAuto).toBe(true);
+    expect(formatDMY(movido[0]!.fVtoEfe)).toBe('14/10/2026');
+    expect(movido[0]!.restan).toBe(19);
     expect(movido[0]!.estadoV).toBe('En plazo');
+  });
+
+  it('sin fecha de radicación no hay cómo calcular: queda Sin fecha', () => {
+    const sinDato = sac({
+      rowId: 'sf1',
+      radicadoEntrada: '20260320046666',
+      FECHA_SOLICITUD: '',
+      fechaSolicitud: '',
+      fechaVencimiento: '',
+      diasPqr: 10,
+      diasPqrLabel: '10 días hábiles',
+    });
+    const g = groupRadicados([sinDato], [], REF)[0]!;
+    expect(g.fVto).toBeNull();
+    expect(g.fVtoAuto).toBe(false);
+    expect(g.restan).toBeNull();
+    expect(g.estadoV).toBe('Sin fecha');
+  });
+
+  it('reúne las observaciones por origen (Mercurio, Insumo y Decisión)', () => {
+    const sacObs = sac({
+      rowId: 'ob1',
+      radicadoEntrada: '20260320045555',
+      OBSERVACION_REVISION: 'Insumo: se verificó el medidor del usuario.',
+      OBSERVACION_DECISION: 'Decisión: se aprueba el ajuste de la factura.',
+    });
+    const merObs = mer({
+      rowId: 'mobs',
+      'No. Radicado': '20260320045555',
+      'Nombre del Gestor': 'Gestor Obs',
+      Estado: 'P',
+      'Fecha  Radicacion': '24/09/2026',
+      'Refencia del Documento': 'RADICADO RELACIONADO CON PQRS DE TRANSFORMADOR',
+    });
+    const g = groupRadicados([sacObs], [merObs], REF)[0]!;
+
+    // Mercurio → columna «Refencia del Documento»
+    expect(g.obsMercurio).toBe('RADICADO RELACIONADO CON PQRS DE TRANSFORMADOR');
+    // SAC → columnas «OBSERVACION_REVISION» y «OBSERVACION_DECISION»
+    expect(g.obsInsumo).toEqual(['Insumo: se verificó el medidor del usuario.']);
+    expect(g.obsDecision).toEqual(['Decisión: se aprueba el ajuste de la factura.']);
+  });
+
+  it('observaciones vacías y variantes unificadas del mismo radicado', () => {
+    // Sin observaciones en ningún archivo: bloques vacíos, nunca undefined
+    const limpio = sac({ rowId: 'ob2', radicadoEntrada: '20260320044444' });
+    const gLimpio = groupRadicados([limpio], [], REF)[0]!;
+    expect(gLimpio.obsMercurio).toBe('');
+    expect(gLimpio.obsInsumo).toEqual([]);
+    expect(gLimpio.obsDecision).toEqual([]);
+
+    // Dos filas SAC del mismo radicado con la misma observación: sin duplicados
+    const v1 = sac({
+      rowId: 'ob3',
+      radicadoEntrada: '20260320043333',
+      numeroProceso: '72552537',
+      OBSERVACION_REVISION: 'Mismo texto en ambas filas',
+    });
+    const v2 = sac({
+      rowId: 'ob4',
+      radicadoEntrada: '20260320043333',
+      numeroProceso: '72552537',
+      OBSERVACION_REVISION: 'Mismo texto en ambas filas',
+    });
+    expect(groupRadicados([v1, v2], [], REF)[0]!.obsInsumo).toEqual(['Mismo texto en ambas filas']);
+
+    // Grupo solo Mercurio: conserva su referencia y no inventa observaciones SAC
+    const soloMer = groupRadicados(
+      [],
+      [
+        mer({
+          rowId: 'mobs2',
+          'No. Radicado': '20260320042222',
+          'Nombre del Gestor': 'Gestor Solo Obs',
+          'Fecha  Radicacion': '24/09/2026',
+          'Refencia del Documento': 'Ref. 8877',
+        }),
+      ],
+      REF
+    )[0]!;
+    expect(soloMer.obsMercurio).toBe('Ref. 8877');
+    expect(soloMer.obsInsumo).toEqual([]);
+    expect(soloMer.obsDecision).toEqual([]);
   });
 
   describe('Relacionamiento Perfil (M2) ↔ Responsable (M3) & Fuzzy Matching', () => {

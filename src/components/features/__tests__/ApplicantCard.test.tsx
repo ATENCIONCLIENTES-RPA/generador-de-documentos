@@ -75,4 +75,46 @@ describe('ApplicantCard — Módulo 4: información del solicitante', () => {
     expect(updated?.nombreSolicitante).toBe('María López');
     expect(updated?.correoSolicitante).toBe('maria@example.com');
   });
+
+  it('muestra el nombre con la primera letra de cada palabra en mayúscula (persona natural)', () => {
+    seed(
+      [makeRecord({ rowId: 'row_1', nombreSolicitante: 'TATIANA SUAREZ CALA LEIBY' })],
+      ['row_1']
+    );
+    render(<ApplicantCard />);
+
+    expect(screen.getByTestId('dg-applicant-nombre')).toHaveValue('Tatiana Suarez Cala Leiby');
+    // El store conserva el valor original: el formato es de presentación.
+    expect(useDataStore.getState().records[0]?.nombreSolicitante).toBe('TATIANA SUAREZ CALA LEIBY');
+  });
+
+  it('muestra el nombre formateado aunque el solicitante sea persona jurídica', () => {
+    seed([makeRecord({ rowId: 'row_1', nombreSolicitante: 'CONSTRUCTORA XYZ SAS' })], ['row_1']);
+    render(<ApplicantCard />);
+
+    expect(screen.getByTestId('dg-applicant-nombre')).toHaveValue('Constructora Xyz');
+  });
+
+  it('mientras se escribe solo cambia la caja y al salir conserva el formato completo', () => {
+    seed([makeRecord({ rowId: 'row_1', nombreSolicitante: 'SUAREZ CALA TATIANA' })], ['row_1']);
+    render(<ApplicantCard />);
+    const input = screen.getByTestId('dg-applicant-nombre');
+
+    // Fuera del foco: formato completo, igual que el documento Word.
+    expect(input).toHaveValue('Tatiana Suarez Cala');
+
+    // Al enfocar no hay salto: se parte del mismo valor normalizado.
+    fireEvent.focus(input);
+    expect(input).toHaveValue('Tatiana Suarez Cala');
+
+    // Mientras se escribe, la caja se normaliza en vivo…
+    fireEvent.change(input, { target: { value: 'tatiana suarez' } });
+    expect(input).toHaveValue('Tatiana Suarez');
+    // …y lo que se ve es lo que queda guardado en el registro.
+    expect(useDataStore.getState().records[0]?.nombreSolicitante).toBe('Tatiana Suarez');
+
+    // Al salir del foco se mantiene el formato completo.
+    fireEvent.blur(input);
+    expect(input).toHaveValue('Tatiana Suarez');
+  });
 });
