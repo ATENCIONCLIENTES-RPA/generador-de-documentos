@@ -1760,38 +1760,39 @@ export function HomeView(): JSX.Element {
                         radicado(s) · Clic en una tarjeta para abrir su detalle
                       </p>
                     )}
-                    {enPanel && (
-                      <div
-                        className="dash-detpanel"
-                        id="dash-detail-panel"
-                        data-testid="dash-detail-panel"
-                        role="region"
-                        aria-label={`Detalle del radicado ${enPanel.radicado}`}
-                      >
-                        <div className="dash-detpanel-color">
-                          <span className="dash-detpanel-lab">Color del registro</span>
-                          <PaletaColores
-                            idKey="panel"
-                            color={colores[enPanel.key] ?? null}
-                            onPick={(hex) => pintarColor(enPanel.key, hex)}
-                            onQuitar={() => pintarColor(enPanel.key, null)}
-                          />
-                        </div>
-                        <div className="dmod-box dmod-box--detail dash-detpanel-box">
-                          <RadicadoDetailContent
-                            group={enPanel}
-                            notas={notas}
-                            onClose={cerrarDetalle}
-                            onAplicarAjuste={handleAplicarAjuste}
-                            onQuitarAjuste={handleQuitarAjuste}
-                            onAbrirNotas={(rad) => abrirNotas(rad)}
-                          />
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
+              {/* ═══ Ficha del radicado: fila completa bajo los dos bloques ═══ */}
+              {enPanel && (
+                <div
+                  className="dash-detpanel"
+                  id="dash-detail-panel"
+                  data-testid="dash-detail-panel"
+                  role="region"
+                  aria-label={`Detalle del radicado ${enPanel.radicado}`}
+                >
+                  <div className="dash-detpanel-color">
+                    <span className="dash-detpanel-lab">Color del registro</span>
+                    <PaletaColores
+                      idKey="panel"
+                      color={colores[enPanel.key] ?? null}
+                      onPick={(hex) => pintarColor(enPanel.key, hex)}
+                      onQuitar={() => pintarColor(enPanel.key, null)}
+                    />
+                  </div>
+                  <div className="dmod-box dmod-box--detail dash-detpanel-box">
+                    <RadicadoDetailContent
+                      group={enPanel}
+                      notas={notas}
+                      onClose={cerrarDetalle}
+                      onAplicarAjuste={handleAplicarAjuste}
+                      onQuitarAjuste={handleQuitarAjuste}
+                      onAbrirNotas={(rad) => abrirNotas(rad)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         </>
@@ -2986,7 +2987,7 @@ const dashStyles = `
   .dash-paleta-none:hover { color: #475569; }
 
   /* ── Panel de detalle en línea (debajo del listado del trabajo diario) ── */
-  .dash-detpanel { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .dash-detpanel { grid-column: 1 / -1; min-width: 0; margin-top: 0; display: flex; flex-direction: column; gap: 10px; }
   .dash-detpanel-color { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 9px 14px; border: 1px solid var(--border); border-radius: 10px; background: #f8fafc; }
   .dash-detpanel-lab { font-size: 0.64rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--neutral-500); }
   .dash-detpanel-box.dmod-box { max-height: none; border-radius: 14px; box-shadow: 0 16px 36px -26px rgba(15,23,42,.55); }

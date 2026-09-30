@@ -31,7 +31,7 @@ test.describe('ESSA flujo completo', () => {
     await expect(page.getByTestId('m2-progress-track')).toBeVisible();
     await expect(page.getByTestId('m2-continuar')).toBeDisabled();
 
-    // Navegar por header a datos (vacío) y generación (Módulo 4 unificado)
+    // Navegar por header a datos (vacío) y generación (Módulo 3 unificado)
     await page.getByTestId('header-nav-datos').click();
     await expect(page.getByTestId('data-view')).toBeVisible();
 

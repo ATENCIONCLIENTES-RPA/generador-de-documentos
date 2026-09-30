@@ -36,7 +36,7 @@ function seed(records: EssaRecord[], selectedRows: string[]) {
   });
 }
 
-describe('ApplicantCard — Módulo 4: información del solicitante', () => {
+describe('ApplicantCard — Módulo 3: información del solicitante', () => {
   beforeEach(() => {
     seed([], []);
   });

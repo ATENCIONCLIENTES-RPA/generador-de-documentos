@@ -1,21 +1,29 @@
-import { forwardRef, type InputHTMLAttributes } from 'react';
+import {
+  forwardRef,
+  type CSSProperties,
+  type FocusEvent,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from 'react';
 
 interface Props extends InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
+  label?: ReactNode;
   error?: string;
   hint?: string;
 }
 
 const Input = forwardRef<HTMLInputElement, Props>(
   ({ label, error, hint, id, style, ...rest }, ref) => {
-    const inputId = id ?? (label ? `inp-${label.replace(/\s+/g, '-').toLowerCase()}` : undefined);
+    const inputId =
+      id ??
+      (typeof label === 'string' ? `inp-${label.replace(/\s+/g, '-').toLowerCase()}` : undefined);
     return (
       <label
         style={{
           display: 'flex',
           flexDirection: 'column',
           gap: 6,
-          ...(style as React.CSSProperties),
+          ...(style as CSSProperties),
         }}
       >
         {label && (
@@ -44,12 +52,12 @@ const Input = forwardRef<HTMLInputElement, Props>(
             e.currentTarget.style.boxShadow = error
               ? '0 0 0 3px rgba(220,38,38,.14)'
               : 'var(--ring)';
-            rest.onFocus?.(e as React.FocusEvent<HTMLInputElement>);
+            rest.onFocus?.(e as FocusEvent<HTMLInputElement>);
           }}
           onBlur={(e) => {
             e.currentTarget.style.borderColor = error ? 'var(--danger)' : 'var(--border-strong)';
             e.currentTarget.style.boxShadow = 'none';
-            rest.onBlur?.(e as React.FocusEvent<HTMLInputElement>);
+            rest.onBlur?.(e as FocusEvent<HTMLInputElement>);
           }}
           {...rest}
         />

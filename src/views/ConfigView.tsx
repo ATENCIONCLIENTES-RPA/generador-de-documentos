@@ -259,7 +259,7 @@ export function ConfigView() {
     // Iniciar revisión sin selección predeterminada.
     useDataStore.getState().clearSelection();
     complete('configuracion');
-    goTo('datos');
+    goTo('generacion');
   };
 
   const handleCancelar = () => {
@@ -1224,10 +1224,10 @@ export function ConfigView() {
               title={
                 !allReady
                   ? 'Carga SAC y carpeta de plantillas para continuar (Mercurio es opcional)'
-                  : 'Continuar a Revisión de Datos'
+                  : 'Generar Documento'
               }
             >
-              Continuar a Revisión de Datos
+              Generar Documento
               <svg
                 width="16"
                 height="16"

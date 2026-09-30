@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type StepId = 'inicio' | 'perfil' | 'configuracion' | 'datos' | 'generacion';
+export type StepId = 'inicio' | 'perfil' | 'configuracion' | 'generacion';
 
 interface NavigationStore {
   currentStep: StepId;

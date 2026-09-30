@@ -52,7 +52,7 @@ const FIELDS: ApplicantFieldConfig[] = [
   },
 ];
 
-/** Franja de información del solicitante (Módulo 4, bajo el banner).
+/** Franja de información del solicitante (Módulo 3, bajo el banner).
  *  Edita los datos del registro seleccionado con persistencia directa
  *  en el store, igual que el Módulo 3. */
 export function ApplicantCard() {
@@ -121,17 +121,26 @@ export function ApplicantCard() {
       <div className="dg-applicant-grid">
         {FIELDS.map((f) => {
           const esNombre = f.key === 'nombreSolicitante';
+          const esRadicadoSalida = f.key === 'RADICADO_SALIDA';
+
           return (
-            <Input
+            <div
               key={f.key}
-              label={f.label}
-              value={esNombre ? nombreVisible : String(rec[f.key] ?? '')}
-              onChange={(e) => cambiarCampo(f.key, e.target.value, esNombre)}
-              placeholder={f.placeholder}
-              type={f.type}
-              data-testid={`dg-applicant-${f.testSuffix}`}
-              {...(esNombre ? { onFocus: enfocarNombre, onBlur: desenfocarNombre } : {})}
-            />
+              className={`dg-applicant-field-wrap ${
+                esRadicadoSalida ? 'dg-applicant-field-wrap--radicado-salida' : ''
+              }`}
+            >
+              <Input
+                label={f.label}
+                value={esNombre ? nombreVisible : String(rec[f.key] ?? '')}
+                onChange={(e) => cambiarCampo(f.key, e.target.value, esNombre)}
+                placeholder={f.placeholder}
+                type={f.type}
+                data-testid={`dg-applicant-${f.testSuffix}`}
+                className={esRadicadoSalida ? 'dg-input-radicado-salida' : undefined}
+                {...(esNombre ? { onFocus: enfocarNombre, onBlur: desenfocarNombre } : {})}
+              />
+            </div>
           );
         })}
       </div>
@@ -142,9 +151,20 @@ export function ApplicantCard() {
 export default ApplicantCard;
 
 /* ═══════════════════════════════════════════════════════════════
-   STYLES — Franja del solicitante (Módulo 4, bajo el banner)
+   STYLES — Franja del solicitante (Módulo 3, bajo el banner)
    ═══════════════════════════════════════════════════════════════ */
 const applicantStyles = `
+  @keyframes radicadoSubtlePulse {
+    0%, 100% {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.15), 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+    50% {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12), 0 2px 6px rgba(37, 99, 235, 0.08);
+    }
+  }
+
   .dg-applicant { display: flex; flex-direction: column; min-height: 0; }
   .dg-applicant .dg-panel-hdr { padding: 7px 14px; }
   .dg-applicant--empty { border: 1px dashed var(--border); border-radius: var(--radius-md); background: var(--bg-card); padding: 10px 14px; text-align: center; }
@@ -153,4 +173,40 @@ const applicantStyles = `
   .dg-applicant-grid label { gap: 4px !important; }
   .dg-applicant-grid label > span:first-child { font-size: 0.72rem !important; }
   .dg-applicant-grid input { height: 34px !important; font-size: 0.8rem !important; padding: 0 10px !important; }
+
+  /* ── Resaltado sutil y elegante del campo Radicado salida ── */
+  .dg-applicant-field-wrap {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .dg-applicant-field-wrap--radicado-salida label > span:first-child {
+    color: #1e40af !important;
+    font-weight: 700 !important;
+  }
+
+  .dg-input-radicado-salida {
+    border: 1.5px solid #3b82f6 !important;
+    background-color: #f8faff !important;
+    font-weight: 600 !important;
+    color: #0f172a !important;
+    animation: radicadoSubtlePulse 3.5s ease-in-out infinite;
+    transition: all 0.2s ease !important;
+  }
+  .dg-input-radicado-salida:hover {
+    border-color: #2563eb !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15) !important;
+  }
+  .dg-input-radicado-salida:focus {
+    border-color: #1d4ed8 !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22) !important;
+    animation: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dg-input-radicado-salida { animation: none; }
+  }
 `;

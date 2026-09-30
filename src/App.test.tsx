@@ -68,13 +68,12 @@ describe('App routing currentStep → view render', () => {
   it('navega por todas las vistas via store goTo', async () => {
     render(<App />);
     const nav = useNavigationStore.getState();
-    nav.goTo('datos');
-    // DataView will render empty state if no records
-    expect(await screen.findByTestId('data-view')).toBeInTheDocument();
     nav.goTo('generacion');
     expect(await screen.findByTestId('generate-view')).toBeInTheDocument();
     nav.goTo('inicio');
     expect(await screen.findByTestId('home-view')).toBeInTheDocument();
+    nav.goTo('configuracion');
+    expect(await screen.findByTestId('config-view')).toBeInTheDocument();
   });
 
   it('StepperBar visible en todas las vistas incluyendo inicio', async () => {

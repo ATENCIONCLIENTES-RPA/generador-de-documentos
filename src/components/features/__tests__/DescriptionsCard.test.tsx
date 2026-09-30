@@ -35,7 +35,7 @@ function seed(records: EssaRecord[], selectedRows: string[]) {
   });
 }
 
-describe('DescriptionsCard — Módulo 4: descripciones + Mejorar texto', () => {
+describe('DescriptionsCard — Módulo 3: descripciones + Mejorar texto', () => {
   beforeEach(() => {
     seed([], []);
     vi.clearAllMocks();

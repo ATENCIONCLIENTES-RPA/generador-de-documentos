@@ -14,6 +14,8 @@ import { formatDateToSpanish } from '@/utils/businessDays';
 import { BuildTemplateGuideModal } from '@/components/features/BuildTemplateGuideModal';
 import { DescriptionsCard } from '@/components/features/DescriptionsCard';
 import { ApplicantCard } from '@/components/features/ApplicantCard';
+import { RecordSearchBar } from '@/components/features/RecordSearchBar';
+import { RadicarModal } from '@/components/features/RadicarModal';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
@@ -78,7 +80,14 @@ type DocxPreviewModule = {
 
 type PreviewMode = 'diseno' | 'documento';
 
-const TEMPLATE_PAGE_SIZE = 8;
+const TEMPLATE_PAGE_SIZE = 14;
+
+/** Altura mínima del layout de 3 paneles (cabecera de tarjeta + visor). */
+const DG_LAYOUT_MIN_HEIGHT = 548;
+
+/** Alto máximo de los paneles cuando no se ajusta a la ventana (≤1100px):
+ *  catálogo y vista previa comparten el tope para terminar a la misma línea. */
+const DG_PANEL_MAX_HEIGHT = 700;
 
 export function GenerateView({ onAddHistory }: GenerateViewProps) {
   const profile = useProfileStore((s) => s.profile);
@@ -142,9 +151,9 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
 
   /* ── Template catalog state ── */
   const [templateSearch, setTemplateSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('todas');
   const [templatePage, setTemplatePage] = useState(1);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [radicarOpen, setRadicarOpen] = useState(false);
   const templateListRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -165,14 +174,6 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
     return undefined;
   }, []);
 
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    templates.forEach((t) => {
-      if (t.category) set.add(t.category);
-    });
-    return Array.from(set);
-  }, [templates]);
-
   const filteredTemplates = useMemo(() => {
     let out = templates;
     if (templateSearch.trim()) {
@@ -184,9 +185,8 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           (t.fileName && t.fileName.toLowerCase().includes(q))
       );
     }
-    if (selectedCategory !== 'todas') out = out.filter((t) => t.category === selectedCategory);
     return out;
-  }, [templates, templateSearch, selectedCategory]);
+  }, [templates, templateSearch]);
 
   const totalTemplatePages = Math.max(1, Math.ceil(filteredTemplates.length / TEMPLATE_PAGE_SIZE));
   const paginatedTemplates = useMemo(() => {
@@ -196,7 +196,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
 
   useEffect(() => {
     setTemplatePage(1);
-  }, [templateSearch, selectedCategory]);
+  }, [templateSearch]);
   useEffect(() => {
     if (templatePage > totalTemplatePages) setTemplatePage(totalTemplatePages);
   }, [totalTemplatePages, templatePage]);
@@ -232,6 +232,56 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
   const disenoHiddenRef = useRef<HTMLDivElement>(null);
   const disenoWrapperRef = useRef<HTMLDivElement>(null);
   const docWrapperRef = useRef<HTMLDivElement>(null);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<HTMLDivElement>(null);
+
+  /* ── Ajuste de la hoja al ancho del panel ──
+     docx-preview entrega páginas con el ancho fijo del documento Word
+     (carta ≈ 816 px). Cuando el panel es más estrecho, ese ancho fijo recorta
+     tablas y pies de página; por eso la hoja se escala con `zoom` hasta que
+     quepa: el documento se ve completo, sin scroll horizontal ni cortes. */
+  const fitDocxToPane = useCallback((layer: HTMLElement | null) => {
+    if (!layer) return;
+    const target = (layer.querySelector('.docx-wrapper') as HTMLElement | null) ?? layer;
+    // Se restablece la escala para medir el ancho real de la hoja.
+    target.style.zoom = '';
+    const available = layer.clientWidth;
+    const natural = Math.max(target.scrollWidth, target.offsetWidth);
+    if (!available || !natural) return;
+    const scale = Math.min(1, available / natural);
+    target.style.zoom = scale < 1 ? String(Math.round(scale * 1000) / 1000) : '';
+  }, []);
+
+  /* Re-escalado de las hojas: cuando cambia el ancho del panel (ventana,
+     cambios de layout o de modo) o cuando termina un render, ambas hojas se
+     recalculan para seguir cabiendo sin cortarse. */
+  useEffect(() => {
+    const refit = () => {
+      fitDocxToPane(disenoWrapperRef.current);
+      fitDocxToPane(docWrapperRef.current);
+    };
+    const targets = [viewerRef.current, disenoWrapperRef.current, docWrapperRef.current].filter(
+      (el): el is HTMLDivElement => el !== null
+    );
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(refit) : undefined;
+    targets.forEach((el) => ro?.observe(el));
+    // Tras el render (los paneles salen de display:none al terminar) y en el
+    // primer montaje se fuerza un cálculo inicial.
+    const frame = window.requestAnimationFrame(refit);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      ro?.disconnect();
+    };
+  }, [
+    fitDocxToPane,
+    mode,
+    docRendering,
+    disenoRendering,
+    docxRenderFailed,
+    disenoRenderFailed,
+    selectedTemplate,
+    activeRecord,
+  ]);
 
   const switchMode = useCallback((next: PreviewMode) => setMode(next), []);
 
@@ -240,6 +290,73 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
       e.preventDefault();
       setMode((m) => (m === 'diseno' ? 'documento' : 'diseno'));
     }
+  }, []);
+
+  /* ── Ajuste del layout a la ventana (escritorio ≥1101px) ──
+     Los tres paneles comparten exactamente el alto restante: la vista previa
+     termina a la misma línea que el catálogo y las descripciones, sin dejar
+     huecos blancos debajo del documento. Dentro de cada panel el contenido
+     desbordante hace scroll propio, de modo que nada queda recortado. */
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+
+    const mq = window.matchMedia('(min-width: 1101px)');
+    let frame = 0;
+
+    const apply = () => {
+      const el = layoutRef.current;
+      if (!el) return;
+      if (!mq.matches) {
+        if (el.style.height) el.style.height = '';
+        return;
+      }
+      // Posición del layout en el documento: invariable ante el scroll, así
+      // el cálculo no oscila cuando la página se desplaza.
+      const rect = el.getBoundingClientRect();
+      const top = rect.top + window.scrollY;
+      const current = Math.round(parseFloat(el.style.height) || rect.height);
+      // Contenido situado debajo del layout (pie de página, relleno): no se
+      // toca, se descuenta para que la ventana quepa sin holguras raras.
+      const docHeight = Math.max(
+        document.documentElement.scrollHeight,
+        document.body?.scrollHeight ?? 0
+      );
+      const below = Math.max(0, docHeight - (top + current));
+      const viewport = document.documentElement.clientHeight || window.innerHeight;
+      const next = Math.max(DG_LAYOUT_MIN_HEIGHT, Math.floor(viewport - top - below));
+      if (Math.abs(current - next) > 1) el.style.height = `${next}px`;
+    };
+
+    const schedule = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        apply();
+      });
+    };
+
+    apply();
+    window.addEventListener('resize', schedule);
+
+    const onMqChange = () => schedule();
+    if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onMqChange);
+    else mq.addListener(onMqChange);
+
+    // El contenido superior (buscador, franja del solicitante) puede cambiar
+    // de alto; se reposiciona el layout sin escuchar el scroll.
+    const observer =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : undefined;
+    observer?.observe(document.body);
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', schedule);
+      if (typeof mq.removeEventListener === 'function')
+        mq.removeEventListener('change', onMqChange);
+      else mq.removeListener(onMqChange);
+      observer?.disconnect();
+      if (layoutRef.current) layoutRef.current.style.height = '';
+    };
   }, []);
 
   /* ── Modo Diseño: renderiza la plantilla tal cual (sin datos).
@@ -559,7 +676,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             </svg>
           </span>
           <div>
-            <h2 className="dg-header-title">Módulo 4: Generación Documental</h2>
+            <h2 className="dg-header-title">Módulo 3: Generación Documental</h2>
             <p className="dg-header-sub">Selecciona la plantilla, revisa el diseño y genera</p>
           </div>
         </div>
@@ -618,7 +735,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           </svg>
         </span>
         <div className="dg-header-text">
-          <h2 className="dg-header-title">Módulo 4: Generación Documental</h2>
+          <h2 className="dg-header-title">Módulo 3: Generación Documental</h2>
           <p className="dg-header-sub">Selecciona la plantilla, revisa el diseño y genera</p>
         </div>
         <div className="dg-header-right">
@@ -696,6 +813,30 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           )}
           <button
             type="button"
+            onClick={() => setRadicarOpen(true)}
+            data-testid="dv-enviar-radicar"
+            title="Gestionar datos para radicar – abre formulario de radicación"
+            aria-label="Gestionar datos para radicar"
+            className="dg-radicar-btn"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M22 2L11 13" />
+              <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+            </svg>
+            Gestionar datos para radicar
+          </button>
+          <button
+            type="button"
             onClick={() => setGuideOpen(true)}
             data-testid="dg-build-template-btn"
             title="Aprende a crear tu propia plantilla de Word"
@@ -719,7 +860,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
           </button>
           <button
             type="button"
-            onClick={() => goTo('datos')}
+            onClick={() => goTo('inicio')}
             data-testid="dg-volver"
             className="dg-back-btn"
           >
@@ -742,11 +883,14 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         </div>
       </div>
 
+      {/* ════ FILTRO GENERAL: BUSCADOR DE REGISTROS (MÓDULO 3) ════ */}
+      <RecordSearchBar />
+
       {/* ════ SOLICITANTE: franja bajo el banner ════ */}
       <ApplicantCard />
 
       {/* ════ LAYOUT 3 COLUMNAS ════ */}
-      <div className="dg-layout" data-testid="dg-layout">
+      <div className="dg-layout" ref={layoutRef} data-testid="dg-layout">
         {/* ════ LEFT: catálogo de plantillas ════ */}
         <section className="dg-card dg-templates" aria-label="Catálogo de plantillas">
           <div className="dg-panel-hdr">
@@ -764,29 +908,6 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
               data-testid="dg-search-input"
             />
           </div>
-          {categories.length > 0 && (
-            <div className="dg-cats" data-testid="dg-categories">
-              <button
-                type="button"
-                onClick={() => setSelectedCategory('todas')}
-                data-testid="dg-cat-todas"
-                className={`dg-chip ${selectedCategory === 'todas' ? 'active' : ''}`}
-              >
-                Todas
-              </button>
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat)}
-                  data-testid={`dg-cat-${cat}`}
-                  className={`dg-chip ${selectedCategory === cat ? 'active' : ''}`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          )}
           <div
             className="dg-list"
             ref={templateListRef}
@@ -802,62 +923,60 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
               paginatedTemplates.map((tpl, idx) => {
                 const isActive = selectedTemplate?.id === tpl.id;
                 const isAssigned = assignedTemplateId === tpl.id;
+                const fullTitle = tpl.title || tpl.fileName;
+
                 return (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    role="option"
-                    aria-selected={isActive}
-                    onClick={() => handleSelectTemplate(tpl.id)}
-                    data-testid={`dg-card-${tpl.id}`}
-                    className={`dg-tpl ${isActive ? 'active' : ''}`}
-                    style={{ animationDelay: `${Math.min(idx, 7) * 35}ms` }}
-                  >
-                    <span className="dg-tpl-icon" aria-hidden>
-                      <svg
-                        width="11"
-                        height="11"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                      </svg>
-                    </span>
-                    <span className="dg-tpl-info">
-                      <span
-                        className="dg-tpl-name"
-                        title={tpl.title || tpl.fileName}
-                        data-testid={`dg-title-${tpl.id}`}
-                      >
-                        {tpl.title || tpl.fileName}
+                  <div key={tpl.id} className="dg-tpl-item-wrap">
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={isActive}
+                      onClick={() => handleSelectTemplate(tpl.id)}
+                      data-testid={`dg-card-${tpl.id}`}
+                      className={`dg-tpl ${isActive ? 'active' : ''}`}
+                      style={{ animationDelay: `${Math.min(idx, 7) * 35}ms` }}
+                    >
+                      <span className="dg-tpl-icon" aria-hidden>
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                        </svg>
                       </span>
-                      <span className="dg-tpl-meta">
-                        {tpl.category && <span>{tpl.category}</span>}
-                        {isAssigned && <span className="dg-tpl-assigned">Asignada</span>}
+                      <span className="dg-tpl-info">
+                        <span className="dg-tpl-name" data-testid={`dg-title-${tpl.id}`}>
+                          {fullTitle}
+                        </span>
+                        <span className="dg-tpl-meta">
+                          {isAssigned && <span className="dg-tpl-assigned">Asignada</span>}
+                        </span>
                       </span>
-                    </span>
-                    {isActive && (
-                      <svg
-                        className="dg-tpl-check"
-                        width="11"
-                        height="11"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    )}
-                  </button>
+                      {isActive && (
+                        <svg
+                          className="dg-tpl-check"
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 );
               })
             )}
@@ -957,41 +1076,41 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
             </div>
           </div>
 
-          <div className="dg-viewer" data-testid="dg-viewer">
-            {!selectedTemplate ? (
-              <div className="dg-viewer-empty" data-testid="dg-preview-empty">
-                <svg
-                  width="52"
-                  height="52"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="var(--neutral-300)"
-                  strokeWidth="1.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                </svg>
-                <div className="dg-viewer-empty-title">Selecciona una plantilla</div>
-                <div className="dg-viewer-empty-sub">
-                  Elígela del catálogo para ver su diseño y el documento generado
-                </div>
-              </div>
-            ) : (
-              <div className="dg-views" data-active={mode}>
-                {/* ── Vista: Diseño ── */}
-                <div
-                  className="dg-view"
-                  role="tabpanel"
-                  aria-label="Diseño de plantilla"
-                  data-testid="dg-preview-diseno"
-                  data-visible={mode === 'diseno'}
-                  aria-hidden={mode !== 'diseno'}
-                >
-                  {/* Contenedor persistente: nunca se desmonta para que los
-                      efectos de render conserven siempre un objetivo válido. */}
+          <div className="dg-viewer" ref={viewerRef} data-testid="dg-viewer">
+            <div className="dg-views" data-active={mode}>
+              {/* ── Vista: Diseño ── */}
+              <div
+                className="dg-view"
+                role="tabpanel"
+                aria-label="Diseño de plantilla"
+                data-testid="dg-preview-diseno"
+                data-visible={mode === 'diseno'}
+                aria-hidden={mode !== 'diseno'}
+              >
+                {!selectedTemplate ? (
+                  <div className="dg-viewer-empty" data-testid="dg-preview-empty">
+                    <svg
+                      width="52"
+                      height="52"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--neutral-300)"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <div className="dg-viewer-empty-title">Selecciona una plantilla</div>
+                    <div className="dg-viewer-empty-sub">
+                      Elígela del catálogo para ver su diseño y el documento generado
+                    </div>
+                  </div>
+                ) : (
+                  /* Contenedor persistente: nunca se desmonta para que los
+                     efectos de render conserven siempre un objetivo válido. */
                   <div className="dg-viewer-inner">
                     <div
                       ref={disenoWrapperRef}
@@ -1024,74 +1143,108 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
                       </div>
                     )}
                   </div>
-                </div>
-                {/* ── Vista: Documento ── */}
-                <div
-                  className="dg-view"
-                  role="tabpanel"
-                  aria-label="Documento generado"
-                  data-testid="dg-preview-documento"
-                  data-visible={mode === 'documento'}
-                  aria-hidden={mode !== 'documento'}
-                >
-                  {!hasSelectedRecord ? (
-                    <div className="dg-viewer-empty" data-testid="dg-preview-empty-records">
-                      <div className="dg-viewer-empty-title">Sin registro seleccionado</div>
-                      <div className="dg-viewer-empty-sub">
-                        Ve al Módulo 3 y selecciona el registro para generar su documento
-                      </div>
-                      <Button
-                        variant="primary"
-                        onClick={() => goTo('datos')}
-                        data-testid="dg-go-datos"
-                        style={{ marginTop: 8, fontSize: '0.74rem', height: 32 }}
-                      >
-                        Ir a Revisión de Datos
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="dg-viewer-inner">
-                      {/* Contenedor persistente: nunca se desmonta para que el
-                        efecto de render conserve siempre un objetivo válido. */}
-                      <div
-                        ref={docWrapperRef}
-                        data-testid="dg-doc-container"
-                        className="dg-doc-layer"
-                        style={
-                          docRendering || !engineTemplate?.file || docxRenderFailed
-                            ? { display: 'none' }
-                            : undefined
-                        }
-                      />
-                      {docRendering && (
-                        <div
-                          className="dg-loading"
-                          data-testid="dg-doc-loading"
-                          aria-label="Generando vista previa"
-                        >
-                          <div className="dg-skeleton" />
-                          <div className="dg-skeleton dg-skeleton--short" />
-                          <div className="dg-skeleton" />
-                        </div>
-                      )}
-                      {!docRendering && (!engineTemplate?.file || docxRenderFailed) && (
-                        <div className="dg-fallback">
-                          {previewHtml ? (
-                            <div
-                              data-testid="dg-fallback-content"
-                              className="dg-fallback-text"
-                              dangerouslySetInnerHTML={{ __html: previewHtml }}
-                            />
-                          ) : (
-                            fallbackDataBlock('dg-fallback-content')
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
-            )}
+              {/* ── Vista: Documento ── */}
+              <div
+                className="dg-view"
+                role="tabpanel"
+                aria-label="Documento generado"
+                data-testid="dg-preview-documento"
+                data-visible={mode === 'documento'}
+                aria-hidden={mode !== 'documento'}
+              >
+                {!hasSelectedRecord ? (
+                  /* Sin registro (búsqueda vacía o sin selección): ventana
+                       informativa centrada dentro del panel de vista previa. */
+                  <div className="dg-viewer-empty" data-testid="dg-preview-empty-records">
+                    <svg
+                      width="52"
+                      height="52"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--neutral-300)"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <circle cx="11" cy="14" r="3.2" />
+                      <line x1="13.3" y1="16.3" x2="15.5" y2="18.5" />
+                    </svg>
+                    <div className="dg-viewer-empty-title">
+                      Busca un registro para visualizar el documento.
+                    </div>
+                    <div className="dg-viewer-empty-sub">
+                      Escribe un radicado, una cuenta, un proceso o un nombre en el buscador
+                      superior y selecciona el registro para cargar su documento.
+                    </div>
+                  </div>
+                ) : !selectedTemplate ? (
+                  <div className="dg-viewer-empty" data-testid="dg-preview-empty-template">
+                    <svg
+                      width="52"
+                      height="52"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--neutral-300)"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <div className="dg-viewer-empty-title">Selecciona una plantilla</div>
+                    <div className="dg-viewer-empty-sub">
+                      Elígela del catálogo para generar el documento del registro seleccionado
+                    </div>
+                  </div>
+                ) : (
+                  <div className="dg-viewer-inner">
+                    {/* Contenedor persistente: nunca se desmonta para que el
+                        efecto de render conserve siempre un objetivo válido. */}
+                    <div
+                      ref={docWrapperRef}
+                      data-testid="dg-doc-container"
+                      className="dg-doc-layer"
+                      style={
+                        docRendering || !engineTemplate?.file || docxRenderFailed
+                          ? { display: 'none' }
+                          : undefined
+                      }
+                    />
+                    {docRendering && (
+                      <div
+                        className="dg-loading"
+                        data-testid="dg-doc-loading"
+                        aria-label="Generando vista previa"
+                      >
+                        <div className="dg-skeleton" />
+                        <div className="dg-skeleton dg-skeleton--short" />
+                        <div className="dg-skeleton" />
+                      </div>
+                    )}
+                    {!docRendering && (!engineTemplate?.file || docxRenderFailed) && (
+                      <div className="dg-fallback">
+                        {previewHtml ? (
+                          <div
+                            data-testid="dg-fallback-content"
+                            className="dg-fallback-text"
+                            dangerouslySetInnerHTML={{ __html: previewHtml }}
+                          />
+                        ) : (
+                          fallbackDataBlock('dg-fallback-content')
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1106,6 +1259,12 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
         </aside>
       </div>
 
+      <RadicarModal
+        open={radicarOpen}
+        onClose={() => setRadicarOpen(false)}
+        record={activeRecord}
+      />
+
       <BuildTemplateGuideModal
         open={guideOpen}
         onClose={() => setGuideOpen(false)}
@@ -1118,7 +1277,7 @@ export function GenerateView({ onAddHistory }: GenerateViewProps) {
 export default GenerateView;
 
 /* ═══════════════════════════════════════════════════════════════
-   STYLES — Módulo 4: Generación Documental
+   STYLES — Módulo 3: Generación Documental
    Tokens del sistema (var(--*)) + acento ESSA. Motion budget:
    hover 120-150ms · tabs/paneles 200-250ms · shimmer 1.6s.
    ═══════════════════════════════════════════════════════════════ */
@@ -1137,6 +1296,10 @@ const dgStyles = `
   .dg-header-sub { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 400; color: #64748b; margin: 0; }
   .dg-header-sub::before { content: "•"; color: #94a3b8; font-size: 0.9rem; line-height: 1; }
   .dg-header-right { display: flex; gap: 10px; align-items: center; flex-shrink: 0; margin-left: auto; }
+  .dg-radicar-btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border: none; border-radius: 9999px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); box-shadow: 0 4px 15px rgba(16,185,129,.3); color: #fff; font-size: 0.78rem; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  .dg-radicar-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(16,185,129,.45); }
+  .dg-radicar-btn:active { transform: translateY(0) scale(0.98); }
+  .dg-radicar-btn:focus-visible { outline: 2px solid #6ee7b7; outline-offset: 2px; }
   .dg-build-btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border: none; border-radius: 9999px; background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%); box-shadow: 0 4px 15px rgba(37,99,235,.3); color: #fff; font-size: 0.78rem; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
   .dg-build-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37,99,235,.45); }
   .dg-build-btn:active { transform: translateY(0) scale(0.98); }
@@ -1147,8 +1310,16 @@ const dgStyles = `
   .dg-back-btn:hover svg { color: #0f172a; transform: translateX(-4px); }
   .dg-back-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
 
-  /* ── Layout ── */
-  .dg-layout { display: grid; grid-template-columns: 264px minmax(0, 1fr) 300px; gap: 12px; align-items: stretch; }
+  /* ── Layout ──
+     En escritorio (≥1101px) la fila se ajusta al alto exacto del layout
+     (minmax(0,1fr)) para que las tres columnas terminen a la misma línea y
+     cada panel gestione su desbordamiento con scroll propio: sin huecos
+     blancos y sin recortes. En pantallas menores las filas se miden por su
+     contenido, con catálogo y vista previa limitados a la misma altura. */
+  .dg-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr) 280px; gap: 12px; align-items: stretch; min-height: ${DG_LAYOUT_MIN_HEIGHT}px; }
+  @media (min-width: 1101px) {
+    .dg-layout { grid-auto-rows: minmax(0, 1fr); }
+  }
   @media (max-width: 1100px) {
     .dg-layout { grid-template-columns: 240px minmax(0, 1fr); }
     .dg-side { grid-column: 1 / -1; }
@@ -1166,9 +1337,9 @@ const dgStyles = `
   .dg-panel-step { font-size: 0.6rem; font-weight: 700; color: var(--neutral-500); background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
 
   /* ── Templates panel ── */
-  .dg-templates { min-height: 0; }
+  .dg-templates { min-height: 0; overflow: visible !important; align-self: stretch; display: flex; flex-direction: column; }
   @media (max-width: 1100px) {
-    .dg-templates { max-height: 640px; }
+    .dg-templates { max-height: ${DG_PANEL_MAX_HEIGHT}px; }
   }
   .dg-panel-search { padding: 8px 10px 4px; flex-shrink: 0; }
   .dg-cats { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 6px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -1177,23 +1348,27 @@ const dgStyles = `
   .dg-chip:hover { border-color: var(--essa-primary); color: var(--essa-primary); box-shadow: 0 1px 4px rgba(0,75,147,.1); }
   .dg-chip.active { background: var(--essa-primary); border-color: var(--essa-primary); color: #fff; box-shadow: 0 2px 6px rgba(0,75,147,.25); }
   .dg-chip:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }
-  .dg-list { flex: 1 1 auto; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 5px; min-height: 120px; }
-  .dg-list::-webkit-scrollbar { width: 5px; }
+  .dg-list { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; padding: 8px; display: flex; flex-direction: column; gap: 5px; min-height: 0; }
+  .dg-list::-webkit-scrollbar { width: 4px; }
   .dg-list::-webkit-scrollbar-thumb { background: var(--neutral-300); border-radius: 999px; }
   .dg-list-empty { text-align: center; padding: 20px 8px; color: var(--neutral-400); font-size: 0.72rem; }
-  .dg-tpl { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: var(--white); cursor: pointer; text-align: left; width: 100%; transition: border-color 150ms var(--ease), background 150ms var(--ease), transform 150ms var(--ease), box-shadow 150ms var(--ease); animation: dg-cardIn 260ms var(--ease) both; }
+
+  /* ── Item de plantilla ── */
+  .dg-tpl-item-wrap { position: relative; width: 100%; }
+  .dg-tpl { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: var(--white); cursor: pointer; text-align: left; width: 100%; transition: border-color 150ms var(--ease), background 150ms var(--ease), transform 150ms var(--ease), box-shadow 150ms var(--ease); animation: dg-cardIn 260ms var(--ease) both; }
   .dg-tpl:hover { border-color: #93c5fd; background: linear-gradient(180deg, #ffffff 0%, var(--essa-primary-50) 100%); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,75,147,.1); }
   .dg-tpl:active { transform: translateY(0) scale(0.99); }
   .dg-tpl.active { border-color: var(--essa-primary); background: var(--essa-primary-50); box-shadow: 0 0 0 1px rgba(0,75,147,.14), 0 3px 10px rgba(0,75,147,.1); }
   .dg-tpl:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }
-  .dg-tpl-icon { width: 26px; height: 26px; border-radius: 7px; background: var(--neutral-100); color: var(--neutral-500); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 150ms var(--ease), color 150ms var(--ease); }
+  .dg-tpl-icon { width: 24px; height: 24px; border-radius: 6px; background: var(--neutral-100); color: var(--neutral-500); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 150ms var(--ease), color 150ms var(--ease); }
   .dg-tpl.active .dg-tpl-icon { background: #dbeafe; color: var(--essa-primary); }
-  .dg-tpl-info { flex: 1; min-width: 0; }
-  .dg-tpl-name { display: block; font-size: 0.72rem; font-weight: 700; color: var(--neutral-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dg-tpl-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .dg-tpl-name { display: block; font-size: 0.72rem; font-weight: 700; color: var(--neutral-900); white-space: normal; line-height: 1.3; word-break: break-word; }
   .dg-tpl.active .dg-tpl-name { color: var(--essa-primary); }
-  .dg-tpl-meta { display: flex; gap: 6px; align-items: center; font-size: 0.6rem; color: var(--neutral-500); margin-top: 2px; }
+  .dg-tpl-meta { display: flex; gap: 6px; align-items: center; font-size: 0.62rem; color: var(--neutral-500); }
   .dg-tpl-assigned { color: var(--success); font-weight: 800; }
   .dg-tpl-check { color: var(--essa-primary); flex-shrink: 0; }
+
   .dg-pagination { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-top: 1px solid var(--border); background: var(--neutral-50); flex-shrink: 0; }
   .dg-page-arrow { width: 26px; height: 26px; border-radius: var(--radius-xs); border: 1px solid var(--border); background: var(--white); color: var(--neutral-600); cursor: pointer; font-size: 0.85rem; line-height: 1; transition: border-color 120ms var(--ease), color 120ms var(--ease), background 120ms var(--ease); }
   .dg-page-arrow:hover:not(:disabled) { border-color: var(--essa-primary); color: var(--essa-primary); background: var(--essa-primary-50); }
@@ -1201,8 +1376,15 @@ const dgStyles = `
   .dg-page-arrow:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }
   .dg-page-text { font-size: 0.68rem; font-weight: 700; color: var(--neutral-600); }
 
-  /* ── Preview card ── */
-  .dg-preview-card { min-height: 560px; }
+  /* ── Preview card ──
+     min-height ≥ cabecera (≈60px) + visor (480px) para que el visor nunca
+     quede recortado dentro de la tarjeta. Fuera de escritorio se limita el
+     alto de la tarjeta (igual que el catálogo) para que ambos paneles
+     terminen a la misma línea y la página no se dispare. */
+  .dg-preview-card { min-height: ${DG_LAYOUT_MIN_HEIGHT}px; }
+  @media (max-width: 1100px) {
+    .dg-preview-card { max-height: ${DG_PANEL_MAX_HEIGHT}px; }
+  }
   .dg-preview-hdr { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, var(--neutral-50) 0%, #f1f5f9 100%); flex-shrink: 0; flex-wrap: wrap; }
   .dg-modes { position: relative; display: inline-flex; align-items: stretch; width: auto; max-width: 100%; background: rgba(255,255,255,.7); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,1); outline: 1px solid var(--border); border-radius: 999px; padding: 4px; isolation: isolate; box-shadow: 0 10px 30px rgba(0,0,0,.05), inset 0 2px 5px rgba(255,255,255,.8); }
   .dg-modes-pill { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 999px; pointer-events: none; z-index: 0; background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 6px 16px rgba(37,99,235,.35); will-change: transform; transition: transform 0.45s cubic-bezier(0.34, 1.3, 0.64, 1), opacity 0.3s ease, box-shadow 0.3s ease; }
@@ -1226,26 +1408,42 @@ const dgStyles = `
     .dg-modes-pill, .dg-modes-pill::after, .dg-mode-btn, .dg-mode-btn svg { transition: none; }
   }
 
-  .dg-viewer { position: relative; background: linear-gradient(180deg, #f7f9fc 0%, #edf1f6 100%); min-height: 500px; max-height: 640px; overflow-y: auto; overflow-x: auto; flex: 1 1 auto; border-top: 1px solid var(--neutral-100); }
-  .dg-viewer::-webkit-scrollbar { width: 8px; height: 8px; }
-  .dg-viewer::-webkit-scrollbar-thumb { background: var(--neutral-300); border-radius: 999px; }
-  .dg-views { display: grid; min-height: 500px; }
-  .dg-view { grid-area: 1 / 1; display: flex; flex-direction: column; align-items: stretch; opacity: 0; transform: translateY(10px); visibility: hidden; pointer-events: none; transition: opacity 220ms ease-out, transform 220ms ease-out, visibility 0ms linear 220ms; }
+  /* ── Visor de documento ──
+     Sin tope propio: el visor siempre ocupa lo que mida la tarjeta (flex 1)
+     y sólo hace scroll cuando el documento es más largo que el panel, así
+     nunca queda un hueco blanco debajo del contenido. */
+  .dg-viewer { position: relative; background: linear-gradient(160deg, #f4f7fb 0%, #e8eef6 100%); min-height: 480px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; flex: 1 1 auto; border-top: 1px solid var(--neutral-100); scrollbar-width: thin; scrollbar-color: var(--neutral-300) transparent; }
+  .dg-viewer::-webkit-scrollbar { width: 8px; }
+  .dg-viewer::-webkit-scrollbar-track { background: transparent; }
+  .dg-viewer::-webkit-scrollbar-thumb { background: var(--neutral-300); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+  .dg-viewer::-webkit-scrollbar-thumb:hover { background: var(--neutral-400); background-clip: padding-box; }
+  /* El contenedor de vistas apila ambas vistas en la misma celda. La vista
+     inactiva se saca del flujo (absoluta y recortada) para que su contenido
+     no inflle la altura del contenedor: así el panel activo —y su mensaje
+     vacío— se mide y centra solo con su propio contenido, sin dejar zona
+     muerta ni scroll. */
+  .dg-views { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr); min-height: max(480px, 100%); width: 100%; }
+  .dg-view { grid-area: 1 / 1; min-width: 0; display: flex; flex-direction: column; align-items: stretch; opacity: 0; transform: translateY(10px); visibility: hidden; pointer-events: none; transition: opacity 220ms ease-out, transform 220ms ease-out, visibility 0ms linear 220ms; }
   .dg-view[data-visible="true"] { opacity: 1; transform: translateY(0); visibility: visible; pointer-events: auto; transition: opacity 220ms ease-out, transform 220ms ease-out, visibility 0ms; }
-  .dg-viewer-inner { display: block; width: 100%; padding: 30px 24px 34px; }
-  .dg-doc-layer { display: block; width: 100%; }
+  .dg-view[data-visible="false"] { position: absolute; inset: 0; overflow: hidden; }
+  .dg-viewer-inner { display: block; width: 100%; padding: 20px 16px 24px; box-sizing: border-box; }
+  .dg-doc-layer { display: block; width: 100%; overflow-x: hidden; }
   /* ── Hojas de documento unificadas: ambos modos usan el mismo pipeline de
      docx-preview, por lo que las secciones conservan su ancho intrínseco
      (pageSize del Word) y se centran igual en los dos modos. ── */
   .dg-viewer-page { scroll-margin-top: 20px; margin: 0 auto 22px; background: #fff; border-radius: 5px; box-shadow: 0 8px 30px rgba(15,23,42,.14), 0 2px 8px rgba(15,23,42,.08); }
   .dg-viewer-page > section { margin: 0 !important; box-shadow: none !important; border-radius: 5px !important; }
   /* ── Normalización del contenedor propio de docx-preview (idéntica en ambos modos) ── */
-  .dg-viewer-inner .docx-wrapper, .dg-doc-layer .docx-wrapper { display: block !important; width: 100% !important; background: transparent !important; padding: 0 !important; margin: 0 auto !important; box-shadow: none !important; border: none !important; }
+  /* ── Normalización del contenedor propio de docx-preview (idéntica en ambos modos) ──
+     El contenedor y las secciones conservan su ancho intrínseco (el pageSize
+     de Word) y se centran; fitDocxToPane() los escala con zoom para que
+     quepan en el ancho del panel sin cortar tablas ni texto. */
+  .dg-viewer-inner .docx-wrapper, .dg-doc-layer .docx-wrapper { display: block !important; width: max-content !important; max-width: none !important; background: transparent !important; padding: 0 !important; margin: 0 auto !important; box-shadow: none !important; border: none !important; }
   .dg-viewer-inner .docx-wrapper > section.docx, .dg-doc-layer .docx-wrapper > section.docx,
-  .dg-viewer-inner .docx-wrapper > section[class*="docx"], .dg-doc-layer .docx-wrapper > section[class*="docx"] { display: block !important; margin: 0 auto 22px !important; box-shadow: 0 8px 30px rgba(15,23,42,.14), 0 2px 8px rgba(15,23,42,.08) !important; border-radius: 5px !important; background: #ffffff !important; overflow: hidden; }
+  .dg-viewer-inner .docx-wrapper > section[class*="docx"], .dg-doc-layer .docx-wrapper > section[class*="docx"] { display: block !important; margin: 0 auto 18px !important; box-shadow: 0 6px 24px rgba(15,23,42,.12), 0 2px 6px rgba(15,23,42,.07) !important; border-radius: 6px !important; background: #ffffff !important; overflow: hidden; }
   .dg-viewer-inner .docx-wrapper > section.docx:last-child, .dg-doc-layer .docx-wrapper > section.docx:last-child { margin-bottom: 0 !important; }
-  .dg-fallback { display: flex; justify-content: center; padding: 26px 20px; width: 100%; }
-  .dg-fallback .dg-fallback-text, .dg-fallback-text { background: var(--white); padding: 26px 30px; box-shadow: 0 4px 20px rgba(0,0,0,.08); border-radius: 4px; min-height: 220px; max-width: 600px; width: 100%; font-family: Georgia, "Times New Roman", serif; font-size: 11px; line-height: 1.75; color: var(--neutral-900); white-space: pre-wrap; word-break: break-word; }
+  .dg-fallback { display: flex; justify-content: center; padding: 20px 16px; width: 100%; box-sizing: border-box; }
+  .dg-fallback .dg-fallback-text, .dg-fallback-text { background: var(--white); padding: 22px 26px; box-shadow: 0 4px 20px rgba(0,0,0,.08); border-radius: 6px; min-height: 200px; max-width: 100%; width: 100%; font-family: Georgia, "Times New Roman", serif; font-size: 11px; line-height: 1.75; color: var(--neutral-900); white-space: pre-wrap; word-break: break-word; box-sizing: border-box; }
   .dg-fallback-empty { color: var(--neutral-400); font-style: italic; font-family: inherit; }
   .dg-fallback-data { font-family: inherit; }
   .dg-fallback-data-title { font-size: 0.78rem; font-weight: 800; color: var(--essa-primary); margin-bottom: 10px; }
@@ -1261,8 +1459,14 @@ const dgStyles = `
   .dg-skeleton { height: 14px; border-radius: 7px; background: var(--neutral-200); animation: dg-shimmer 1.6s ease-in-out infinite; }
   .dg-skeleton--short { width: 55%; }
 
-  /* ── Right side ── */
-  .dg-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  /* ── Right side ──
+     En escritorio el panel recibe el alto del layout: si el contenido de las
+     descripciones no cabe, hace scroll interno en vez de quedar recortado. */
+  .dg-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--neutral-300) transparent; }
+  .dg-side::-webkit-scrollbar { width: 8px; }
+  .dg-side::-webkit-scrollbar-track { background: transparent; }
+  .dg-side::-webkit-scrollbar-thumb { background: var(--neutral-300); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+  .dg-side::-webkit-scrollbar-thumb:hover { background: var(--neutral-400); background-clip: padding-box; }
   /* ── Botón principal Generar documento ── */
   @keyframes dg-btn-shine { 0% { transform: translateX(-130%) skewX(-12deg); opacity: 0; } 12% { opacity: 1; } 55% { transform: translateX(130%) skewX(-12deg); opacity: 0; } 100% { transform: translateX(130%) skewX(-12deg); opacity: 0; } }
   @keyframes dg-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

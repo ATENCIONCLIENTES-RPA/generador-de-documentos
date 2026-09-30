@@ -148,7 +148,7 @@ function resetStores() {
   }
 }
 
-describe('GenerateView — Módulo 4: Generación Documental (unificado)', () => {
+describe('GenerateView — Módulo 3: Generación Documental (unificado)', () => {
   beforeEach(async () => {
     resetStores();
     vi.clearAllMocks();
@@ -172,13 +172,13 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(useNavigationStore.getState().currentStep).toBe('configuracion');
   });
 
-  it('renderiza encabezado Módulo 4: Generación Documental + layout 3 paneles', () => {
+  it('renderiza encabezado Módulo 3: Generación Documental + layout 3 paneles', () => {
     const tpl = makeTemplate({ id: 'tpl-1' });
     const rec = makeRecord({ rowId: 'row_0_1' });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: null });
     seedData([rec], ['row_0_1']);
     render(<GenerateView />);
-    expect(screen.getByText('Módulo 4: Generación Documental')).toBeInTheDocument();
+    expect(screen.getByText('Módulo 3: Generación Documental')).toBeInTheDocument();
     expect(screen.getByTestId('dg-layout')).toBeInTheDocument();
     expect(screen.getByText('Plantillas')).toBeInTheDocument();
     expect(screen.getByTestId('dg-desc-card')).toBeInTheDocument();
@@ -211,7 +211,7 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(screen.getByTestId('dg-title-tpl-2')).toHaveTextContent('Contrato ESSA');
   });
 
-  it('buscador y categorías filtran el catálogo', () => {
+  it('buscador filtra el catálogo por nombre', () => {
     const t1 = makeTemplate({ id: 'tpl-1', title: 'Carta Bloqueo', category: 'Cartas' });
     const t2 = makeTemplate({ id: 'tpl-2', title: 'Contrato Comercial', category: 'Contratos' });
     useTemplateStore.setState({ templates: [t1, t2], selectedTemplate: null });
@@ -222,17 +222,12 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(screen.getByTestId('dg-card-tpl-1')).toBeInTheDocument();
     expect(screen.queryByTestId('dg-card-tpl-2')).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByTestId('dg-search-input'), { target: { value: '' } });
-    fireEvent.click(screen.getByTestId('dg-cat-Contratos'));
-    expect(screen.queryByTestId('dg-card-tpl-1')).not.toBeInTheDocument();
-    expect(screen.getByTestId('dg-card-tpl-2')).toBeInTheDocument();
-
     fireEvent.change(screen.getByTestId('dg-search-input'), { target: { value: 'Inexistente' } });
     expect(screen.getByTestId('dg-empty-search')).toBeInTheDocument();
   });
 
-  it('paginación del catálogo con más de 8 plantillas', () => {
-    const templates = Array.from({ length: 9 }, (_, i) =>
+  it('paginación del catálogo con más de 14 plantillas', () => {
+    const templates = Array.from({ length: 15 }, (_, i) =>
       makeTemplate({ id: `tpl-${i}`, title: `Plantilla ${i}` })
     );
     useTemplateStore.setState({ templates, selectedTemplate: null });
@@ -240,7 +235,7 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     render(<GenerateView />);
     expect(screen.getByTestId('dg-pagination')).toBeInTheDocument();
     expect(screen.getByTestId('dg-page-indicator')).toHaveTextContent('1/2');
-    expect(screen.getAllByTestId(/^dg-card-tpl-/)).toHaveLength(8);
+    expect(screen.getAllByTestId(/^dg-card-tpl-/)).toHaveLength(14);
     fireEvent.click(screen.getByTestId('dg-next-page'));
     expect(screen.getByTestId('dg-page-indicator')).toHaveTextContent('2/2');
     expect(screen.getAllByTestId(/^dg-card-tpl-/)).toHaveLength(1);
@@ -264,16 +259,45 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(screen.getByTestId('dg-generate-btn')).toBeEnabled();
   });
 
-  it('sin registro seleccionado muestra aviso para ir al Módulo 3', () => {
+  it('sin registro seleccionado muestra aviso en el visor', () => {
     const tpl = makeTemplate({ id: 'tpl-1' });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
     seedData([], []);
     render(<GenerateView />);
-    expect(screen.getByTestId('dg-preview-empty-records')).toBeInTheDocument();
+    expect(screen.getByTestId('dg-preview-empty-records')).toHaveTextContent(
+      'Busca un registro para visualizar el documento.'
+    );
     expect(screen.getByTestId('dg-desc-empty')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('dg-go-datos'));
-    expect(useNavigationStore.getState().currentStep).toBe('datos');
     expect(screen.getByTestId('dg-generate-btn')).toBeDisabled();
+  });
+
+  it('en modo Documento sin registro el aviso tiene prioridad, también sin plantilla', () => {
+    useTemplateStore.setState({
+      templates: [makeTemplate({ id: 'tpl-1' })],
+      selectedTemplate: null,
+    });
+    seedData([], []);
+    render(<GenerateView />);
+
+    expect(screen.getByTestId('dg-preview-empty-records')).toHaveTextContent(
+      'Busca un registro para visualizar el documento.'
+    );
+    // Cada vista conserva su propio estado vacío (Diseño pide plantilla).
+    expect(screen.getByTestId('dg-preview-empty')).toHaveTextContent('Selecciona una plantilla');
+  });
+
+  it('en modo Documento con registro pero sin plantilla pide elegir plantilla', () => {
+    useTemplateStore.setState({
+      templates: [makeTemplate({ id: 'tpl-1' })],
+      selectedTemplate: null,
+    });
+    const rec = makeRecord({ rowId: 'row_sin_tpl', nombreSolicitante: 'Ana Torres' });
+    seedData([rec], ['row_sin_tpl']);
+    render(<GenerateView />);
+
+    expect(screen.getByTestId('dg-preview-empty-template')).toHaveTextContent(
+      'Selecciona una plantilla'
+    );
   });
 
   it('modo Diseño muestra el contenido de la plantilla sin datos', () => {
@@ -428,14 +452,33 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(screen.getByTestId('dg-generate-btn').getAttribute('title')).toMatch(/plantilla/i);
   });
 
-  it('volver regresa al Módulo 3', () => {
+  it('volver regresa a Cuadro de Mando (Módulo 2)', () => {
     const tpl = makeTemplate({ id: 'tpl-1' });
     const rec = makeRecord({ rowId: 'row_0_1' });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
     seedData([rec], ['row_0_1']);
     render(<GenerateView />);
     fireEvent.click(screen.getByTestId('dg-volver'));
-    expect(useNavigationStore.getState().currentStep).toBe('datos');
+    expect(useNavigationStore.getState().currentStep).toBe('inicio');
+  });
+
+  it('abre el modal Gestionar datos para radicar desde Generación Documental', () => {
+    const tpl = makeTemplate({ id: 'tpl-1' });
+    const rec = makeRecord({ rowId: 'row_0_1', nombreSolicitante: 'Carlos Pérez' });
+    useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
+    seedData([rec], ['row_0_1']);
+    render(<GenerateView />);
+
+    const btnRadicar = screen.getByTestId('dv-enviar-radicar');
+    expect(btnRadicar).toBeInTheDocument();
+    fireEvent.click(btnRadicar);
+
+    expect(screen.getByTestId('radicar-referencia')).toBeInTheDocument();
+    expect(screen.getByTestId('radicar-copiar')).toBeInTheDocument();
+    expect(screen.getByTestId('radicar-enviar')).toBeInTheDocument();
+    expect((screen.getByTestId('radicar-referencia') as HTMLTextAreaElement).value).toContain(
+      'Carlos Pérez'
+    );
   });
 
   it('modo Documento: render docx exitoso muestra las páginas generadas', async () => {
@@ -476,7 +519,7 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(wrapper.style.padding).toBe('0px');
   });
 
-  it('Módulo 4: franja del solicitante bajo el banner con los datos del registro', () => {
+  it('Módulo 3: franja del solicitante bajo el banner con los datos del registro', () => {
     const tpl = makeTemplate({ id: 'tpl-1' });
     const rec = makeRecord({ rowId: 'row_0_1', nombreSolicitante: 'María López' });
     useTemplateStore.setState({ templates: [tpl], selectedTemplate: tpl });
@@ -487,7 +530,7 @@ describe('GenerateView — Módulo 4: Generación Documental (unificado)', () =>
     expect(screen.getByTestId('dg-applicant-nombre')).toHaveValue('María López');
   });
 
-  it('Módulo 4: tarjeta Descripciones con Mejorar texto para el registro', async () => {
+  it('Módulo 3: tarjeta Descripciones con Mejorar texto para el registro', async () => {
     const tpl = makeTemplate({ id: 'tpl-1', file: fakeFile() });
     const rec = makeRecord({
       rowId: 'row_0_1',

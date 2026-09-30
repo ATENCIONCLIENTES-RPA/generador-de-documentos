@@ -286,7 +286,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
     set((s) => {
       // Módulo 3: selección única — solo un registro a la vez.
       if (s.selectedRows.has(id)) return { selectedRows: new Set<string>() };
-      // Si el registro estaba excluido en el Módulo 4 (borrado/limpiado), al seleccionarlo debe reaparecer
+      // Si el registro estaba excluido en el Módulo 3 (borrado/limpiado), al seleccionarlo debe reaparecer
       try {
         useGenerationStore.getState().removeExcludedId(id);
       } catch {
@@ -397,7 +397,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   assignTemplate: (rowId, templateId) =>
     set((s) => {
-      // Al reasignar plantilla en el Módulo 4, el registro debe volver a aparecer si estaba excluido
+      // Al reasignar plantilla en el Módulo 3, el registro debe volver a aparecer si estaba excluido
       try {
         useGenerationStore.getState().removeExcludedId(rowId);
       } catch {

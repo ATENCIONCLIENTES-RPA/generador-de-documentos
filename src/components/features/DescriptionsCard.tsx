@@ -76,7 +76,7 @@ function patchFor(field: DescField, value: string): Partial<EssaRecord> {
   } as Partial<EssaRecord>;
 }
 
-/** Tarjeta de descripciones del registro seleccionado (Módulo 4).
+/** Tarjeta de descripciones del registro seleccionado (Módulo 3).
  *  Permite editar los textos que alimentan las variables OBSERVACION_*
  *  del documento y mejorarlos con el corrector offline. */
 export function DescriptionsCard() {
@@ -238,7 +238,7 @@ export function DescriptionsCard() {
 export default DescriptionsCard;
 
 /* ═══════════════════════════════════════════════════════════════
-   STYLES — Tarjeta de descripciones (Módulo 4)
+   STYLES — Tarjeta de descripciones (Módulo 3)
    ═══════════════════════════════════════════════════════════════ */
 const descStyles = `
   @keyframes dg-desc-spin { to { transform: rotate(360deg); } }
@@ -246,8 +246,13 @@ const descStyles = `
   .dg-desc { display: flex; flex-direction: column; min-height: 0; height: 100%; }
   .dg-desc--empty { border: 1px dashed var(--border); border-radius: var(--radius-md); background: var(--bg-card); padding: 16px; text-align: center; }
   .dg-desc-empty-text { font-size: 0.72rem; color: var(--neutral-400); line-height: 1.5; }
-  .dg-desc-body { display: flex; flex-direction: column; gap: 14px; padding: 16px; flex: 1 1 auto; min-height: 0; }
-  .dg-desc-group { display: flex; flex-direction: column; gap: 8px; flex: 1 1 0; min-height: 0; }
+  /* El cuerpo hace scroll cuando las descripciones no caben en el alto
+     disponible (escritorio); los grupos se reparten el espacio sobrante. */
+  .dg-desc-body { display: flex; flex-direction: column; gap: 14px; padding: 16px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--neutral-300) transparent; }
+  .dg-desc-body::-webkit-scrollbar { width: 8px; }
+  .dg-desc-body::-webkit-scrollbar-track { background: transparent; }
+  .dg-desc-body::-webkit-scrollbar-thumb { background: var(--neutral-300); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+  .dg-desc-group { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; }
   .dg-desc-group + .dg-desc-group { border-top: 1px solid var(--neutral-100); padding-top: 14px; }
   .dg-desc-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
   .dg-desc-label { flex: 1 1 auto; min-width: 0; font-size: 0.74rem; font-weight: 700; color: var(--neutral-600); letter-spacing: -0.01em; line-height: 1.4; }

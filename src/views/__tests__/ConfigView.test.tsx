@@ -96,7 +96,7 @@ describe('ConfigView allReady gate', () => {
     render(<ConfigView />);
     fireEvent.click(screen.getByTestId('m2-continuar'));
     expect(useDataStore.getState().selectedRows.size).toBe(0);
-    expect(useNavigationStore.getState().currentStep).toBe('datos');
+    expect(useNavigationStore.getState().currentStep).toBe('generacion');
     expect(useNavigationStore.getState().completed.has('configuracion')).toBe(true);
   });
 
