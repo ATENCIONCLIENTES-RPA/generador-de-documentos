@@ -1,19 +1,110 @@
-<!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-    <title>ESSA — Asistente Documental</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asistente Documental · ESSA</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%231664B0'/%3E%3Cpath d='M13 9h10l6 6v15a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Z' fill='%23fff'/%3E%3Cpath d='M31 5l1.4 3.6L36 10l-3.6 1.4L31 15l-1.4-3.6L26 10l3.6-1.4Z' fill='%23D21624'/%3E%3C/svg%3E">
+<script>
+/* Tema inicial antes de pintar (evita parpadeo). Comparte las claves que ya usaban los módulos. */
+(function(){var t='light';try{t=localStorage.getItem('essa-theme')||localStorage.getItem('essa_cm_theme')||'light';}catch(e){}
+document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');})();
+</script>
+</head>
+<body>
+<header class="ad-bar">
+  <nav class="ad-nav" id="adNav" role="tablist" aria-label="Módulos del Asistente Documental">
+    <span class="ad-ink" id="adInk" aria-hidden="true"></span>
+  </nav>
+  <div class="ad-tools">
+    <button class="ad-theme" id="adTheme" type="button" role="switch" aria-label="Modo oscuro" aria-checked="false"><span class="ad-knob" id="adKnob"></span></button>
+    <span class="ad-sep" aria-hidden="true"></span>
+  </div>
+  <a class="ad-brand" href="#/" id="adBrand" aria-label="Asistente Documental · ESSA">
+    <span class="ad-brand-txt"><span class="ad-brand-k">Asistente</span> <span class="ad-brand-n">Documental</span></span>
+    <svg class="ad-mark" id="adMark" viewBox="0 0 40 40" aria-hidden="true">
+      <defs>
+        <linearGradient id="mkBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1664B0"/><stop offset="1" stop-color="#1E40AF"/></linearGradient>
+        <linearGradient id="mkSheet" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EAF2FC"/></linearGradient>
+      </defs>
+      <rect width="40" height="40" rx="11" fill="url(#mkBg)"/>
+      <path d="M8 40h20a12 12 0 0 0 12-12V22C30 31 19 37 8 40Z" fill="#fff" opacity=".07"/>
+      <!-- hoja -->
+      <path d="M12.5 8.5h10.2l6.3 6.3V29a2.5 2.5 0 0 1-2.5 2.5h-14A2.5 2.5 0 0 1 10 29V11a2.5 2.5 0 0 1 2.5-2.5Z" fill="url(#mkSheet)"/>
+      <path d="M22.7 8.5v4.3a2 2 0 0 0 2 2H29Z" fill="#BFDBFE"/>
+      <!-- líneas de texto que se convierten en traza de datos -->
+      <path d="M14 17.5h7" stroke="#1664B0" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M14 21.5h11" stroke="#BFDBFE" stroke-width="1.8" stroke-linecap="round"/>
+      <path class="mk-trace" d="M14 25.5h6.5l2.5-2.5h9.5" stroke="#1E40AF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <circle cx="33" cy="23" r="2.2" fill="#fff" stroke="#1E40AF" stroke-width="1.4"/>
+      <!-- chispa ESSA -->
+      <path class="mk-spark" d="M31 4.2l1.5 4.3 4.3 1.5-4.3 1.5L31 15.8l-1.5-4.3-4.3-1.5 4.3-1.5Z" fill="#D21624" stroke="#fff" stroke-width="1.1" stroke-linejoin="round"/>
+    </svg>
+  </a>
+</header>
+
+<main class="ad-stage" id="adStage">
+  <div class="ad-loader" id="adLoader" role="status" aria-live="polite">
+    <div class="ad-loader-mark">
+      <svg class="ring" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/></svg>
+      <svg class="mk" viewBox="0 0 40 40" aria-hidden="true"><use href="#adMarkUse"/></svg>
+    </div>
+    <span class="ad-loader-txt" id="adLoaderTxt">Preparando…</span>
+    <div class="ad-task" id="adTask" data-state="run">
+      <div class="ad-scene" id="adScene" aria-hidden="true">
+        <svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMid meet" focusable="false">
+          <defs>
+            <clipPath id="adScClip"><rect x="10" y="10" width="130" height="100" rx="16"/></clipPath>
+            <linearGradient id="adScBeam" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#1664B0" stop-opacity="0"/><stop offset=".5" stop-color="#60A5FA" stop-opacity=".38"/><stop offset="1" stop-color="#1664B0" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="adScFade" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".22" stop-color="#fff"/><stop offset=".78" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+            </linearGradient>
+            <mask id="adScMask"><rect x="10" y="10" width="130" height="100" fill="url(#adScFade)"/></mask>
+          </defs>
+          <!-- 1 · datos de entrada (se desplazan) -->
+          <rect class="sc-panel" x="10" y="10" width="130" height="100" rx="16"/>
+          <g clip-path="url(#adScClip)"><g mask="url(#adScMask)"><g class="sc-rows">
+            <g><circle class="sc-av" cx="26" cy="24" r="4"/><rect class="sc-bar" x="38" y="20.5" width="78" height="7" rx="3.5"/><circle class="sc-av" cx="26" cy="42" r="4"/><rect class="sc-bar" x="38" y="38.5" width="58" height="7" rx="3.5"/><circle class="sc-av" cx="26" cy="60" r="4"/><rect class="sc-bar" x="38" y="56.5" width="86" height="7" rx="3.5"/><circle class="sc-av" cx="26" cy="78" r="4"/><rect class="sc-bar" x="38" y="74.5" width="48" height="7" rx="3.5"/><circle class="sc-av" cx="26" cy="96" r="4"/><rect class="sc-bar" x="38" y="92.5" width="70" height="7" rx="3.5"/><circle class="sc-av" cx="26" cy="114" r="4"/><rect class="sc-bar" x="38" y="110.5" width="62" height="7" rx="3.5"/><circle class="sc-av" cx="26" cy="132" r="4"/><rect class="sc-bar" x="38" y="128.5" width="78" height="7" rx="3.5"/><circle class="sc-av" cx="26" cy="150" r="4"/><rect class="sc-bar" x="38" y="146.5" width="58" height="7" rx="3.5"/><circle class="sc-av" cx="26" cy="168" r="4"/><rect class="sc-bar" x="38" y="164.5" width="86" height="7" rx="3.5"/><circle class="sc-av" cx="26" cy="186" r="4"/><rect class="sc-bar" x="38" y="182.5" width="48" height="7" rx="3.5"/><circle class="sc-av" cx="26" cy="204" r="4"/><rect class="sc-bar" x="38" y="200.5" width="70" height="7" rx="3.5"/><circle class="sc-av" cx="26" cy="222" r="4"/><rect class="sc-bar" x="38" y="218.5" width="62" height="7" rx="3.5"/></g>
+          </g></g>
+          <rect class="sc-beam" x="0" y="10" width="46" height="100" fill="url(#adScBeam)"/></g>
+          <rect class="sc-lens-glow" x="14" y="49" width="122" height="22" rx="11"/>
+          <rect class="sc-lens" x="14" y="49" width="122" height="22" rx="11"/>
+          <!-- 2 · filtro -->
+          <path class="sc-link" d="M142 60H218"/>
+          <circle class="sc-dot a" cx="142" cy="60" r="3"/><circle class="sc-dot b" cx="142" cy="60" r="2.4"/><circle class="sc-dot c" cx="142" cy="60" r="3"/>
+          <circle class="sc-pulse" cx="180" cy="60" r="15"/>
+          <circle class="sc-filter-bg" cx="180" cy="60" r="15"/>
+          <path class="sc-filter-ico" d="M172.5 54.5h15l-5.8 6.9v5.6l-3.4 1.9v-7.5z"/>
+          <!-- 3 · documento de respuesta -->
+          <rect class="sc-doc" x="222" y="10" width="128" height="100" rx="16"/>
+          <circle class="sc-doc-fold" cx="240" cy="29" r="7"/>
+          <rect class="sc-ln hd" x="254" y="24" width="70" height="6" rx="3"/><rect class="sc-ln hd" x="254" y="34" width="44" height="5" rx="2.5"/>
+          <rect class="sc-ln" x="236" y="50" width="100" height="5" rx="2.5"/><rect class="sc-ln" x="236" y="60" width="86" height="5" rx="2.5"/>
+          <rect class="sc-ln" x="236" y="70" width="100" height="5" rx="2.5"/><rect class="sc-ln" x="236" y="80" width="72" height="5" rx="2.5"/>
+          <rect class="sc-ln" x="236" y="90" width="52" height="5" rx="2.5"/>
+          <g class="sc-seal"><circle cx="328" cy="90" r="11"/><path d="M322.6 90.4l3.7 3.6 6.4-7.4"/></g>
+          <g class="sc-err"><circle cx="180" cy="60" r="15"/><path d="M180 53.5v8M180 66.2v.1"/></g>
+        </svg>
+      </div>
+      <div class="ad-task-copy"><b id="adTaskTitle">Procesando la información</b><span id="adTaskDetail"></span></div>
+      <div class="ad-task-meter" aria-hidden="true"><div class="ad-task-track"><i id="adTaskFill"></i></div><span class="ad-task-pct" id="adTaskPct">0%</span></div>
+      <ol class="ad-task-steps" id="adTaskSteps" aria-hidden="true"></ol>
+    </div>
+  </div>
+</main>
+
+<!-- Bibliotecas DOCX autocontenidas (public/vendor): scripts clásicos sin cambios y en el MISMO orden que el original. Sin red. -->
+<script src="./vendor/jszip.min.js"></script>
+<script src="./vendor/ad-docx-local.js"></script>
+<script src="./vendor/pizzip.min.js"></script>
+<script src="./vendor/docxtemplater.js"></script>
+<script src="./vendor/easy-template-x.js"></script>
+<script src="./vendor/docx-preview.js"></script>
+<script src="./vendor/docx-renderer.js"></script>
+<script src="./vendor/mammoth-compat.js"></script>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
 </html>

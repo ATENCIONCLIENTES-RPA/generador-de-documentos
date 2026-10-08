@@ -1,0 +1,79 @@
+/* =====================================================================
+   Asistente Documental · Guía rápida (componente compartido)
+   Única fuente de los estilos del botón "Guía rápida" y del tour guiado.
+   Los tres módulos lo cargan tal cual (vía build.py); ninguno redefine
+   estas reglas. Los valores con var(--x, fallback) garantizan la misma
+   apariencia exacta aunque un módulo no declare esa variable en su :root.
+   ===================================================================== */
+.btn-guide{
+  --acc:#334155;--acc-bg:#EEF1F4;--acc-bd:#D7DEE5;--acc-bd-h:#B7C2CC;
+  display:inline-flex;align-items:center;gap:9px;padding:6px 16px 6px 6px;
+  background:var(--blanco,#fff);color:var(--acc);border:1.5px solid var(--acc-bd);border-radius:999px;
+  font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;position:relative;
+  transition:background .25s ease,border-color .25s ease,box-shadow .25s ease,transform .15s ease;
+}
+.btn-guide:hover{background:var(--acc-bg);border-color:var(--acc-bd-h);box-shadow:0 4px 10px -3px rgba(51,65,85,.25);transform:translateY(-1px);}
+.btn-guide:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(51,65,85,.25);}
+.btn-guide .chip-ic{width:26px;height:26px;border-radius:50%;flex-shrink:0;background:var(--acc-bg);color:var(--acc);display:flex;align-items:center;justify-content:center;transition:background .25s ease;}
+.btn-guide .chip-ic svg{width:14px;height:14px;}
+.btn-guide:hover .chip-ic{background:var(--blanco,#fff);}
+.btn-guide .pulse-dot{position:absolute;top:2px;right:2px;width:9px;height:9px;border-radius:50%;background:#D21624;}
+.btn-guide .pulse-dot::after{content:"";position:absolute;inset:0;border-radius:50%;background:#D21624;animation:pulseDotGuide 1.8s ease-out infinite;}
+@keyframes pulseDotGuide{0%{transform:scale(1);opacity:.7;}100%{transform:scale(2.4);opacity:0;}}
+html[data-theme="dark"] .btn-guide{--acc:#D5DDE8;--acc-bg:#283142;--acc-bd:#46536A;--acc-bd-h:#7A8AA3;background:linear-gradient(180deg,#1E2636 0%,#192030 100%);color:var(--acc);}
+html[data-theme="dark"] .btn-guide:hover{background:var(--acc-bg);box-shadow:0 4px 12px -3px rgba(0,0,0,.5);}
+html[data-theme="dark"] .btn-guide .chip-ic{background:var(--acc-bg);color:var(--acc);}
+html[data-theme="dark"] .btn-guide:hover .chip-ic{background:#11151D;}
+html[data-theme="dark"] .btn-guide .pulse-dot{box-shadow:0 0 0 2px #1B2230;}
+html:not([data-theme="dark"]) .btn-guide{background:var(--g-card,var(--blanco,#fff));}
+html:not([data-theme="dark"]) .btn-guide:hover{background:var(--acc-bg);}
+
+/* ---- Tour guiado (overlay inyectado una sola vez por módulo) ---- */
+#tourOverlay{position:fixed;inset:0;z-index:9000;pointer-events:none;opacity:0;transition:opacity .3s ease;}
+#tourOverlay.open{pointer-events:auto;opacity:1;}
+.tour-highlight{
+  position:fixed;z-index:9001;border-radius:14px;pointer-events:none;
+  box-shadow:0 0 0 9999px rgba(15,20,35,.62);
+  transition:top .5s cubic-bezier(.4,0,.2,1),left .5s cubic-bezier(.4,0,.2,1),width .5s cubic-bezier(.4,0,.2,1),height .5s cubic-bezier(.4,0,.2,1),border-radius .3s ease;
+  outline:2.5px solid #fff;outline-offset:3px;
+}
+.tour-tooltip{
+  position:fixed;z-index:9002;max-width:328px;background:var(--g-panel,var(--blanco,#fff));border-radius:18px;
+  box-shadow:0 20px 50px -12px rgba(10,15,35,.45),0 0 0 1px rgba(255,255,255,.06);
+  padding:18px 18px 14px;opacity:0;transform:translateY(8px) scale(.97);
+  transition:top .5s cubic-bezier(.4,0,.2,1),left .5s cubic-bezier(.4,0,.2,1),opacity .3s ease .08s,transform .35s cubic-bezier(.34,1.56,.64,1) .08s;
+}
+.tour-tooltip.show{opacity:1;transform:translateY(0) scale(1);}
+html:not([data-theme="dark"]) .tour-tooltip{background:var(--g-panel,var(--blanco,#fff));}
+html[data-theme="dark"] .tour-tooltip{background:var(--blanco,#1B2230);}
+.tour-arrow{position:absolute;width:14px;height:14px;background:var(--blanco,#fff);transform:rotate(45deg);}
+html:not([data-theme="dark"]) .tour-arrow{background:#FFFFFF;}
+.tour-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.tour-ic{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#475569,#334155);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 10px -2px rgba(51,65,85,.45);}
+.tour-ic svg{width:17px;height:17px;}
+html[data-theme="dark"] .tour-ic{background:linear-gradient(135deg,#5B93F5,#1E40AF);}
+.tour-step-count{font-size:10.5px;font-weight:800;color:#334155;background:#EEF1F4;padding:3px 9px;border-radius:999px;margin-left:auto;white-space:nowrap;}
+html[data-theme="dark"] .tour-step-count{background:#283142;color:#D5DDE8;}
+.tour-title{font-size:14.5px;font-weight:800;color:var(--texto,#1E2A38);margin-bottom:6px;line-height:1.3;}
+.tour-text{font-size:12.8px;color:var(--texto-suave,#5C6B7D);line-height:1.55;margin-bottom:14px;}
+.tour-dots{display:flex;gap:5px;align-items:center;}
+.tour-dots span{width:6px;height:6px;border-radius:50%;background:var(--bordes,#DCE3EA);transition:all .3s ease;}
+.tour-dots span.on{width:16px;border-radius:999px;background:#334155;}
+html[data-theme="dark"] .tour-dots span{background:#2C3444;}
+html[data-theme="dark"] .tour-dots span.on{background:#8AB4F8;}
+.tour-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.tour-skip{font-size:11.5px;font-weight:700;color:var(--texto-tenue,#93A1B0);padding:6px 4px;background:none;border:0;cursor:pointer;font-family:inherit;}
+.tour-skip:hover{color:var(--texto-suave,#5C6B7D);}
+.tour-nav{display:flex;gap:6px;}
+.tour-btn{font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;border:0;cursor:pointer;font-family:inherit;transition:background .2s ease,color .2s ease,transform .15s ease;}
+.tour-btn.back{color:var(--texto-suave,#5C6B7D);background:#F1F2F6;}
+.tour-btn.back:hover{background:#E6E8EF;}
+html[data-theme="dark"] .tour-btn.back{background:#242B38;color:var(--texto-suave,#A9B1C2);}
+html[data-theme="dark"] .tour-btn.back:hover{background:#2C3444;}
+.tour-btn.next{color:#fff;background:linear-gradient(135deg,#475569,#334155);box-shadow:0 3px 8px -2px rgba(51,65,85,.45);}
+.tour-btn.next:hover{filter:brightness(1.06);transform:translateY(-1px);}
+html[data-theme="dark"] .tour-btn.next{background:linear-gradient(135deg,#5B93F5,#1E40AF);}
+@media (max-width:640px){.tour-tooltip{max-width:calc(100vw - 32px);}}
+@media (prefers-reduced-motion:reduce){
+  #tourOverlay,.tour-highlight,.tour-tooltip,.btn-guide .pulse-dot::after{transition:none!important;animation:none!important;}
+}

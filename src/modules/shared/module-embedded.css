@@ -1,0 +1,5 @@
+/* Asistente Documental · estilos comunes de módulo integrado (inyectados por el build).
+   Un módulo que no está en pantalla no consume CPU en animaciones infinitas. */
+html.ad-embedded[data-ad-active="false"] *,
+html.ad-embedded[data-ad-active="false"] *::before,
+html.ad-embedded[data-ad-active="false"] *::after{animation-play-state:paused!important;}
