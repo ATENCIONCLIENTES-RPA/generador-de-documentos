@@ -22,15 +22,26 @@ function applyAD(api: AsistenteDocumentalApi): void {
 if (AD) {
   applyAD(AD);
 } else {
-  /* El iframe puede cargar desde caché antes de que el shell asigne la API: reintentamos. */
+  /* El iframe puede cargar desde caché antes de que el shell asigne la API.
+     Se reintenta con backoff exponencial: 1er intento en el próximo frame (~16ms),
+     luego 50ms, 100ms, 200ms… hasta un máximo de 2 s en total. */
   window.AD = null;
-  let attempts = 0;
-  const MAX = 20, INTERVAL = 100; // hasta 2 s
-  const poll = setInterval(() => {
+  let elapsed = 0;
+  const MAX_MS = 2000;
+  function retry(delay: number): void {
+    if (elapsed >= MAX_MS) return;
+    setTimeout(() => {
+      elapsed += delay;
+      const api = resolveAD();
+      if (api) { AD = api; applyAD(api); return; }
+      retry(Math.min(delay * 2, 400));
+    }, delay);
+  }
+  requestAnimationFrame(() => {
     const api = resolveAD();
-    if (api) { clearInterval(poll); AD = api; applyAD(api); return; }
-    if (++attempts >= MAX) clearInterval(poll);
-  }, INTERVAL);
+    if (api) { AD = api; applyAD(api); return; }
+    retry(50);
+  });
 }
 
 /* Navegación declarativa: cualquier elemento con data-ad-nav="recursos|cuadro|documentos" */

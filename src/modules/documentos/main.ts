@@ -718,7 +718,6 @@ function formatoTitulo(v){
   const errorDetail=document.getElementById('previewErrorDetail');
   const retry=document.getElementById('previewRetry');
   const downloadBtn=document.getElementById('btnDescargar');
-  const previewPager=document.getElementById('previewPager'),previewPrev=document.getElementById('previewPrev'),previewNext=document.getElementById('previewNext'),previewPageLabel=document.getElementById('previewPageLabel');
   const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
   const R='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
   const RELS='http://schemas.openxmlformats.org/package/2006/relationships';
@@ -734,7 +733,7 @@ function formatoTitulo(v){
   function setTextoRadicacion(on){textoRadicacionActivo=!!on;const b=document.getElementById('btnTextoRad');if(b){b.classList.toggle('is-on',textoRadicacionActivo);b.setAttribute('aria-pressed',String(textoRadicacionActivo));}}
   const fallbackRecordIds=new WeakMap();let fallbackRecordSeq=0;
   let renderSeq=0,lastRenderKey='',objectUrls=[],rendererDisposers=[];
-  let resizeObserver=null,pageObserver=null,paginationFrame=0,previewPages=[],previewPageIndex=0;
+  let resizeObserver=null,pageObserver=null,paginationFrame=0,previewPages=[],headerTargets=null;
 
   const nextFrame=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
   const safeName=s=>String(s||'documento').replace(/\.docx$/i,'').replace(/[\\/:*?"<>|]+/g,'_').trim()||'documento';
@@ -761,7 +760,7 @@ function formatoTitulo(v){
     if(state==='loading')updateLoading(message,detail);
     show(loading,state==='loading');show(errorBox,state==='error');show(emptyBox,state==='empty');show(canvas,state==='ready');
     if(errorDetail)errorDetail.textContent=detail||'';
-    if(state!=='ready'){canvas.innerHTML='';if(styleHost)styleHost.innerHTML='';canvas.style.removeProperty('--preview-scale');clearObjectUrls();lastRenderKey='';previewPages=[];previewPageIndex=0;show(previewPager,false);}
+    if(state!=='ready'){canvas.innerHTML='';if(styleHost)styleHost.innerHTML='';canvas.style.removeProperty('--preview-scale');stage.style.removeProperty('height');clearObjectUrls();lastRenderKey='';previewPages=[];headerTargets=null;}
     const canDownload=state==='ready'&&mode==='generated'&&!!generatedBlob;if(bg){bg.disabled=!canDownload;bg.classList.toggle('locked',!canDownload);bg.title=canDownload?'Descargar el documento Word generado':'El documento estará disponible al finalizar el procesamiento';}
     if(downloadBtn)downloadBtn.hidden=true;
   }
@@ -800,20 +799,92 @@ function formatoTitulo(v){
     const all=Array.from(canvas.querySelectorAll('.docx-wrapper section.docx,.ooxml-pages > .ooxml-page,.mammoth-page'));
     return all.filter(page=>!all.some(other=>other!==page&&other.contains(page)));
   }
-  function collectPreviewPages(reset=true){
-    /* Limpiar marcas anteriores evita que un cambio de renderer deje páginas ocultas por error. */
-    canvas.querySelectorAll('.ad-preview-page').forEach(p=>{p.classList.remove('ad-preview-page','ad-preview-page-active');p.hidden=false;p.removeAttribute('aria-hidden');});
+  function collectPreviewPages(){
+    /* Scroll continuo: TODAS las páginas quedan visibles y apiladas en el escenario.
+       Las marcas .ad-preview-page solo identifican páginas para medición y accesibilidad. */
+    canvas.querySelectorAll('.ad-preview-page').forEach(p=>{p.classList.remove('ad-preview-page');p.hidden=false;p.removeAttribute('aria-hidden');});
     previewPages=findPreviewPages();
-    if(reset)previewPageIndex=0;previewPageIndex=Math.max(0,Math.min(previewPageIndex,Math.max(0,previewPages.length-1)));
-    previewPages.forEach((p,i)=>{const active=i===previewPageIndex;p.classList.add('ad-preview-page');p.classList.toggle('ad-preview-page-active',active);p.hidden=!active;p.setAttribute('aria-hidden',String(!active));});
-    const total=previewPages.length||1;if(previewPageLabel){const cur=Math.min(previewPageIndex+1,total);previewPageLabel.innerHTML=`<b>${cur}</b><i>/</i><em>${total}</em>`;previewPageLabel.setAttribute('aria-label',`Página ${cur} de ${total}`);}
-    if(previewPrev)previewPrev.disabled=previewPageIndex<=0;if(previewNext)previewNext.disabled=previewPageIndex>=total-1;show(previewPager,previewPages.length>0);
+    previewPages.forEach(p=>{p.classList.add('ad-preview-page');p.hidden=false;});
   }
-  function movePreviewPage(delta){if(!previewPages.length)return;previewPageIndex=Math.max(0,Math.min(previewPages.length-1,previewPageIndex+delta));collectPreviewPages(false);fitPages();stage.scrollTo({top:0,behavior:'smooth'});}
+
+  /* Tablas de encabezado posicionadas (w:tblpPr): docx-preview/docx-renderer ignoran tblpY y
+     dejan la tabla en flujo normal, muy por debajo de donde Word la sitúa (~80 px de más arriba),
+     lo que desplaza también el cuerpo del documento hacia abajo. Estas funciones recuperan la Y
+     real desde el XML y desplazan el <header> para que la tabla quede a su distancia original
+     respecto al borde de la página; el cuerpo sigue debajo del encabezado (sin solapes). */
+  async function headerFloatTargets(zip){
+    try{
+      if(!zip||typeof zip.file!=='function'||!zip.file('word/document.xml'))return null;
+      const parse=x=>new DOMParser().parseFromString(x,'application/xml');
+      const doc=parse(await zip.file('word/document.xml').async('string'));
+      if(doc.getElementsByTagName('parsererror').length)return null;
+      const rels={};
+      if(zip.file('word/_rels/document.xml.rels')){
+        const rd=parse(await zip.file('word/_rels/document.xml.rels').async('string'));
+        Array.from(rd.getElementsByTagName('Relationship')).forEach(r=>{rels[r.getAttribute('Id')]=r.getAttribute('Target');});
+      }
+      const R='http://schemas.openxmlformats.org/officeDocument/2006/relationships',parts=[];
+      for(const sect of Array.from(doc.getElementsByTagNameNS(W,'sectPr'))){
+        const refs=Array.from(sect.getElementsByTagNameNS(W,'headerReference'));
+        if(!refs.length)continue;
+        const ref=refs.filter(r=>(r.getAttributeNS(W,'type')||'default')==='default')[0]||refs[0];
+        const rid=ref.getAttributeNS(R,'id')||ref.getAttribute('r:id')||'',target=rels[rid];
+        if(!target)continue;
+        const t=String(target);
+        const path=t.charAt(0)==='/'?t.slice(1):(t.indexOf('word/')===0?t:'word/'+t);
+        if(!zip.file(path)||parts.some(p=>p.path===path))continue;
+        const pgMar=sect.getElementsByTagNameNS(W,'pgMar')[0];
+        const topTw=pgMar?parseFloat(pgMar.getAttributeNS(W,'top')||'0')||0:0;
+        const hd=parse(await zip.file(path).async('string'));
+        if(hd.getElementsByTagName('parsererror').length)continue;
+        const ys=[];
+        Array.from(hd.getElementsByTagNameNS(W,'tbl')).forEach(tbl=>{
+          const pr=tbl.getElementsByTagNameNS(W,'tblpPr')[0];if(!pr)return;
+          const yAttr=pr.getAttributeNS(W,'tblpY');
+          if(yAttr===null||yAttr==='')return;
+          const y=parseFloat(yAttr);if(!isFinite(y))return;
+          const va=pr.getAttributeNS(W,'vertAnchor')||'margin';
+          if(va==='paragraph')return; /* anclaje al párrafo: se deja el flujo original */
+          ys.push(((va==='page')?y:(topTw+y))*96/1440);
+        });
+        if(ys.length)parts.push({path,ys});
+      }
+      return parts.length?parts:null;
+    }catch(err){technicalLog('warn','header-targets','xml',err,null,{step:'headerFloatTargets'});return null;}
+  }
+  function applyHeaderFloatTargets(parts){
+    delete canvas.dataset.headerAlign;
+    if(!parts||!parts.length)return;
+    try{
+      const wrapper=canvas.querySelector('.docx-wrapper,.ooxml-pages');
+      const z=parseFloat((wrapper&&getComputedStyle(wrapper).zoom)||'')||1;
+      if(!isFinite(z)||z<=0)return;
+      let applied=0;
+      findPreviewPages().forEach(sec=>{
+        const h=sec&&sec.querySelector(':scope > header');
+        if(!h)return;
+        const floats=Array.from(h.querySelectorAll('table')).filter(t=>getComputedStyle(t).float==='left');
+        if(!floats.length)return;
+        const cand=parts.length===1?parts[0]:(parts.filter(p=>p.ys.length===floats.length)[0]||parts[0]);
+        const target=cand&&cand.ys[0];
+        if(target==null||!isFinite(target))return;
+        const secTop=sec.getBoundingClientRect().top;
+        const curTop=(floats[0].getBoundingClientRect().top-secTop)/z;
+        if(!isFinite(curTop))return;
+        const padTop=parseFloat(getComputedStyle(sec).paddingTop)||0;
+        const curMargin=parseFloat(getComputedStyle(h).marginTop)||0;
+        let next=curMargin-(curTop-Math.max(target,0));
+        if(next<-padTop)next=-padTop; /* el encabezado no sube más allá del borde de la página */
+        if(Math.abs(next-curMargin)<0.5)return;
+        h.style.marginTop=next+'px';applied++;
+      });
+      if(applied)canvas.dataset.headerAlign='word';
+    }catch(err){technicalLog('warn','header-align','dom',err,null,{step:'applyHeaderFloatTargets'});}
+  }
 
   function fitPages(){
     if(host.dataset.state!=='ready')return;
-    const page=previewPages[previewPageIndex]||canvas.querySelector('section.docx,.ooxml-page,.mammoth-page');
+    const page=previewPages[0]||canvas.querySelector('section.docx,.ooxml-page,.mammoth-page');
     if(!page)return;
     const old=canvas.style.getPropertyValue('--preview-scale');canvas.style.setProperty('--preview-scale','1');
     const width=page.getBoundingClientRect().width||page.offsetWidth||816;
@@ -821,6 +892,21 @@ function formatoTitulo(v){
     const scale=Math.min(1,Math.max(.36,available/width));
     canvas.style.setProperty('--preview-scale',String(scale));
     if(old!==String(scale))canvas.dataset.scale=Math.round(scale*100)+'%';
+    /* Altura fija de UNA hoja: la ventana de vista previa no crece con el número de páginas
+       (1, 2 o más hojas conservan el mismo tamaño) y el exceso se navega con scroll interno
+       del escenario. Sin scroll cuando solo hay una hoja. */
+    try{
+      const pages=previewPages.length?previewPages:[page];
+      const last=pages[pages.length-1];
+      const wrapper=canvas.querySelector('.docx-wrapper,.ooxml-pages');
+      const z=parseFloat((wrapper&&getComputedStyle(wrapper).zoom)||'')||1;
+      const pageH=page.getBoundingClientRect().height;
+      const trailing=(parseFloat(getComputedStyle(last).marginBottom)||0)*z;
+      const sc=getComputedStyle(stage),hc=getComputedStyle(host);
+      const pad=(parseFloat(sc.paddingTop)||0)+(parseFloat(sc.paddingBottom)||0);
+      const hostMin=(parseFloat(hc.minHeight)||0)+(parseFloat(hc.paddingTop)||0)+(parseFloat(hc.paddingBottom)||0);
+      stage.style.height=Math.ceil(Math.max(pageH+trailing,hostMin)+pad)+'px';
+    }catch(e){stage.style.removeProperty('height');}
   }
   if('ResizeObserver' in window){resizeObserver=new ResizeObserver(()=>requestAnimationFrame(fitPages));resizeObserver.observe(stage);}
   else addEventListener('resize',fitPages,{passive:true});
@@ -829,7 +915,7 @@ function formatoTitulo(v){
   if('MutationObserver' in window){
     pageObserver=new MutationObserver(mutations=>{
       if(host.dataset.state!=='ready'||!mutations.some(m=>m.addedNodes.length||m.removedNodes.length))return;
-      cancelAnimationFrame(paginationFrame);paginationFrame=requestAnimationFrame(()=>{collectPreviewPages(false);fitPages();});
+      cancelAnimationFrame(paginationFrame);paginationFrame=requestAnimationFrame(()=>{collectPreviewPages();if(headerTargets)applyHeaderFloatTargets(headerTargets);fitPages();});
     });
     pageObserver.observe(canvas,{childList:true,subtree:true});
   }
@@ -1349,7 +1435,8 @@ function formatoTitulo(v){
     /* docx-renderer recibe el lienzo oculto durante el estado de carga; sin dimensiones no puede
        dividir el desbordamiento natural. Repetir solo su fase de paginación con el lienzo visible. */
     if(used==='docx-renderer'&&DOCX_RENDERER&&typeof DOCX_RENDERER.paginate==='function'){DOCX_RENDERER.paginate(canvas);await nextFrame();}
-    collectPreviewPages(true);fitPages();
+    applyHeaderFloatTargets(headerTargets=await headerFloatTargets(pkg.zip));
+    collectPreviewPages();fitPages();
   }
   async function renderDocument(kind,force){
     if(window.__AD_SYNC_SELECTION_GUIDE)window.__AD_SYNC_SELECTION_GUIDE();
@@ -1389,7 +1476,6 @@ function formatoTitulo(v){
   });
   pl.addEventListener('click',e=>{const it=e.target.closest('.plantilla-item');if(!it)return;setTextoRadicacion(false);invalidateGenerated(false);mode='generated';renderDocument('generated',true);});
   sbtns.forEach((b,i)=>b.addEventListener('click',()=>renderDocument(i===0?'template':'generated')));
-  previewPrev&&previewPrev.addEventListener('click',()=>movePreviewPage(-1));previewNext&&previewNext.addEventListener('click',()=>movePreviewPage(1));
   retry.addEventListener('click',()=>renderDocument(mode,true));
   document.querySelectorAll('#panelSolicitante input,.desc-panel textarea').forEach(el=>el.addEventListener('input',()=>invalidateGenerated(true)));
   /* Respaldo para ejecuciones fuera del shell; dentro del Asistente la reactividad llega por DocStore. */

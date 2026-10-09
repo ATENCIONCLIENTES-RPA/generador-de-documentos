@@ -5,6 +5,8 @@
 export const XLSXLite = (function () {
 
   const dv = b => new DataView(b.buffer, b.byteOffset, b.byteLength);
+  /** Instancia compartida y reutilizable: TextDecoder UTF-8 es stateless. */
+  const _utf8 = new TextDecoder('utf-8');
 
   async function unzip(buf) {
     const u8 = new Uint8Array(buf), v = dv(u8);
@@ -38,7 +40,7 @@ export const XLSXLite = (function () {
       const exLen = v.getUint16(p + 30, true);
       const cmLen = v.getUint16(p + 32, true);
       let lho = v.getUint32(p + 42, true);
-      const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + fnLen));
+      const name = _utf8.decode(u8.subarray(p + 46, p + 46 + fnLen));
 
       if (usize === 0xFFFFFFFF || csize === 0xFFFFFFFF || lho === 0xFFFFFFFF) {
         let e = p + 46 + fnLen, end = e + exLen;
@@ -65,7 +67,7 @@ export const XLSXLite = (function () {
       const lex = v.getUint16(f.lho + 28, true);
       const start = f.lho + 30 + lfn + lex;
       const raw = u8.subarray(start, start + f.csize);
-      if (f.method === 0) return new TextDecoder('utf-8').decode(raw);
+      if (f.method === 0) return _utf8.decode(raw);
       if (f.method !== 8) throw new Error('Compresión ZIP no soportada (método ' + f.method + ').');
       if (typeof DecompressionStream === 'undefined')
         throw new Error('Tu navegador no soporta DecompressionStream. Usa Edge o Chrome actualizado.');

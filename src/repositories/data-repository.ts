@@ -18,13 +18,16 @@ const global: any = typeof window !== 'undefined' ? window : globalThis;
   const nativeRemove = Storage.prototype.removeItem;
 
   function idbOpen() {
-    return new Promise((resolve, reject) => {
+    if (idbOpen._db) return idbOpen._db;
+    idbOpen._db = new Promise((resolve, reject) => {
       if (!global.indexedDB) return reject(new Error('IndexedDB no disponible'));
       const req = global.indexedDB.open(DB_NAME, DB_VER);
       req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains(DB_STORE)) req.result.createObjectStore(DB_STORE); };
       req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error || new Error('No fue posible abrir IndexedDB'));
-    });
+    }).catch(e => { idbOpen._db = null; throw e; });
+    return idbOpen._db;
   }
+  idbOpen._db = null;
   async function idbGet(k) {
     try { const db = await idbOpen(); return await new Promise(res => { const q = db.transaction(DB_STORE).objectStore(DB_STORE).get(k); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }); }
     catch (e) { return null; }

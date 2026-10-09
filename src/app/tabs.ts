@@ -22,8 +22,12 @@ export function createTabs({ store, mods, routes, navigate }: Deps): Tabs {
     ink.style.transform = 'translateX(' + (t.offsetLeft + pad - nav.scrollLeft) + 'px)';
     ink.classList.add('on');
   }
-  nav.addEventListener('scroll', moveInk, { passive: true });
-  window.addEventListener('resize', moveInk);
+  /** Throttle via rAF: agrupa llamadas durante scroll/resize al siguiente ciclo de pintura,
+   *  evitando layout thrashing cuando el navegador dispara decenas de eventos por segundo. */
+  let _inkRaf = 0;
+  const moveInkThrottled = (): void => { if (!_inkRaf) _inkRaf = requestAnimationFrame(() => { _inkRaf = 0; moveInk(); }); };
+  nav.addEventListener('scroll', moveInkThrottled, { passive: true });
+  window.addEventListener('resize', moveInkThrottled, { passive: true });
   nav.addEventListener('keydown', e => {
     const i = tabs.indexOf(document.activeElement as HTMLAnchorElement); if (i < 0) return;
     let n: number | null = null;

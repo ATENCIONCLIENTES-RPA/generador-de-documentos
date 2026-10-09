@@ -279,7 +279,7 @@ html[data-theme="dark"] .theme-toggle .tt-knob{transform:translateX(26px);backgr
 @keyframes drawCheck{to{stroke-dashoffset:0;}}
 .btn-generate.done .bg-ic::after{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 0 rgba(255,255,255,.7);animation:pulseOut .7s ease-out;}
 @keyframes pulseOut{to{box-shadow:0 0 0 10px rgba(255,255,255,0);}}
-.doc-stage{flex:1;overflow-y:auto;background:var(--panel-stage-bg);padding:28px;display:flex;justify-content:center;transition:background .35s ease;}
+.doc-stage{flex:1 1 auto;overflow-y:auto;background:var(--panel-stage-bg);padding:28px;display:flex;justify-content:center;transition:background .35s ease;}
 .paper{width:100%;max-width:640px;background:#FFFFFF;box-shadow:0 2px 6px rgba(23,43,99,.10),0 10px 28px rgba(23,43,99,.08);border-radius:4px;padding:36px 40px;font-size:12.5px;color:#222;line-height:1.6;align-self:flex-start;animation:fadeUp .5s ease both;}
 .paper-head{display:flex;border:1px solid #222;margin-bottom:18px;font-size:10.5px;}
 .ph-logo{flex:0 0 110px;border-right:1px solid #222;display:flex;align-items:center;justify-content:center;padding:8px;font-weight:800;color:var(--azul-principal);font-size:16px;}
@@ -1135,31 +1135,16 @@ html [hidden]{display:none!important;}
 .preview-host{width:100%;min-width:0;min-height:520px;display:flex;flex-direction:column;align-items:center;position:relative;}
 .preview-canvas{--preview-scale:1;width:100%;min-width:0;display:flex;justify-content:center;align-items:flex-start;transform-origin:top center;animation:pvReveal .38s cubic-bezier(.22,1,.36,1) both;}
 .preview-canvas>.docx-wrapper,.preview-canvas>.ooxml-pages{zoom:var(--preview-scale);margin-inline:auto!important;}
-/* Paginador compacto de la vista previa (integrado en la barra superior, junto al interruptor y "Generar documento") */
-.doc-preview-pagination{display:inline-flex;align-items:center;gap:0;height:32px;padding:3px;flex:0 0 auto;border-radius:999px;background:#F3F6FB;border:1px solid var(--bordes-suave);box-shadow:inset 0 1px 0 rgba(255,255,255,.7);animation:dpIn .28s cubic-bezier(.22,1,.36,1) both;}
-.doc-preview-pagination[hidden]{display:none!important;}
-.doc-preview-pagination button{width:24px;height:24px;padding:0;border:0;border-radius:50%;background:transparent;color:#64748B;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .18s ease,color .18s ease,transform .15s ease,box-shadow .18s ease;}
-.doc-preview-pagination button svg{width:13px;height:13px;display:block;}
-.doc-preview-pagination button:hover:not(:disabled){background:#fff;color:#1664B0;box-shadow:0 2px 6px -2px rgba(22,100,176,.35);}
-.doc-preview-pagination button:active:not(:disabled){transform:scale(.92);}
-.doc-preview-pagination button:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(22,100,176,.35);}
-.doc-preview-pagination button:disabled{opacity:.32;cursor:not-allowed;}
-.doc-preview-pagination .dp-label{min-width:30px;padding:0 2px;display:inline-flex;align-items:baseline;justify-content:center;gap:2px;color:#94A3B8;font-size:11px;line-height:1;white-space:nowrap;user-select:none;}
-.doc-preview-pagination .dp-label b{color:#1664B0;font-size:12.5px;font-weight:800;}
-.doc-preview-pagination .dp-label i{font-style:normal;opacity:.55;}
-.doc-preview-pagination .dp-label em{font-style:normal;font-weight:700;color:#64748B;}
-@keyframes dpIn{from{opacity:0;transform:translateY(-3px) scale(.96);}to{opacity:1;transform:none;}}
-html[data-theme="dark"] .doc-preview-pagination{background:#1A2130;border-color:#2A3140;box-shadow:none;}
-html[data-theme="dark"] .doc-preview-pagination button{color:#9AA8BD;}
-html[data-theme="dark"] .doc-preview-pagination button:hover:not(:disabled){background:#242E40;color:#8AB4F8;box-shadow:none;}
-html[data-theme="dark"] .doc-preview-pagination .dp-label{color:#6B7A90;}
-html[data-theme="dark"] .doc-preview-pagination .dp-label b{color:#8AB4F8;}
-html[data-theme="dark"] .doc-preview-pagination .dp-label em{color:#9AA8BD;}
 .tabs-switch-wrap{flex-wrap:wrap;row-gap:8px;column-gap:8px;}
-@media (max-width:760px){.doc-preview-pagination{align-self:center;}}
-@media (prefers-reduced-motion:reduce){.doc-preview-pagination{animation:none;}}
 .ooxml-body{flex:1;min-height:0;position:relative;}
-.ooxml-page[hidden],.preview-canvas section.docx[hidden],.preview-canvas .ad-preview-page:not(.ad-preview-page-active){display:none!important;}
+.ooxml-page[hidden],.preview-canvas section.docx[hidden]{display:none!important;}
+/* Posición fiel del contenido · header/cuerpo/footer son ítems flex de `section.docx` y las
+   tablas flotantes de Word (`w:tblpPr` → `float:left`) quedan fuera de la altura de su bloque.
+   Sin estas reglas, cualquier desbordamiento contrae el header hasta excluir la tabla flotante y
+   el cuerpo empieza antes, solapándose con el encabezado. `display:flow-root` hace que cada
+   bloque contenga sus flotantes y `flex:0 0 auto` impide la contracción: la geometría original
+   del documento (coordenadas, márgenes y proporciones) queda intacta. */
+.preview-canvas section.docx>header,.preview-canvas section.docx>article,.preview-canvas section.docx>footer{flex:0 0 auto;display:flow-root;}
 .preview-canvas .docx-wrapper{background:transparent!important;padding:0!important;display:flex!important;flex-direction:column!important;align-items:center!important;gap:18px!important;}
 .preview-canvas section.docx,.ooxml-page{background:#fff!important;box-shadow:0 2px 7px rgba(23,43,99,.10),0 18px 42px -18px rgba(23,43,99,.25)!important;margin:0 auto 18px!important;flex:none;}
 .preview-canvas section.docx:last-child,.ooxml-page:last-child{margin-bottom:6px!important;}
@@ -1277,7 +1262,7 @@ button,input,select,textarea,optgroup{font-family:inherit}
 .tab-switch-btn,.btn-chip,.btn-cargar,.btn-reg,.btn-change,.filter-toggle,.tg-btn,.tg-copy,.tg-mini,.tg-draft{font-weight:600}
 /* cifras e identificadores → Manrope (cifras tabulares) */
 .active-record .rad,.tag.rad,.panel-count,.desc-step,.sg-step-num,.tg-num,.tg-node em,.flow-step,
-.pagination span,.doc-preview-pagination span,.tg-count,.tg-stats{font-family:var(--ff-display);font-weight:700;font-variant-numeric:tabular-nums lining-nums}
+.pagination span,.tg-count,.tg-stats{font-family:var(--ff-display);font-weight:700;font-variant-numeric:tabular-nums lining-nums}
 /* campos de plantilla (antes monoespaciados): DM Sans con un poco de aire, para que sigan leyéndose como "código" por su caja */
 .tg-tok,.tg-val.bad,.tg-fmain code,.tg-kbd,.tg-ins{font-weight:600;letter-spacing:.01em}
 /* etiquetas, rótulos y apoyo → DM Sans (peso único 600) */

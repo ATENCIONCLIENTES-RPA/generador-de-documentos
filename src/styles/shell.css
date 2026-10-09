@@ -121,8 +121,10 @@ html[data-theme="dark"] .ad-mark{filter:drop-shadow(0 8px 14px rgba(0,0,0,.55));
 .ad-stage{position:relative;flex:1;min-height:0;background:var(--stage);transition:background .35s;}
 .ad-frame{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:var(--stage);
   opacity:0;visibility:hidden;transform:translateY(10px);
+  /* contain evita que los iframes inactivos participen en el layout del documento padre */
+  contain:layout paint style;
   transition:opacity .26s ease,transform .42s var(--ease),visibility 0s linear .42s;}
-.ad-frame.is-active{opacity:1;visibility:visible;transform:none;transition:opacity .32s ease .05s,transform .42s var(--ease) .05s,visibility 0s;}
+.ad-frame.is-active{opacity:1;visibility:visible;transform:none;contain:layout;transition:opacity .32s ease .05s,transform .42s var(--ease) .05s,visibility 0s;}
 /* carga inicial de un módulo */
 .ad-loader{position:absolute;inset:0;z-index:5;display:grid;place-items:center;align-content:center;gap:16px;pointer-events:none;
   opacity:0;transition:opacity .25s;}

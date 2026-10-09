@@ -41,7 +41,11 @@ export async function startShell(): Promise<void> {
   window.addEventListener('hashchange', () => activate(routeFromHash() || ROUTES[0]));
   document.addEventListener('keydown', e => { if (e.altKey && !e.ctrlKey && /^[1-9]$/.test(e.key) && ROUTES[+e.key - 1]) { e.preventDefault(); void runner.navigate(ROUTES[+e.key - 1]); } });
   ['dragover', 'drop'].forEach(ev => window.addEventListener(ev, e => e.preventDefault()));
+  let _lastResources: unknown = null;
   store.subscribe(snap => {
+    /* Evita recalcular y re-renderizar tabs si solo cambió el perfil u otro campo no relevante. */
+    if (snap.resources === _lastResources) return;
+    _lastResources = snap.resources;
     const st: Partial<Record<ModuleId, ReturnType<typeof statusOf>>> = {};
     ROUTES.forEach(id => { st[id] = statusOf(id, snap, store.config); });
     shell.getState().setTabs(st);
@@ -78,6 +82,9 @@ export async function startShell(): Promise<void> {
   if (!inicial || !MODS[inicial as ModuleId]) inicial = ROUTES[0];
   if (location.hash !== '#/' + inicial) history.replaceState(null, '', '#/' + inicial);
   activate(inicial as ModuleId);
-  const precargar = (): void => { ROUTES.forEach((id, i) => setTimeout(() => host.mount(id), 400 * i)); };
-  (window.requestIdleCallback || ((fn: () => void) => setTimeout(fn, 1200)))(precargar, { timeout: 2500 });
+  /** Precarga los módulos inactivos durante tiempo de inactividad del navegador.
+   *  El módulo adyacente se carga primero (200ms), los demás con mayor separación (600ms).
+   *  Timeout 1500ms: si el navegador no entra en idle, forzamos la precarga antes. */
+  const precargar = (): void => { ROUTES.forEach((id, i) => setTimeout(() => host.mount(id), i === 0 ? 0 : 200 + (i - 1) * 600)); };
+  (window.requestIdleCallback || ((fn: () => void) => setTimeout(fn, 800)))(precargar, { timeout: 1500 });
 }

@@ -3,7 +3,9 @@ export function byId<T extends HTMLElement = HTMLElement>(id: string): T {
   if (!el) throw new Error(`Elemento #${id} no encontrado en el documento.`);
   return el as T;
 }
-export const escHtml = (t: unknown): string => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c as '&' | '<' | '>']));
+/** Tabla de escape estática: se crea una sola vez en lugar de un objeto literal por llamada. */
+const _ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
+export const escHtml = (t: unknown): string => String(t).replace(/[&<>]/g, c => _ESC[c]);
 export const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms));
 /** Espera a que el navegador pinte el estado actual (con respaldo por si la pestaña está en segundo plano). */
 export const nextPaint = (): Promise<void> => new Promise(res => {

@@ -1,4 +1,4 @@
-# Asistente Documental
+# Asistente Documental · ESSA (v2 · fase 1)
 
 Aplicación 100 % en el navegador (sin backend ni APIs externas): **Recursos → Cuadro de mando → Generación documental**.
 Es la aplicación original refactorizada (no reescrita): misma lógica, mismas librerías DOCX/Excel, mismos datos en IndexedDB/localStorage.

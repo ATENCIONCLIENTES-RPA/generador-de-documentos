@@ -1,4 +1,4 @@
-/** Entorno mínimo para importar en Node los módulos que tocan `window`/`localStorage` al cargarse (DataRepository parchea Storage.prototype). */
+process.env.TZ = 'UTC';
 class MemoryStorage {
   private map = new Map<string, string>();
   get length(): number { return this.map.size; }
