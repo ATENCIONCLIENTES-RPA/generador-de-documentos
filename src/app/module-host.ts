@@ -11,7 +11,12 @@ export interface ModuleHost {
   mount(id: ModuleId): HTMLIFrameElement; whenLoaded(id: ModuleId): Promise<void>; syncActive(id: ModuleId): void; reload(id: ModuleId): boolean;
 }
 interface Deps { store: ShellStore; mods: Readonly<Record<ModuleId, ModuleMeta>>; stage: HTMLElement; loader: HTMLElement }
-export const moduleUrl = (id: ModuleId): string => new URL(`modules/${id}.html`, document.baseURI).href;
+export const moduleUrl = (id: ModuleId): string => {
+  const url = new URL(`modules/${id}.html`, document.baseURI);
+  const entrySrc = document.querySelector<HTMLScriptElement>('script[type="module"][src]')?.src;
+  if (entrySrc) url.searchParams.set('v', new URL(entrySrc).pathname.split('/').pop() ?? '');
+  return url.href;
+};
 export function createModuleHost({ store, mods, stage, loader }: Deps): ModuleHost {
   const frames: Record<string, HTMLIFrameElement> = {}, loaded: Record<string, boolean> = {};
   const current = (): ModuleId | null => store.getState().route;
