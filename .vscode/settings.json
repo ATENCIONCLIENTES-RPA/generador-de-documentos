@@ -1,0 +1,9 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "git -C 'C:\\Users\\MSI": true,
+        "npm run build:ci": true,
+        "ForEach-Object": true,
+        "git -C $_.FullName": true,
+        "Test-Path": true
+    }
+}

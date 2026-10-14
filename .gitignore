@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.log
+
+# Artefactos de pruebas manuales sueltos en la raíz (no forman parte del proyecto)
+/test_*.py
+/test_*.png
+/test_*.html
+/comp_*.png
+/exp_*.png
+/render_*.png
+/section_dump.html

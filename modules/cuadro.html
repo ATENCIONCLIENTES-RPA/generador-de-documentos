@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asistente Documental — Cuadro de Mando</title>
+</head>
+<body id="m2ui">
+
+<header id="headerCM">
+  <div class="hdr2">
+    <div class="brand2">
+      <div class="brand2-logo" id="brand2Logo"></div>
+      <div>
+        <div class="brand2-title">Módulo 2 <span class="divider">·</span> Cuadro de Mando</div>
+        <div class="brand2-sub">Centro de seguimiento y control de las PQRs</div>
+      </div>
+    </div>
+    <div class="brand2-fecha">
+      <div class="lineaHoy" id="hoyTxt"></div>
+      <div class="lineaHoy" id="rangoTxt"></div>
+    </div>
+    <button class="btn-guide" id="btnGuide" type="button">
+      <span class="chip-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 1.8-2.4 3.5"/><circle cx="12" cy="17" r=".2" fill="currentColor"/></svg>
+      </span>
+      <span>Guía rápida</span>
+      <span class="pulse-dot" id="guidePulse"></span>
+    </button>
+    <button class="calCard" id="btnCal" title="Abrir calendario">
+      <span class="calHoja"><span class="calMesMini" id="calMesMini"></span><span class="calDiaMini" id="calDiaMini"></span>
+        <span class="calAros"><i></i><i></i></span></span>
+      <span class="calLbl">Calendario</span>
+    </button>
+    <button class="theme-toggle" id="themeToggle2" aria-label="Cambiar tema claro u oscuro" title="Cambiar a modo oscuro">
+      <span class="tt-knob" id="ttKnob2"></span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <div class="top">
+    <a href="#" class="lnkRes" id="lnkRes" style="display:none"><span class="m2i" data-m2i="list" aria-hidden="true"></span> Resumen general</a>
+    <!-- La carpeta de respaldo (notas, colores, consultas, expedientes) se gestiona desde Recursos (Módulo 1) -->
+  </div>
+  <div class="aviso" id="aviso" style="display:none"></div>
+  <section class="sinFuentes estadoFirmante" id="estadoFirmante" aria-live="polite">
+    <div class="ef-art" aria-hidden="true"><span class="ef-ring"></span><span class="ef-ico" id="efIco"></span></div>
+    <div class="sf-body">
+      <span class="sf-badge ef-badge" id="efBadge"><i></i><span></span></span>
+      <h2 id="efTit"></h2>
+      <p id="efTxt"></p>
+      <div class="ef-cands" id="efCands" hidden></div>
+      <ol class="ef-pasos" id="efPasos" hidden>
+        <li><span>1</span>Abre <b>Recursos</b></li><li><span>2</span>Edita el bloque <b>Firmante</b></li><li><span>3</span>Escribe tu <b>Nombre completo</b> y guarda</li>
+      </ol>
+      <button type="button" class="sf-cta" data-ad-nav="recursos"><span>Ir al bloque Firmante</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    </div>
+  </section>
+  <section class="sinFuentes" id="sinFuentes" aria-live="polite">
+    <div class="sf-art" aria-hidden="true">
+      <svg viewBox="0 0 220 150" fill="none">
+        <rect x="14" y="20" width="62" height="78" rx="10" class="sf-sheet"/>
+        <path d="M26 40h38M26 52h30M26 64h36M26 76h24" class="sf-ln"/>
+        <rect x="30" y="50" width="62" height="78" rx="10" class="sf-sheet sf-b"/>
+        <path d="M42 70h38M42 82h30M42 94h36M42 106h22" class="sf-ln"/>
+        <path d="M98 88c22 0 22-34 46-34" class="sf-flow"/>
+        <rect x="140" y="28" width="68" height="96" rx="12" class="sf-board"/>
+        <rect x="152" y="86" width="9" height="26" rx="2.5" class="sf-bar"/><rect x="166" y="70" width="9" height="42" rx="2.5" class="sf-bar sf-b2"/><rect x="180" y="58" width="9" height="54" rx="2.5" class="sf-bar sf-b3"/><rect x="194" y="78" width="9" height="34" rx="2.5" class="sf-bar"/>
+        <path d="M152 46h40" class="sf-ln"/>
+        <circle cx="144" cy="54" r="5" class="sf-node"/>
+      </svg>
+    </div>
+    <div class="sf-body">
+      <span class="sf-badge" id="sfBadge"><i></i><span>Esperando datos</span></span>
+      <h2 id="sfTit">El Cuadro de Mando aún no tiene información</h2>
+      <p id="sfTxt">SAC Trámite y Mercurio Trámite se cargan <b>una sola vez</b> desde Recursos. Cuando estén procesados aparecerán aquí automáticamente, sin volver a cargarlos.</p>
+      <ul class="sf-list" id="sfList"></ul>
+      <button type="button" class="sf-cta" data-ad-nav="recursos"><span>Ir a Recursos</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    </div>
+  </section>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="gridCarga">
+    <div class="card cardBand" style="margin-bottom:0">
+      <div class="m2Head">
+        <span class="m2Ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg></span>
+        <div class="m2HeadTxt">
+          <h2>Mi bandeja <small>15 días hábiles</small></h2>
+          <p class="sub">Cada barra es un día hábil. El color señala la carga: <b class="tRojo">rojo</b> el día con más PQRS y <b class="tVerde">verde</b> el de menos. Haz clic en una barra para ver ese día.</p>
+        </div>
+      </div>
+      <div class="proms" id="proms"></div>
+      <div class="grafWrap"><div class="grafEje"><span class="ejeTop">Cantidad<br>de casos</span><div class="ejeTicks" id="grafTicks" aria-hidden="true"></div><span class="ejeBot">Día y fecha<br>de recibido</span></div>
+        <div class="graf" id="graf"></div></div>
+      <div class="leyenda"><span>Menos casos</span><span class="rampa" id="rampa"></span><span>Más casos</span>
+        <span class="lgSep" aria-hidden="true"></span>
+        <span class="lgTrend"><svg viewBox="0 0 30 12" aria-hidden="true"><path d="M1 6h28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="15" cy="6" r="3.6" fill="#fff" stroke="currentColor" stroke-width="2"/></svg>Línea de tendencia</span>
+        <span class="grafNota" id="grafNota"></span></div>
+    </div>
+    <div class="card cardVenc" style="margin-bottom:0">
+      <div class="vencWrap" id="vencBody"></div>
+    </div>
+  </div>
+
+  <a href="#" class="btnRuta" id="lnkRec" title="Gestión por rutas: Peticiones, Reclamos, Recursos, SSPD, Somos">
+    <span class="btnRuta-ico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="5.5" cy="18.5" r="2.1"/><circle cx="18.5" cy="5.5" r="2.1"/>
+        <path d="M7.1 17 14.2 8.3"/><path d="M14.2 8.3c2.3.5 4-.6 4.3-2.8"/>
+      </svg>
+    </span>
+    <span class="btnRuta-txt"><b>Rutas</b><small>Peticiones · Reclamos · Recursos · SSPD · Somos</small></span>
+    <span class="btnRuta-hint"><span class="btnRuta-hint-txt">Clic aquí para ver las rutas</span>
+      <svg class="btnRuta-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+    </span>
+  </a>
+  <div class="filtrosBar">
+    <div class="fbTitle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M4 5h16M7 12h10M10 19h4"/></svg>
+      Filtros
+    </div>
+    <div class="fbFields">
+      <!-- «Responsable»: NO existe en el HTML. Solo se crea (montaResp) para el usuario habilitado. -->
+      <div class="campo"><label class="lf" for="fTram">Trámite</label>
+        <select id="fTram" class="medio"><option value="">— Todos los trámites —</option></select></div>
+      <div class="campo fbSearch"><label class="lf" for="q">Búsqueda</label>
+        <input type="search" id="q" placeholder="Radicado, proceso, cuenta, solicitante…"></div>
+      <div class="campo fbLimpiar"><label class="lf">&nbsp;</label><button class="btn sec mini" id="limpiar">Limpiar</button></div>
+    </div>
+    <div class="fbActions">
+      
+      <button class="btn sec mini" id="expTodo" type="button"><span class="m2i" data-m2i="download" aria-hidden="true"></span>Exportar</button>
+      
+    </div>
+    <input type="checkbox" id="cMedio" checked hidden><input type="checkbox" id="cTodo" hidden>
+  </div>
+
+  
+  <section class="panelPQR">
+    <div class="panelPQR-grid">
+      <div class="card">
+        <div class="m2Head"><span class="m2Ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/><path d="M12 13.2V16l1.8 1"/></svg></span><div class="m2HeadTxt"><h2>PQRS por día de vencimiento</h2></div><button class="btnCons btnHist" id="btnHist" type="button"><span class="m2i" data-m2i="history" aria-hidden="true"></span>Histórico</button></div>
+        
+        <div class="scroll"><table id="tDias"><thead><tr>
+          <th>Día</th><th>Fecha de recibo</th><th>Vence</th><th class="num">Radicados</th><th></th>
+        </tr></thead><tbody><tr><td colspan="5" class="vacio">Carga SAC Trámite y Mercurio Trámite en Recursos para ver la información.</td></tr></tbody></table></div>
+      </div>
+      <div class="card panelPQR-col--right">
+        <div class="m2Head"><span class="m2Ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16.5" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span><div class="m2HeadTxt"><h2 id="radTit">Radicados del día</h2>
+        <p class="sub" id="radSub">Selecciona un día en la tabla o en la gráfica.</p></div></div>
+        <div class="radBar">
+          <div class="radFiltros">
+            <div class="campo"><label class="lf" for="fFiltro">Filtrar</label>
+              <select id="fFiltro" class="selNotas"><option value="">— Todos —</option></select></div>
+            <!-- selectores internos (los usa la lógica existente; el usuario opera «Filtrar») -->
+            <select id="fColor" hidden aria-hidden="true"><option value="">— Todos —</option><option value="__sin">Sin marcar</option></select>
+            <select id="fNotas" hidden aria-hidden="true"><option value="">Todos</option><option value="notas">Con anotaciones</option></select>
+          </div>
+          <div class="radAcc">
+            <button type="button" class="lnkEv" id="lnkEv">Evacuados (0)</button>
+            <button class="btnCons btnConsVerde" id="btnCons" type="button"><span class="m2i" data-m2i="chat" aria-hidden="true"></span>Consultas</button>
+          </div>
+        </div>
+        <div class="scroll"><table id="tRad"><thead><tr>
+          <th style="width:26px"></th><th>Radicado</th><th>Número de proceso</th><th style="width:290px"></th>
+        </tr></thead><tbody><tr><td colspan="4" class="vacio">Sin día seleccionado.</td></tr></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="card" id="detalle" style="margin-top:16px">
+    <div class="m2Head"><span class="m2Ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><circle cx="11" cy="14" r="2.3"/><path d="m12.8 15.8 2 2"/></svg></span><div class="m2HeadTxt"><h2 id="detTit">Detalle del radicado</h2>
+    <p class="sub" id="detSub"></p></div></div>
+    <div id="detBody"></div>
+  </div>
+
+</main>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="mbox">
+    <div class="mhead">
+      <div><div class="mhTit"><span class="mhIco" data-m2i="doc" aria-hidden="true"></span><div><h3 id="mTit"></h3><p id="mSub"></p></div></div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn sec" id="mExp" type="button"><span class="m2i" data-m2i="download" aria-hidden="true"></span>Exportar Excel</button>
+        <button class="cerrar" id="mCerrar">&times;</button>
+      </div>
+    </div>
+    <div class="mbody"><table id="mTabla"><thead><tr>
+      <th>Radicado</th><th>Procesos</th><th>Cuenta</th><th>Trámite</th>
+      <th>F. radicación</th><th>F. vencimiento</th><th>Estado</th><th>Responsable</th><th>Origen</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+</div>
+
+<div class="modal" id="mRes" role="dialog" aria-modal="true">
+  <div class="mbox" style="max-width:1150px">
+    <div class="mhead">
+      <div><div class="mhTit"><span class="mhIco" data-m2i="bars" aria-hidden="true"></span><div><h3>Resumen general</h3><p id="resSub"></p></div></div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn sec" id="resExp" type="button"><span class="m2i" data-m2i="download" aria-hidden="true"></span>Exportar Excel</button>
+        <button class="cerrar" id="resCerrar">&times;</button>
+      </div>
+    </div>
+    <div class="mbody"><div class="resCols" style="grid-template-columns:1fr">
+      <div><h4>PQRS recibidas por día</h4><div class="resScroll"><table id="tResDia"><thead><tr>
+        <th>Día</th><th>Recibo</th><th>Vence</th><th class="num">PQRS</th></tr></thead><tbody></tbody></table></div></div>
+      <div><h4>PQRS por usuario responsable</h4><div class="resScroll"><table id="tResUsr"><thead></thead><tbody></tbody></table></div></div>
+    </div></div>
+  </div>
+</div>
+<div class="modal" id="mConf" role="dialog" aria-modal="true">
+  <div class="mbox">
+    <div class="mhead">
+      <div><div class="mhTit"><span class="mhIco" id="confIco" aria-hidden="true"></span><div><h3 id="confTit">Evacuar del informe</h3></div></div></div>
+      <button class="cerrar" id="confX">&times;</button></div>
+    <div class="cuerpo" id="confTxt"></div>
+    <div class="pie"><button class="btn sec" id="confNo" type="button">Cancelar</button>
+      <button class="btn ok" id="confSi" type="button"><span class="btnIc" id="confSiIc" aria-hidden="true"></span><span id="confSiTxt">Sí, evacuar</span></button></div>
+  </div>
+</div>
+<div class="modal" id="mEvac" role="dialog" aria-modal="true">
+  <div class="mbox" style="max-width:760px">
+    <div class="mhead">
+      <div><div class="mhTit"><span class="mhIco" data-m2i="archive" aria-hidden="true"></span><div><h3>Radicados evacuados</h3><p id="evSub"></p></div></div></div>
+      <div style="display:flex;gap:8px"><button class="btn sec" id="evTodo">Restaurar todos</button>
+      <button class="btn sec" id="lnkEvLimp" type="button"><span class="m2i" data-m2i="trash" aria-hidden="true"></span>Limpiar registro</button>
+      <button class="cerrar" id="evX">&times;</button></div></div>
+    <div class="mbody"><table id="tEvac"><thead><tr><th>Radicado</th><th>Responsable</th><th>Evacuado el</th><th></th>
+      </tr></thead><tbody></tbody></table></div>
+  </div>
+</div>
+<div class="modal" id="mRec" role="dialog" aria-modal="true" data-ruta="pq">
+  <div class="mbox">
+    <div class="mhead">
+      <div><div class="mhTit"><span class="mhIco" data-m2i="route" aria-hidden="true"></span><div><h3>Rutas</h3><p id="recSub">Gestión por ruta: elige una ruta, un usuario de la ruta y lo que quieres revisar</p></div></div></div>
+      <button class="cerrar" id="recX" title="Cerrar (Esc)">&times;</button></div>
+    <div class="mbody">
+      <section class="rtPick" aria-label="Rutas disponibles">
+        <div class="rtKicker">Elige una ruta</div>
+        <div class="tabs" role="group" aria-label="Rutas">
+          <button class="tab on" data-t="pq" type="button" aria-pressed="true" title="Peticiones · incluye ruta especializada y cambio de datos básicos"><span class="rtIc" aria-hidden="true"></span><span class="rtTx"><b>Peticiones</b><small>Incluye ruta especializada y cambio de datos básicos</small></span><span class="rtN" id="rtN_pq" title="Usuarios de la ruta"></span></button>
+          <button class="tab" data-t="rc" type="button" aria-pressed="false" title="Reclamos · facturación, consumo y cobros"><span class="rtIc" aria-hidden="true"></span><span class="rtTx"><b>Reclamos</b><small>Facturación, consumo y cobros</small></span><span class="rtN" id="rtN_rc" title="Usuarios de la ruta"></span></button>
+          <button class="tab" data-t="rs" type="button" aria-pressed="false" title="Recursos · reposición, apelación y expedientes"><span class="rtIc" aria-hidden="true"></span><span class="rtTx"><b>Recursos</b><small>Reposición, apelación y expedientes</small></span><span class="rtN" id="rtN_rs" title="Usuarios de la ruta"></span></button>
+          <button class="tab" data-t="sp" type="button" aria-pressed="false" title="SSPD · Superintendencia y tutelas"><span class="rtIc" aria-hidden="true"></span><span class="rtTx"><b>SSPD</b><small>Superintendencia y tutelas</small></span><span class="rtN" id="rtN_sp" title="Usuarios de la ruta"></span></button>
+          <button class="tab" data-t="so" type="button" aria-pressed="false" title="Somos · créditos y programa Somos"><span class="rtIc" aria-hidden="true"></span><span class="rtTx"><b>Somos</b><small>Créditos y programa Somos</small></span><span class="rtN" id="rtN_so" title="Usuarios de la ruta"></span></button>
+        </div>
+      </section>
+      <div id="recMain" class="rtPanel">
+        <div class="rtCtx">
+          <div class="rtWho"><span class="rtWhoIc" aria-hidden="true"></span><div><small id="rtWhoK">Ruta seleccionada</small><b id="rtWhoNom">Peticiones</b></div></div>
+          <div class="subRuta" id="subRuta" role="group" aria-label="Sub-rutas de Peticiones">
+            <button class="on" data-r="pq" type="button" aria-pressed="true">Peticiones</button>
+            <button data-r="es" type="button" aria-pressed="false"><span class="m2i" data-m2i="star" aria-hidden="true"></span> Ruta especializada <small>10 días</small></button>
+            <button data-r="cd" type="button" aria-pressed="false"><span class="m2i" data-m2i="idcard" aria-hidden="true"></span> Cambio de datos básicos</button>
+          </div>
+        </div>
+        <div class="subtab rtViews" role="group" aria-label="Qué quieres revisar"><button class="on" data-s="dup" type="button" aria-pressed="true"><span class="m2i" data-m2i="copy" aria-hidden="true"></span>Duplicados</button><button data-s="rea" type="button" aria-pressed="false"><span class="m2i" data-m2i="shuffle" aria-hidden="true"></span>Reasignar</button><button data-s="exp" id="subExp" type="button" aria-pressed="false"><span class="m2i" data-m2i="folder" aria-hidden="true"></span>Expedientes</button><button data-s="ven" id="subVen" type="button" aria-pressed="false"><span class="m2i" data-m2i="clock" aria-hidden="true"></span>Vencimientos 10 días</button></div>
+        <div class="barRec rtBar">
+          <div class="campo rtUser"><label class="lf" id="recUsrLbl" for="recUsr">Usuario de la ruta</label>
+            <select id="recUsr" class="grande"></select></div>
+            <div id="dupBar" class="dupBar" style="display:none">
+              <div class="dupBox">
+                <label class="dupTit" for="dupQ"><span class="dupLupa" aria-hidden="true"><span class="m2i" data-m2i="search" aria-hidden="true"></span></span>Búsqueda manual en el contenido de Mercurio</label>
+                <div class="dupFila">
+                  <input type="search" id="dupQ" placeholder="Correo, cédula, cuenta, número de oficio, frase…">
+                  <button class="btn sec mini" id="dupQLimp" type="button">Limpiar</button>
+                </div>
+              </div>
+            </div>
+            <div id="expBar" class="barRec" style="display:none">
+              <div class="campo"><label class="lf">Cierre (TIPO_RESPUESTA)</label>
+                <select id="expCierre"><option value="">Confirma y Modifica</option></select></div>
+              <div class="campo"><label class="lf">Estado del expediente</label>
+                <select id="expEst"><option value="">Todos</option><option>Sin documentos</option><option>Con algunos documentos</option><option>Completo</option><option value="__n">Sin clasificar</option></select></div>
+              <span class="expEvLnk" id="expEvLnk">Expedientes evacuados (0)</span>
+            </div>
+          <div class="rtActs">
+            <button class="btn sec" id="recRolBtn" type="button"><span class="m2i" data-m2i="edit" aria-hidden="true"></span>Editar ruta</button>
+            <button class="btn sec" id="tipBtn" type="button"><span class="m2i" data-m2i="gear" aria-hidden="true"></span>Tipologías</button>
+          </div>
+        </div>
+        <div class="rolBox" id="rolBox">
+          <div class="rtBoxH"><span class="rtBoxIc" aria-hidden="true"></span><div id="rolBoxTit">Usuarios de la ruta (se guarda en este equipo):</div></div>
+          <div id="rolChips"></div>
+          <div class="rtAddRow">
+            <select id="rolAdd"></select><button class="btn mini" id="rolAddBtn" type="button">Agregar</button>
+            <button class="btn sec mini" id="rolReset" type="button">Restablecer</button></div>
+        </div>
+        <div id="reaBar" style="display:none"></div>
+        <div class="rolBox" id="tipBox"><div id="tipCuerpo"></div></div>
+        <div id="recInfo"></div>
+        <div class="recScroll"><table id="tRec"><thead></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="mHoy" role="dialog" aria-modal="true">
+  <div class="mbox" style="max-width:1250px">
+    <div class="mhead">
+      <div><div class="mhTit"><span class="mhIco" data-m2i="bolt" aria-hidden="true"></span><div><h3>Procesos a cerrar hoy</h3><p id="hoySub"></p></div></div></div>
+      <button class="cerrar" id="hoyX">&times;</button></div>
+    <div class="mbody" style="padding-top:14px">
+      <div class="barRec">
+        <div class="campo"><label class="lf">Creados por el usuario</label><select id="hoyUsr" class="grande"></select></div>
+        <div class="campo"><label class="lf">Mostrar</label><select id="hoyVer">
+          <option value="">Todos</option><option value="p">Pendientes</option><option value="h">Gestionados</option></select></div>
+        <div style="flex:1;min-width:220px"><div id="hoyProg" style="font-size:12.5px;font-weight:600;color:#1664B0"></div>
+          <div class="progHoy"><i id="hoyBar" style="width:0"></i></div></div>
+      </div>
+      <div style="font-size:12px;color:#5C6B7D;margin-bottom:8px">Según FECHA_VENCIMIENTO de SAC. Incluye los procesos creados con tu usuario y los que tienes a cargo en Mercurio. La última columna indica si el radicado está en el Mercurio de otra persona.</div>
+      <div class="recScroll"><table id="tHoy"><thead><tr><th style="width:80px">Gestionado</th><th>Proceso</th><th>Radicado</th><th>Cuenta</th>
+        <th>Trámite</th><th>F. creación</th><th>F. vencimiento</th><th>Última acción</th><th>Creado por</th><th>Responsable actual en Mercurio</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="mCons" role="dialog" aria-modal="true">
+  <div class="mbox" style="max-width:1400px">
+    <div class="mhead">
+      <div><div class="mhTit"><span class="mhIco" data-m2i="chat" aria-hidden="true"></span><div><h3>Consultas</h3><p id="consSub"></p></div></div></div>
+      <div style="display:flex;gap:8px;align-items:center"><button class="btnCons sec" id="consIrAnt" type="button"><span class="m2i" data-m2i="history" aria-hidden="true"></span>Consultas anteriores</button>
+      <button class="cerrar" id="consX">&times;</button></div></div>
+    <div class="mbody" style="padding-top:14px">
+      <div class="recScroll"><table id="tCons"><thead><tr><th style="width:30px"></th><th>Radicado</th><th>Cuenta</th><th>Proceso(s)</th><th>Día</th>
+        <th>Contenido (Mercurio)</th><th>Consulta a realizar</th><th>Observaciones del profesional</th><th>Evacuar / Quitar</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="mConsAnt" role="dialog" aria-modal="true">
+  <div class="mbox" style="max-width:1400px">
+    <div class="mhead">
+      <div><div class="mhTit"><span class="mhIco" data-m2i="history" aria-hidden="true"></span><div><h3>Consultas anteriores</h3><p id="consAntSub">Solo lectura</p></div></div></div>
+      <div style="display:flex;gap:8px;align-items:center"><button class="btnCons sec" id="consVolver" type="button"><span class="m2i" data-m2i="back" aria-hidden="true"></span>Volver a Consultas</button>
+      <button class="cerrar" id="consAntX">&times;</button></div></div>
+    <div class="mbody" style="padding-top:14px">
+      <div class="recScroll"><table id="tConsAnt"><thead><tr><th>Radicado</th><th>Fecha radicado</th><th>Cuenta</th><th>Proceso(s)</th><th>Contenido (Mercurio)</th>
+        <th>Consulta a realizar</th><th>Observaciones del profesional</th><th>Evacuada el</th><th></th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="mCta" role="dialog" aria-modal="true">
+  <div class="mbox">
+    <div class="mhead">
+      <div><div class="mhTit"><span class="mhIco" data-m2i="home" aria-hidden="true"></span><div><h3 id="ctaTit">Detalles de la cuenta</h3><p id="ctaSub"></p></div></div></div>
+      <button class="cerrar" id="ctaX">&times;</button></div>
+    <div class="mbody"><div id="ctaTabs" class="ctaTabs"></div><div id="ctaBody"></div></div>
+  </div>
+</div>
+<div class="modal" id="mHist" role="dialog" aria-modal="true">
+  <div class="mbox" style="max-width:1400px">
+    <div class="mhead">
+      <div><div class="mhTit"><span class="mhIco" data-m2i="history" aria-hidden="true"></span><div><h3>Histórico</h3><p id="histSub">Radicados gestionados</p></div></div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="search" id="histQ" placeholder="Buscar radicado, proceso, cuenta, cierre…" style="padding:6px 10px;font-size:12.5px;min-width:240px">
+        <button class="btnCons sec" id="histExp" type="button"><span class="m2i" data-m2i="download" aria-hidden="true"></span>Exportar</button>
+        <button class="cerrar" id="histX">&times;</button></div></div>
+    <div class="mbody" style="padding-top:14px">
+      <div class="recScroll"><table id="tHist"><thead></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="mCal" role="dialog" aria-modal="true">
+  <div class="mbox">
+    <div class="mhead">
+      <div><div class="mhTit"><span class="mhIco" data-m2i="calendar" aria-hidden="true"></span><div><h3>Calendario de gestión</h3><p>Domingos y festivos de Colombia marcados · notas y cumpleaños se guardan en este equipo</p></div></div></div>
+      <button class="cerrar" id="calX">&times;</button></div>
+    <div class="mbody"><div class="calWrap">
+      <div>
+        <div class="calNav"><button id="calPrev">‹</button><h4 id="calMes"></h4><button id="calNext">›</button>
+          <button id="calHoy" style="width:auto;padding:0 10px;font-size:12px">Hoy</button></div>
+        <div class="calGrid" id="calGrid"></div>
+        <div class="calLey"><span><i style="background:#FBE7E8;border:1px solid #F3C3C7"></i>Domingo</span>
+          <span><i style="background:#FBE7E8;border:1px solid #D21624"></i>Festivo</span>
+          <span><i style="background:#F8FAFC;border:1px solid #DCE3EA"></i>Sábado</span>
+          <span><span class="m2i" data-m2i="edit" aria-hidden="true"></span>Nota</span><span><span class="m2i" data-m2i="cake" aria-hidden="true"></span>Cumpleaños</span></div>
+      </div>
+      <div class="calPanel" id="calPanel"></div>
+    </div></div>
+  </div>
+</div>
+<footer><div class="ft"><span>© 2026 ESSA E.S.P. — Asistente Documental · <b>Versión 33</b></span><span>Todos los derechos reservados</span></div></footer>
+<script type="module" src="/src/modules/cuadro/main.ts"></script>
+</body>
+</html>

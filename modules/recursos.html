@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESSA · Módulo 1: Configuración de Recursos</title>
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M3 12h3M18 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg></div>
+    <div>
+      <div class="brand-title">Módulo 1<span class="divider">·</span>Configuración de Recursos</div>
+      <div class="brand-sub">Carga los insumos base y configura tu perfil para iniciar la generación documental</div>
+    </div>
+  </div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema claro u oscuro"><span class="tt-knob" id="ttKnob"></span></button>
+</header>
+
+<div class="storage-warn" id="storageWarn" role="alert">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+  <span><b>El guardado automático no está disponible en este modo.</b> Estás abriendo el archivo directamente desde tu equipo (file://), por lo que el navegador no puede recordar los recursos cargados entre recargas. Para que SAC, Plantillas y Mercurio se mantengan guardados, abre el Asistente Documental desde el servidor local del aplicativo (http://localhost) en lugar de hacer doble clic sobre el archivo .html.</span>
+  <button id="storageWarnClose" aria-label="Cerrar aviso"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+</div>
+
+<main class="main">
+  <div class="sec-head">
+    <div>
+      <div class="sec-title">
+        <span class="s-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M6 9V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4"/><path d="M9 13h6M9 7h6"/></svg></span>
+        <h2>Recursos de trabajo</h2>
+      </div>
+      <div class="sec-sub">Carga cada archivo <b>una sola vez</b>: queda procesado y disponible para todos los módulos del Asistente.</div>
+    </div>
+    <div class="sec-head-right">
+      <button class="btn-guide" id="btnGuide" type="button">
+        <span class="chip-ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 1.8-2.4 3.5"/><circle cx="12" cy="17" r=".2" fill="currentColor"/></svg>
+        </span>
+        <span>Guía rápida</span>
+        <span class="pulse-dot" id="guidePulse"></span>
+      </button>
+      <div class="tagline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2c.6 4.8 2.2 6.4 7 7-4.8.6-6.4 2.2-7 7-.6-4.8-2.2-6.4-7-7 4.8-.6 6.4-2.2 7-7Z"/></svg>Tu información, <i>nuestra energía</i></div>
+    </div>
+  </div>
+
+  <div class="res-grid">
+    <!-- SAC -->
+    <section class="res-card c-sac" data-key="sac" data-type="file" data-label="Archivo SAC">
+      <div class="rc-head">
+        <span class="rc-tile"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 8.2c1.6 1.5 4.6 2.3 8 2.3s6.4-.8 8-2.3V12c0 1.7-3.6 3-8 3s-8-1.3-8-3Z" opacity=".85"/><path d="M4 14.2c1.6 1.5 4.6 2.3 8 2.3s6.4-.8 8-2.3V18c0 1.7-3.6 3-8 3s-8-1.3-8-3Z" opacity=".7"/></svg></span>
+        <div class="rc-titles">
+          <div class="rc-title">Archivo SAC <span class="badge req" data-badge><span class="d"></span>Obligatorio</span></div>
+          <div class="rc-sub">Base principal de trámites</div>
+        </div>
+        <a class="btn-src" href="https://epmco-my.sharepoint.com/:f:/r/personal/atencionclientes_essa_com_co/Documents/SAC_TRAMITE_EXCEL_COMPARTIDO?d=wc7d2ddae58bf4835affc2ac2eb9d5791&amp;csf=1&amp;web=1&amp;e=bqAsz8" target="_blank" rel="noopener" title="Abrir archivo SAC en SharePoint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Descargar</a>
+      </div>
+      <div class="rc-body">
+        <label class="drop" tabindex="0">
+          <input type="file" accept=".xlsx,.xls">
+          <span class="drop-ic"><svg viewBox="0 0 64 48"><path fill="currentColor" d="M50 44H16A14 14 0 0 1 14.6 16 18 18 0 0 1 48.6 14.2 15 15 0 0 1 50 44Z"/><path d="M32 36V20M25 26l7-7 7 7" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="drop-txt">Arrastra el archivo o <b>haz clic para buscar</b></span>
+          <span class="fmts"><span class="f-xlsx">.xlsx</span><span class="f-xls">.xls</span></span>
+        </label>
+        <div class="loaded"></div>
+        <div class="rc-note"><i class="i">i</i>Formato permitido: Excel (.xlsx, .xls).</div>
+      </div>
+    </section>
+
+    <!-- PLANTILLAS -->
+    <section class="res-card c-plantillas" data-key="plantillas" data-type="folder" data-label="Plantillas Word">
+      <div class="rc-head">
+        <span class="rc-tile"><svg viewBox="0 0 24 24"><path fill="#F3C3C7" d="M8 2h9l5 5v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><path fill="#E0323F" d="M17 2v5h5Z"/><rect x="2" y="7" width="12" height="11" rx="2" fill="currentColor"/><path d="m4.6 9.8 1.2 5.6 1.4-4 1.4 4 1.2-5.6" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <div class="rc-titles">
+          <div class="rc-title">Plantillas Word <span class="badge req" data-badge><span class="d"></span>Obligatorio</span></div>
+          <div class="rc-sub">Carpeta con los documentos <b>.docx</b></div>
+        </div>
+        <a class="btn-src" href="https://epmco-my.sharepoint.com/:f:/r/personal/atencionclientes_essa_com_co/Documents/PLANTILAS_SOPORTE%20CLIENTES?d=wbb247310e4a14457bc93016440b8ecb0&amp;csf=1&amp;web=1&amp;e=b35gs0" target="_blank" rel="noopener" title="Abrir carpeta de plantillas en SharePoint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Descargar</a>
+      </div>
+      <div class="rc-body">
+        <label class="drop" tabindex="0">
+          <input type="file" webkitdirectory directory multiple>
+          <span class="drop-ic"><svg viewBox="0 0 64 48"><path fill="currentColor" opacity=".55" d="M6 10a4 4 0 0 1 4-4h14l5 5h25a4 4 0 0 1 4 4v3H6Z"/><path fill="currentColor" d="M6 16h52v24a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4Z"/><path d="M32 37V24M26 29l6-6 6 6" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="drop-txt">Arrastra la carpeta o <b>haz clic para seleccionarla</b></span>
+          <span class="fmts"><span class="f-carpeta">Carpeta</span><span class="f-docx">.docx</span></span>
+        </label>
+        <div class="loaded"></div>
+        <div class="rc-note"><i class="i">i</i>Solo se aceptan archivos .docx en formato de plantilla.</div>
+      </div>
+    </section>
+
+    <!-- MERCURIO -->
+    <section class="res-card c-mercurio" data-key="mercurio" data-type="file" data-label="Archivo Mercurio">
+      <div class="rc-head">
+        <span class="rc-tile"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><path fill="#BBF7D0" d="M15 2v5h5Z"/><path d="M8 11h8M8 14h8M8 17h5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+        <div class="rc-titles">
+          <div class="rc-title">Archivo Mercurio <span class="badge opt" data-badge><span class="d"></span>Opcional</span></div>
+          <div class="rc-sub">Base de Correspondencia</div>
+        </div>
+        <a class="btn-src" href="https://epmco-my.sharepoint.com/:f:/r/personal/atencionclientes_essa_com_co/Documents/MERCURIO_TRAMITE_EXCEL_COMPARTIDO?d=wecd9b18ce9a0467ba0689edaca9a58c7&amp;csf=1&amp;web=1&amp;e=WNkv41" target="_blank" rel="noopener" title="Abrir archivo Mercurio en SharePoint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Descargar</a>
+      </div>
+      <div class="rc-body">
+        <label class="drop" tabindex="0">
+          <input type="file" accept=".xlsx,.xls">
+          <span class="drop-ic"><svg viewBox="0 0 64 48"><path fill="currentColor" d="M50 44H16A14 14 0 0 1 14.6 16 18 18 0 0 1 48.6 14.2 15 15 0 0 1 50 44Z"/><path d="M32 36V20M25 26l7-7 7 7" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="drop-txt">Arrastra el archivo o <b>haz clic para buscar</b></span>
+          <span class="fmts"><span class="f-xlsx">.xlsx</span><span class="f-xls">.xls</span></span>
+        </label>
+        <div class="loaded"></div>
+        <div class="rc-note"><i class="i">i</i>Formato permitido: Excel (.xlsx, .xls).</div>
+      </div>
+    </section>
+
+    <!-- CARPETA DE DATOS -->
+    <section class="res-card c-data data-card" id="backupCard" aria-labelledby="dataCardTitle">
+      <div class="rc-head">
+        <span class="rc-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><ellipse cx="12" cy="12" rx="5" ry="2"/><path d="M7 12v4c0 1.1 2.2 2 5 2s5-.9 5-2v-4"/></svg></span>
+        <div class="rc-titles">
+          <div class="rc-title" id="dataCardTitle">Carpeta de datos <span class="badge repo" id="dataBadge"><span class="d"></span>Persistencia</span></div>
+          <div class="rc-sub">Configuraciones, rutas, notas y datos persistentes</div>
+        </div>
+      </div>
+      <div class="rc-body data-body">
+        <div class="data-summary" id="dataSummary" role="status" aria-live="polite">
+          <span class="data-state-icon" id="dataStateIcon"><span class="data-spinner"></span></span>
+          <span class="data-state-copy"><b id="dataLocalStatus">Preparando repositorio local…</b><small id="backupSub">Comprobando almacenamiento persistente</small></span>
+          <span class="data-health warn" id="dataHealth">Iniciando</span>
+        </div>
+        <div class="data-metrics" aria-label="Resumen del repositorio">
+          <div class="data-metric"><span>Datos protegidos</span><b id="dataCount">—</b></div>
+          <div class="data-metric"><span>Última copia</span><b id="dataLastSave">Aún no conectada</b></div>
+        </div>
+        <button type="button" class="data-connect" id="backupChip" aria-describedby="backupSub">
+          <span id="dataConnectIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M12 11v6M9 14l3 3 3-3"/></svg></span>
+          <span id="dataConnectText">Elegir carpeta externa</span>
+        </button>
+        <div class="data-actions" id="backupLinks">
+          <button type="button" class="data-action" id="bkExp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exportar</button>
+          <button type="button" class="data-action" id="bkImp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9M7 14l5-5 5 5M5 3h14"/></svg>Importar</button>
+          <button type="button" class="data-action" id="bkMant"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M4.9 4.9 7 7M17 17l2.1 2.1M3 12h3M18 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>Mantenimiento</button>
+          <input type="file" id="bkFile" accept=".json,application/json" hidden>
+        </div>
+        <div class="rc-note"><i class="i">i</i><span>Las notas y observaciones del Módulo 2 se guardan automáticamente en IndexedDB; la carpeta externa añade una copia recuperable.</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= FIRMANTE ================= -->
+  <section class="firmante" id="perfil">
+    <div class="pf-id">
+      <span class="pf-av" id="pfAvatar"></span>
+      <div class="pf-id-text">
+        <div class="pf-id-top"><span class="pf-name">Firmante</span><span class="badge pend" id="pfBadge"><span class="d"></span>Pendiente</span></div>
+        <div class="pf-desc">Datos y firma aplicados a los documentos</div>
+      </div>
+    </div>
+    <span class="f-divider"></span>
+    <div class="f-fields">
+      <div class="pf-item">
+        <span class="pi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></span>
+        <div><small>Nombre</small><div class="v" id="pfNombre"></div></div>
+      </div>
+      <div class="pf-item">
+        <span class="pi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 12h18M11 12v2h2v-2"/></svg></span>
+        <div><small>Cargo</small><div class="v" id="pfCargo"></div></div>
+      </div>
+      <div class="pf-item">
+        <span class="pi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/><path d="M14 6l3 3"/></svg></span>
+        <div><small>Firma digital</small><div class="v" id="pfFirma"></div></div>
+      </div>
+    </div>
+    <button class="btn-blue" id="btnPerfil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg><span id="btnPerfilTxt">Configurar perfil y firma</span><svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </section>
+</main>
+
+<!-- ================= BARRA DE ACCIONES ================= -->
+<div class="action-bar">
+  <div class="ab-inner">
+    <button class="btn-ghost" id="btnCancelar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>Cancelar</button>
+    <button class="btn-ghost" id="btnActualizar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/></svg>Actualizar datos</button>
+    <div class="ab-status"><div style="display:flex;gap:10px" id="steps"></div><span class="ab-msg" id="abMsg"></span></div>
+    <button class="btn-primary" id="btnGenerar" disabled>
+      <span class="bp-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      Generar documento
+    </button>
+  </div>
+</div>
+
+<!-- ================= MODAL ================= -->
+<div class="modal-bg" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="modal">
+    <div class="m-head">
+      <span class="pf-av"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4.2"/><path d="M4 20.5c0-4.3 3.6-6.8 8-6.8s8 2.5 8 6.8Z"/></svg></span>
+      <div class="m-headtext"><div class="m-title" id="mTitle">Perfil y firma</div><div class="m-sub">Se guardan en este equipo para próximos usos</div></div>
+      <button class="m-close" id="mClose" aria-label="Cerrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="m-body">
+      <div class="m-col-left">
+        <div class="fld fld-nombre">
+          <label for="inNombre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>Nombre completo</label>
+          <div class="input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg><input type="text" id="inNombre" placeholder="Ej.: María Fernanda Rojas"></div>
+        </div>
+        <div class="fld fld-cargo">
+          <label for="inCargo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>Cargo</label>
+          <div class="input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg><input type="text" id="inCargo" placeholder="Ej.: Profesional Atención Clientes"></div>
+        </div>
+      </div>
+      <div class="fld fld-firma">
+        <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>Firma digital</label>
+        <div class="sig-block">
+          <div class="sig-toolbar">
+            <span class="st-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3M12 3v12M7 10l5 5 5-5"/></svg>Arrastra para cambiar el tamaño</span>
+            <div class="sig-zoom">
+              <button type="button" id="sigZoomOut" title="Reducir" aria-label="Reducir firma"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+              <button type="button" id="sigZoomIn" title="Ampliar" aria-label="Ampliar firma"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+            <span class="st-size" id="sigSizeTag">220 px</span>
+          </div>
+          <div class="sig-stage drop-empty" id="sigStage">
+            <span id="sigView"></span>
+          </div>
+          <input type="file" id="inFirma" accept="image/png,image/jpeg" style="display:none">
+          <div class="sig-range">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 16 4-4-4-4M20 8l-4 4 4 4"/></svg>
+            <input type="range" id="sigRange" min="90" max="420" value="220">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 3 8m0 0v-3m0 3h3M16 3l5 5m0 0v-3m0 3h-3M8 21l-5-5m0 0v3m0-3h3M16 21l5-5m0 0v3m0-3h-3"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn-ghost" id="mCancel">Cancelar</button>
+      <button class="btn-blue" id="mSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Guardar perfil</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span class="t-ic"></span><span id="toastTxt"></span></div>
+<script type="module" src="/src/modules/recursos/main.ts"></script>
+</body>
+</html>
