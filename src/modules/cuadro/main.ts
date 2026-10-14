@@ -946,21 +946,29 @@ function render(){
   const f=filtrar();
   $('kpis').innerHTML=
     '<div class="kpi kpiTotal" data-k="total" role="button" tabindex="0">'+
+      '<i class="kBeam" aria-hidden="true"></i>'+
+      '<svg class="kBg" viewBox="0 0 310 70" preserveAspectRatio="xMaxYMid meet" aria-hidden="true">'+
+        '<path class="kBgDraw" pathLength="100" d="M0 56 L30 50 L60 54 L95 38 L130 42 L165 26 L200 30 L240 14 L300 8"/>'+
+        '<circle class="kBgDot" cx="300" cy="8" r="3.5"/></svg>'+
       '<span class="kIco" aria-hidden="true">'+M2I(M2P.doc)+'</span>'+
       '<div class="kBody"><div class="kEye">Resumen activo</div><div class="kTit">Total en trámite</div>'+
         '<div class="kNum"><span class="v">'+nfmt(f.length)+'</span><span class="kUni">'+(f.length===1?'expediente activo':'expedientes activos')+'</span></div></div>'+
-      '<span class="kGo" aria-hidden="true">'+M2I(M2P.arrow)+'</span>'+
+      '<span class="kGo" aria-hidden="true">Ver</span>'+
       '<div class="notaRT"><span class="nIc">'+M2I(M2P.info)+'</span><span>No es en tiempo real: <b>no incluye lo radicado hoy</b></span></div></div>';
   $('kpis').querySelector('.kpi').onclick=()=>abrir('Total en trámite',etiqueta(),f);
   /* ficha de procesos a cerrar hoy (usuario seleccionado o, si no hay, todo el equipo) */
   const uSel=usuarioHoyDef(true), ph=procHoy(uSel), pend=ph.filter(x=>!CHK[clave(HOY)+'|'+x.p.numero]).length;
   const k2=document.createElement('div'); k2.className='kpi kpiHoy'; k2.setAttribute('role','button'); k2.tabIndex=0;
-  k2.innerHTML='<span class="kIco" aria-hidden="true">'+M2I(M2P.bolt)+'</span>'+
+  k2.innerHTML='<i class="kBeam" aria-hidden="true"></i>'+
+    '<svg class="kBg" viewBox="0 0 310 70" preserveAspectRatio="xMaxYMid meet" aria-hidden="true">'+
+      '<path class="kBgBase" d="M0 38 L70 38 L84 38 L92 20 L100 58 L110 8 L120 38 L190 38 L204 38 L210 30 L216 44 L222 38 L310 38"/>'+
+      '<path class="kBgPulse" pathLength="100" d="M0 38 L70 38 L84 38 L92 20 L100 58 L110 8 L120 38 L190 38 L204 38 L210 30 L216 44 L222 38 L310 38"/></svg>'+
+    '<span class="kIco" aria-hidden="true">'+M2I(M2P.bolt)+'</span>'+
     '<div class="kBody"><div class="kEye">Atención inmediata</div><div class="kTit">Procesos a cerrar hoy</div>'+
       '<div class="kNum"><span class="v">'+nfmt(ph.length)+'</span>'+
       '<span class="kPill">'+(ALLPROC.length?('<b>'+pend+'</b> pendiente(s) <i class="kDot"></i> '+(uSel?esc(uSel):'todo el equipo')):'Carga los archivos en Recursos')+'</span></div></div>'+
-    '<span class="kGo" aria-hidden="true">'+M2I(M2P.arrow)+'</span>'+
-    '<div class="notaRT"><span class="nIc">'+M2I(M2P.clock)+'</span><span><b>Vencen hoy '+dFmt(HOY)+'</b> <i class="kDot"></i> Clic para ver</span></div>';
+    '<span class="kGo" aria-hidden="true">Ver</span>'+
+    '<div class="notaRT"><span class="nIc">'+M2I(M2P.clock)+'</span><span><b>Vencen hoy '+dFmt(HOY)+'</b> <i class="kDot"></i> <em class="kClick">Clic para ver</em></span></div>';
   k2.onclick=abrirHoy;
   $('kpis').appendChild(k2);
   $('kpis').querySelectorAll('.kpi').forEach(k=>k.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); k.click(); } });
