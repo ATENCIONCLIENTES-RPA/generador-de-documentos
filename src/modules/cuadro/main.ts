@@ -2454,13 +2454,13 @@ function pintaCal(){
 }
 function pintaCalPanel(fn){
   const d=CAL_SEL, k=clave(d), md=k.slice(5), w=d.getDay();
-  const tipo=fn[k]?['Festivo: '+fn[k],'#FBE7E8','#A01119']:w===0?['Domingo','#FBE7E8','#A01119']:w===6?['Sábado','#E7ECF1','#5C6B7D']:['Día hábil','#EAF2FC','#1664B0'];
+  const tipo=fn[k]?['Festivo: '+fn[k],'tagFes']:w===0?['Domingo','tagDom']:w===6?['Sábado','tagSab']:['Día hábil','tagHab'];
   const U=calU(), ns=U.notas[k]||[], cs=U.cumple[md]||[];
   $('calPanel').innerHTML='<div class="calDueno">'+m2i('lock')+' Notas personales de <b>'+esc(calNombre())+'</b></div><h5>'+d.toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'</h5>'+
-    '<span class="tag" style="background:'+tipo[1]+';color:'+tipo[2]+'">'+esc(tipo[0])+'</span>'+
+    '<span class="tag '+tipo[1]+'">'+esc(tipo[0])+'</span>'+
     '<ul>'+cs.map((c,i)=>'<li>'+m2i('cake')+'<span>'+esc(c)+' <i class="sp">(cada año)</i></span><b data-dc="'+i+'" title="Eliminar">×</b></li>').join('')+
     ns.map((n,i)=>'<li>'+m2i('edit')+'<span>'+esc(n)+'</span><b data-dn="'+i+'" title="Eliminar">×</b></li>').join('')+
-    (!cs.length&&!ns.length?'<li style="background:none;border:0;color:#93A1B0">Sin notas para este día.</li>':'')+'</ul>'+
+    (!cs.length&&!ns.length?'<li class="calVacio">Sin notas para este día.</li>':'')+'</ul>'+
     '<textarea id="calTxt" placeholder="Escribe una nota o el nombre de quien cumple años…"></textarea>'+
     '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="btn mini" id="calAddN" type="button">'+m2i('edit')+'Agregar nota</button>'+
     '<button class="btn sec mini" id="calAddC" type="button">'+m2i('cake')+'Agregar cumpleaños</button></div>';

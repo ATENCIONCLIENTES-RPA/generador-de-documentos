@@ -1125,6 +1125,61 @@ html[data-theme="dark"] #m2ui .dupLupa{color:#0F1C33}
 #m2ui .calGrid .it svg{width:11px;height:11px;vertical-align:-1px;margin-right:3px}
 #m2ui .calPanel li{display:flex;align-items:flex-start;gap:8px}
 
+/* ---- Calendario de gestión (#mCal): paleta por tema + textos legibles en claro y oscuro ---- */
+#m2ui #mCal{
+  --cal-head:#5C6B7D;      /* encabezados Lun/Mar/… */
+  --cal-note:#1E2A38;      /* nota o cumpleaños dentro de la celda */
+  --cal-red:#D21624;       /* domingo y × de eliminar */
+  --cal-red-ink:#A01119;   /* texto de los chips festivos */
+  --cal-red-bg:#FBE7E8;    /* tinte rojo (chips y leyenda) */
+  --cal-dom-line:#F3C3C7;
+  --cal-fes-line:#D21624;
+  --cal-blue:#1664B0;      /* chip «Día hábil» */
+  --cal-blue-bg:#EAF2FC;
+  --cal-sab-bg:#E7ECF1;
+  --cal-sab-ink:#5C6B7D;
+  --cal-sab-line:#DCE3EA;
+  --cal-mut:#64748B;       /* «(cada año)» y estado vacío */
+}
+html[data-theme="dark"] #m2ui #mCal{
+  --cal-head:#A9B1C2;
+  --cal-note:#C3CBDA;
+  --cal-red:#FF6B75;
+  --cal-red-ink:#FF8A92;
+  --cal-red-bg:rgba(255,90,100,.13);
+  --cal-dom-line:#4A2226;
+  --cal-fes-line:#FF5A64;
+  --cal-blue:#8AB4F8;
+  --cal-blue-bg:rgba(96,165,250,.14);
+  --cal-sab-bg:rgba(255,255,255,.04);
+  --cal-sab-ink:#9AA6BC;
+  --cal-sab-line:#2A3140;
+  --cal-mut:#9AA6BC;
+}
+/* encabezados de semana */
+#m2ui .calWrap .calH{color:var(--cal-head)}
+#m2ui .calWrap .calH.dom{color:var(--cal-red)}
+/* notas y cumpleaños de las celdas: en oscuro heredaban el tinte casi negro y no se veían */
+#m2ui .calWrap .calD .it{color:var(--cal-note)}
+#m2ui .calWrap .calD .it svg{color:inherit}
+/* días de algo menos visibles en oscuro */
+html[data-theme="dark"] #m2ui .calWrap .calD.otro{opacity:.5}
+/* hover de celda en oscuro: anillo azul sin tapar el tinte del día */
+html[data-theme="dark"] #m2ui .calWrap .calD:hover{border-color:var(--m2-blue);box-shadow:inset 0 0 0 1px rgba(96,165,250,.28)}
+/* panel de la fecha seleccionada */
+#m2ui .calPanel li>b{color:var(--cal-red)}        /* × de eliminar */
+#m2ui .calPanel li .sp{color:var(--cal-mut)}      /* «(cada año)» */
+#m2ui .calPanel .calVacio{background:none;border:0;color:var(--cal-mut)}
+/* chips de tipo de día (antes con estilos inline de tema claro) */
+#m2ui .calPanel .tagFes,#m2ui .calPanel .tagDom{background:var(--cal-red-bg);color:var(--cal-red-ink)}
+#m2ui .calPanel .tagSab{background:var(--cal-sab-bg);color:var(--cal-sab-ink)}
+#m2ui .calPanel .tagHab{background:var(--cal-blue-bg);color:var(--cal-blue)}
+/* muestras de la leyenda */
+#m2ui .calLey .calSw{width:13px;height:13px;border-radius:4px;border:1px solid;display:inline-block}
+#m2ui .calLey .calSw.dom{background:var(--cal-red-bg);border-color:var(--cal-dom-line)}
+#m2ui .calLey .calSw.fes{background:var(--cal-red-bg);border-color:var(--cal-fes-line)}
+#m2ui .calLey .calSw.sab{background:var(--cal-sab-bg);border-color:var(--cal-sab-line)}
+
 /* ---- confirmación (reutilizada para evacuar, limpiar, quitar y «Generar respuesta») ---- */
 #m2ui #mConf{z-index:300}
 #m2ui #mConf .mbox{max-width:480px;border-radius:24px}
