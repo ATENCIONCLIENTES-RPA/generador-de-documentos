@@ -4,6 +4,11 @@
         "npm run build:ci": true,
         "ForEach-Object": true,
         "git -C $_.FullName": true,
-        "Test-Path": true
+        "Test-Path": true,
+        "git check-ignore": true,
+        "git fetch": true,
+        "git add": true,
+        "git commit": true,
+        "git push": true
     }
 }
