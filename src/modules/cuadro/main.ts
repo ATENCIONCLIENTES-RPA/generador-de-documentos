@@ -2479,6 +2479,21 @@ $('calX').onclick=()=>$('mCal').classList.remove('on');
 $('mCal').onclick=e=>{ if(e.target===$('mCal')) $('mCal').classList.remove('on'); };
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('mCal').classList.remove('on'); });
 
+/* ================= CONSULTAS NATIVAS: MATRIZ/ÁRBOL Y CIIU =================
+   Las dos herramientas son páginas autocontenidas con sus datos reales incrustados
+   (ZPSAC001, ZPSAC003 y el Decreto 2860 de 2013) publicadas en public/consultas/.
+   Aquí solo se abren en una pestaña nueva del navegador desde el Módulo 2: cada
+   herramienta mantiene todas sus capacidades originales (búsqueda, filtros, «Otras
+   consultas», visor de anexos, carga de nueva versión .xlsx y tema).
+   No usan datos del Módulo 1: no exigen archivos adicionales ni procesamiento duplicado. */
+const HERR={
+  mat:new URL('../consultas/matriz-arbol.html',document.baseURI).href,
+  ciiu:new URL('../consultas/ciiu.html',document.baseURI).href
+};
+function abreHerr(k){ const u=HERR[k]; if(u) window.open(u,'_blank','noopener'); }
+$('btnConsMat').onclick=()=>abreHerr('mat');
+$('btnConsCiiu').onclick=()=>abreHerr('ciiu');
+
 /* ---------- mantenimiento manual ----------
    El botón vive ahora en la tarjeta "Carpeta de datos" de Recursos (Módulo 1); aquí solo
    se registra la acción (esta función sigue siendo el único lugar que sabe depurar los

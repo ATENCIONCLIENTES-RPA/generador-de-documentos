@@ -383,6 +383,37 @@ tr.hecho td .rad{text-decoration:line-through;color:#1664B0}
 .hdr2 .calDiaMini{font-size:17px}
 .hdr2 .calMesMini{font-size:8.5px;padding:4px 0 1px}
 .hdr2 .calLbl{font-size:10px}
+
+/* ---- Botones de consulta nativos (Módulo 2) ----
+   Firma visual de las «tiles» de referencia (Diseño de Botones.html): degradado azul,
+   brillo radial, caja de icono clara con sombra, línea de acento inferior que crece al
+   pasar el cursor, elevación, foco anillado y escala al pulsar. Dimensiones ajustadas
+   para convivir con el botón del Calendario en la cabecera. */
+.consTile{
+  --ctA:#F5A524;
+  position:relative;overflow:hidden;isolation:isolate;flex-shrink:0;align-self:center;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  padding:7px 12px 9px;border:0;border-radius:16px;cursor:pointer;font:inherit;color:#fff;
+  text-align:center;-webkit-tap-highlight-color:transparent;
+  background:linear-gradient(150deg,#17358F 0%,#2D6AE3 100%);
+  box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 4px 12px rgba(23,53,143,.28);
+  transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s;
+}
+.consTile::before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(120px 70px at 100% 0%,rgba(255,255,255,.22),transparent 70%)}
+.consTile::after{content:"";position:absolute;left:50%;bottom:0;width:24px;height:3px;border-radius:3px 3px 0 0;background:var(--ctA);transform:translateX(-50%);transition:width .3s}
+.consTile:hover,.consTile:focus-visible{transform:translateY(-3px);box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 10px 18px -8px rgba(23,53,143,.55)}
+.consTile:hover::after{width:56px}
+.consTile:focus-visible{outline:none;box-shadow:0 0 0 3px #fff,0 0 0 5px #1D4ED8}
+.consTile:active{transform:translateY(-1px) scale(.985)}
+.consTile .ctIcon{width:32px;height:32px;border-radius:10px;flex:none;display:grid;place-items:center;padding:3px;
+  background:linear-gradient(160deg,#fff,#EAF1FF);box-shadow:0 4px 9px -4px rgba(5,15,50,.5);transition:transform .3s}
+.consTile .ctIcon svg{width:26px;height:26px;display:block}
+.consTile:hover .ctIcon{transform:scale(1.08) rotate(-3deg)}
+.consTile .ctTxt{font-size:10px;font-weight:650;line-height:1.25;letter-spacing:.005em;white-space:nowrap}
+.consTileCiiu{--ctA:#34D3C0;background:linear-gradient(150deg,#0F2F7A 0%,#0E86B0 100%);box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 4px 12px rgba(14,100,150,.28)}
+.consTileCiiu:hover,.consTileCiiu:focus-visible{box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 10px 18px -8px rgba(14,100,150,.5)}
+@media (prefers-reduced-motion:reduce){.consTile,.consTile::after,.consTile .ctIcon{transition:none!important}}
+@media(max-width:640px){.consTile{padding:6px 9px 8px}.consTile .ctIcon{width:28px;height:28px}.consTile .ctIcon svg{width:22px;height:22px}}
 .calWrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;padding-top:12px}
 @media(max-width:900px){.calWrap{grid-template-columns:1fr}}
 .calNav{display:flex;align-items:center;gap:10px;margin-bottom:8px}
@@ -735,6 +766,7 @@ html[data-theme="dark"] .notaFija.vacia{background:#16222e;border-color:#2A3140;
 html[data-theme="dark"] #hoyTxt{color:#8AB4F8}
 html[data-theme="dark"] #rangoTxt b{color:#FF5A64}
 html[data-theme="dark"] .calHoja{background:#1B2230}
+html[data-theme="dark"] .consTile:focus-visible{box-shadow:0 0 0 3px #1B2230,0 0 0 5px #60A5FA}
 html[data-theme="dark"] .calDiaMini{color:#8AB4F8}
 html[data-theme="dark"] .calNav h4{color:#8AB4F8}
 html[data-theme="dark"] .calNav button{background:#16222e;color:#8AB4F8;border-color:#2E4A63}

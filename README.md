@@ -28,4 +28,4 @@ npm run parity:storage    # compatibilidad de IndexedDB/localStorage en ambos se
 ```
 
 ## Estructura
-`src/app` shell · `src/stores` Zustand (solo UI) · `src/repositories` DocStore/DataRepository · `src/services` XLSX/PersonName · `src/workers` · `src/modules/{recursos,cuadro,documentos}` · `src/components` · `src/types` · `src/styles` · `public/vendor` librerías DOCX (sin cambios) · `docs/DIAGNOSTICO.md`.
+`src/app` shell · `src/stores` Zustand (solo UI) · `src/repositories` DocStore/DataRepository · `src/services` XLSX/PersonName · `src/workers` · `src/modules/{recursos,cuadro,documentos}` · `src/components` · `src/types` · `src/styles` · `public/vendor` librerías DOCX (sin cambios) · `public/consultas` consultas nativas del Módulo 2 (matriz/árbol ZPSAC001-ZPSAC003 y CIIU Decreto 2860: páginas autocontenidas con datos reales incrustados, abiertas desde el Cuadro de Mando) · `docs/DIAGNOSTICO.md`.
