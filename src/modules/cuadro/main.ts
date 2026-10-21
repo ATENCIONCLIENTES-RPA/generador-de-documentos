@@ -473,6 +473,9 @@ function resolverFirmante(nombre){ const r=identificarResponsable(nombre); retur
 /* clave interna de comparación para el filtro de responsable */
 const claveResponsable = s => { const r=resolverFirmante(s); return canonNombre(r||s); };
 let nFueraEquipo=0, ALLPROC=[], ALLRAD=[];
+/* Caché de la detección de duplicados por radicado: solo se calcula para los radicados que
+   se pintan y se vacía en cada recarga de datos (ver unificar(), junto a DUP_IDX=null) */
+let DUP_CACHE=new Map();
 
 /* ---------- unificación: un radicado = un caso ---------- */
 function unificar(){
@@ -614,7 +617,7 @@ function unificar(){
   nFueraEquipo = out.filter(d=>!d.respEq).length;
   /* todos los procesos SAC (del equipo o no), para Recursos y Vencen hoy */
   ALLPROC = out.flatMap(d=>d.procesos.map(p=>({p,d,cre:equipoDe(p.creador),ges:equipoDe(d.gestor)})));
-  ALLRAD=out; DUP_IDX=null;
+  ALLRAD=out; DUP_IDX=null; DUP_CACHE=new Map();
   DATOS=out.filter(d=>d.respEq);
 
 }
@@ -833,6 +836,7 @@ const M2P={
   star:'<path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8L3.5 9.7l5.9-.8z"/>',
   idcard:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="11" r="2"/><path d="M6.5 16c.6-1.6 1.7-2.3 2.5-2.3s1.9.7 2.5 2.3M14.5 10h4M14.5 13.5h3"/>',
   copy:'<rect x="8.5" y="8.5" width="12" height="12" rx="2.5"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/>',
+  dupDocs:'<rect x="8.5" y="6.5" width="11.5" height="15" rx="2.5"/><path d="M15.5 6.5V4a2.5 2.5 0 0 0-2.5-2.5h-7A2.5 2.5 0 0 0 3.5 4v11a2.5 2.5 0 0 0 2.5 2.5h2.5"/>',
   shuffle:'<path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="m4 4 5 5"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
   cake:'<path d="M4 20h16v-7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2z"/><path d="M4 16c2 1.5 3.5 1.5 5.5 0s3.5-1.5 5.5 0 3 1.2 5 0"/><path d="M12 11V7"/><path d="M12 4.2c.8.9.8 1.8 0 2.6-.8-.8-.8-1.7 0-2.6z"/>',
@@ -1104,6 +1108,7 @@ function cmpRad(a,b){ const x=soloNum(a), y=soloNum(b);
   if(!x||!y) return (x?0:1)-(y?0:1)||String(a).localeCompare(String(b));
   return x.length-y.length || (x<y?-1:x>y?1:0); }
 function pintaRadicados(){
+  ocultaDupTip(); /* el repintado reemplaza los badges: el tooltip deja de apuntar a nada */
   const multi=modoMulti();
   if(DIA_SEL===null && !multi){
     $('radTit').textContent='Radicados del día'; $('radSub').textContent='Selecciona un día en la tabla o en la gráfica.'; $('radSub').style.display='';
@@ -1141,11 +1146,22 @@ function pintaRadicados(){
     const proc = x.nProc===0 ? '<span class="sp">Sin proceso creado en SAC</span>'
                              : esc(x.procesos.map(p=>p.numero).join(', '));
     const mk=marcaDe(x), col=mk.color||'', nota=mk.nota||'';
+    /* indicador de posibles duplicados: solo para los radicados visibles y con caché */
+    const dup=detectaDuplicados(x);
+    const dupBtn=!dup.length?'':(()=>{
+      const nF=dup.filter(r=>r.F.size).length, pend=dup.length-nF, fuerte=nF>0;
+      /* el detalle viaja en data-* para el tooltip rico (#dupTip); sin «title» nativo */
+      return '<button type="button" class="dupRad'+(fuerte?' fuerte':' valida')+'" data-act="dup" data-i="'+i+'"'+
+        ' data-dn="'+dup.length+'" data-dnf="'+nF+'" data-dp="'+pend+'" aria-label="'+dup.length+
+        ' radicado(s) relacionado(s) en Mercurio, '+(fuerte?nF+' posible(s) duplicado(s), ':'')+
+        pend+' por validar. Abrir el detalle">'+m2i(fuerte?'dupDocs':'warn')+
+        '<b>'+dup.length+'</b></button>';
+    })();
     return '<tr class="fila'+(col?' marcada':'')+'" data-i="'+i+'"'+
       (col?' style="--mk:'+col+';--mkbg:'+rgba(col,.13)+';--mkbg2:'+rgba(col,.22)+'"':'')+'>'+
       '<td><span class="dot'+(col?'':' vacio')+'" data-act="col" data-i="'+i+'"'+
         (col?' style="background:'+col+';border-color:'+col+'"':'')+' title="Marcar con color"></span></td>'+
-      '<td class="clicRad" data-i="'+i+'">'+radLinkHtml(x,i)+
+      '<td class="clicRad" data-i="'+i+'">'+radLinkHtml(x,i)+dupBtn+
         (x.ajuste?' <span class="badge b-a sinDot" title="Fecha ajustada">'+m2i('calendar')+'</span>':'')+
         (nota?'<div class="notaPrev">'+esc(nota)+'</div>':'')+'</td>'+
       (multi?'<td class="clicRad'+(x.dia>CFG.diasHabiles?' vtoPas':'')+'" data-i="'+i+'">Día '+(x.dia??'—')+'</td>':'')+
@@ -1184,6 +1200,13 @@ function pintaRadicados(){
   });
   tb.querySelectorAll('[data-act="nota"]').forEach(el=>el.onclick=e=>{
     e.stopPropagation(); editaNota(el.closest('tr'),regs[+el.dataset.i]);
+  });
+  /* el badge de duplicados abre el detalle de ese radicado (sin abrir la fila) */
+  tb.querySelectorAll('[data-act="dup"]').forEach(el=>el.onclick=e=>{
+    e.stopPropagation();
+    tb.querySelectorAll('tr').forEach(t=>t.classList.remove('sel'));
+    el.closest('tr').classList.add('sel');
+    abreDupRapido(regs[+el.dataset.i]);
   });
   tb.querySelectorAll('.chkEvLbl').forEach(c=>c.onclick=e=>e.stopPropagation());
   tb.querySelectorAll('[data-evr]').forEach(ch=>ch.onchange=()=>{
@@ -1748,7 +1771,7 @@ if(!appDataGet('essa_mig_cd_zandra')){
   if(Array.isArray(RUTAS.cd) && !RUTAS.cd.length){ RUTAS.cd=RUTAS_DEF.cd.slice(); lsSet(LS_RUTAS,RUTAS); }
   try{ appDataSet('essa_mig_cd_zandra','1'); }catch(e){}
 }
-const guardaRutas=()=>{ RUTAS[RUTA]=ROL; lsSet(LS_RUTAS,RUTAS); DUP_IDX=null; };
+const guardaRutas=()=>{ RUTAS[RUTA]=ROL; lsSet(LS_RUTAS,RUTAS); DUP_IDX=null; DUP_CACHE=new Map(); };
 let SUBREC='dup', EXP_VER_EV=false;
 
 function pintaRol(){
@@ -1895,12 +1918,28 @@ function relacionesDe(d){
   cand.forEach(o=>{ const r=relacionarDup(d,o,k,keys.get(o)); if(r.F.size||r.W.size) out.push({o,F:r.F,W:r.W}); });
   return out;
 }
+/* ===== Punto de entrada único de la detección =====
+   Usa exactamente las mismas reglas de Rutas → Duplicados (clavesDup + relacionarDup + índice
+   de indiceDup) y agrega dos cosas: (1) guarda el resultado por radicado para no recalcular en
+   cada repintado y (2) permite consultar un radicado aunque su responsable no pertenezca a una
+   ruta (sus claves se calculan al vuelo; los candidatos siguen siendo los del índice).
+   Devuelve [{o:radicado relacionado, F:Set de coincidencias fuertes, W:Set de coincidencias
+   por validar}]: F no vacío = posible duplicado (🔴); solo W = por validar (🟠). */
+function detectaDuplicados(d){
+  if(!d || !ALLRAD.length) return [];
+  if(DUP_CACHE.has(d)) return DUP_CACHE.get(d);
+  const {keys}=indiceDup();
+  if(!keys.has(d)) keys.set(d,clavesDup(d));
+  const rel=relacionesDe(d);
+  DUP_CACHE.set(d,rel);
+  return rel;
+}
 /* Búsqueda manual: recorre la columna «Referencia del Documento» de todo Mercurio Trámite
-   (sin filtros de ruta, usuario ni fecha) y muestra cada radicado con los mismos datos de
-   Duplicados. Ignora mayúsculas y tildes. */
-function pintaBusq(u){
-  const th=$('tRec').querySelector('thead'), tb=$('tRec').querySelector('tbody'), q=$('dupQ').value.trim(), qn=sinTilde(q);
-  const por=new Map(); ALLRAD.forEach(d=>por.set(soloNum(d.radicado),d));
+   (sin filtros de ruta, usuario ni fecha) y devuelve cada radicado con los mismos datos de
+   Duplicados. Ignora mayúsculas y tildes. Compartida por Rutas → Duplicados y por el modal
+   de duplicados rápidos (indicador de «Radicados del día»). */
+function buscaMercurio(q,u){
+  const qn=sinTilde(q), por=new Map(); ALLRAD.forEach(d=>por.set(soloNum(d.radicado),d));
   const vistos=new Set(), L=[];
   CRUDO.mer.forEach(r=>{ const ref=txt(r['Refencia del Documento']??r['Referencia del Documento']); if(!ref||!sinTilde(ref).includes(qn)) return;
     const k=soloNum(r['No. Radicado']); if(!k||vistos.has(k)) return; vistos.add(k);
@@ -1910,9 +1949,14 @@ function pintaBusq(u){
       resp:d?(d.respEq||d.responsable||''):'', gestor:txt(r['Nombre del Gestor']), ruta:txt(r['Nombre de la Ruta']),
       estado:txt(r['Estado']), ref, mio:d?d.respEq===u:equipoDe(r['Nombre del Gestor'])===u}); });
   L.sort((a,b)=>(b.f||0)-(a.f||0));
+  return L;
+}
+/* Pinta los resultados de buscaMercurio() en la tabla indicada (misma marca de la frase
+   encontrada que usaba la vista Duplicados) y la deja ordenable por columna. */
+function pintaTablaBusq(tabla,q,L){
+  const th=tabla.querySelector('thead'), tb=tabla.querySelector('tbody'), qn=sinTilde(q);
   const marca=t=>{ const i=sinTilde(t).indexOf(qn); if(i<0) return esc(t);
     const a=esc(t.slice(0,i)), b=esc(t.slice(i,i+q.length)), c=esc(t.slice(i+q.length)); return a+'<mark>'+b+'</mark>'+c; };
-  $('recInfo').innerHTML='<b>'+L.length+'</b> radicado(s) de Mercurio contienen «'+esc(q)+'» · búsqueda en todos los radicados, sin importar ruta ni usuario';
   th.innerHTML='<tr><th></th><th>Radicado</th><th>Fecha</th><th>Cuenta</th><th>Proceso(s)</th><th>Responsable</th><th>Gestor Mercurio</th><th>Contenido (Mercurio)</th></tr>';
   tb.innerHTML=L.length?L.map(x=>'<tr class="'+(x.mio?'propio':'')+'"><td>'+(x.mio?'<span class="tuyoTag">'+m2i('star')+'TUYO</span>':'')+'</td>'+
     '<td class="rad">'+esc(x.rad)+'</td><td>'+dFmt(x.f)+'</td><td>'+esc(x.ctas.join(', ')||'—')+'</td>'+
@@ -1921,29 +1965,142 @@ function pintaBusq(u){
     '<td>'+esc(x.gestor||'—')+(x.ruta?'<div class="sp">'+esc(x.ruta)+'</div>':'')+'</td>'+
     '<td><div class="cont">'+marca(x.ref)+'</div></td></tr>').join('')
     :'<tr><td colspan="8" class="vacio">Ningún radicado de Mercurio contiene «'+esc(q)+'».</td></tr>';
-  ordenable($('tRec'));
+  ordenable(tabla);
+}
+function pintaBusq(u){
+  const q=$('dupQ').value.trim(), L=buscaMercurio(q,u);
+  $('recInfo').innerHTML='<b>'+L.length+'</b> radicado(s) de Mercurio contienen «'+esc(q)+'» · búsqueda en todos los radicados, sin importar ruta ni usuario';
+  pintaTablaBusq($('tRec'),q,L);
+}
+/* Fila de una tabla de duplicados: compartida por la vista Duplicados (Rutas) y por el
+   modal de duplicados rápido que se abre desde «Radicados del día». */
+function filaDup(d,extra){
+  return '<td class="rad">'+esc(d.radicado)+'</td><td>'+dFmt(d.fSol)+'</td><td>'+esc((d.cuentas||[]).join(', ')||'—')+'</td>'+
+    '<td>'+(d.nProc?d.procesos.map(p=>'<span class="procHL">'+esc(p.numero)+'</span>').join(' '):'<span class="sp">Sin proceso</span>')+'</td>'+
+    '<td>'+esc(d.respEq||'—')+extra+'</td><td><div class="cont">'+esc(d.contenido||'—')+'</div></td>';
+}
+/* Un grupo por radicado: cabecera con el nivel (🔴 posible duplicado / 🟠 por validar),
+   fila propia con ★ TUYO y, debajo, cada relacionado con sus criterios de coincidencia. */
+function grupoDup(x,u){
+  const dup=x.rel.some(r=>r.F.size);
+  return '<div class="dupG'+(dup?' fuerte':'')+'"><div class="dupH">'+
+    (dup?'<b class="nivDup">'+m2i('dupDocs')+'Posible duplicado</b>':'<b class="nivCoi">'+m2i('warn')+'Radicado con coincidencias, valida si se encuentra duplicado</b>')+'</div>'+
+    '<table><thead><tr><th></th><th>Radicado</th><th>Fecha</th><th>Cuenta</th><th>Proceso(s)</th><th>Responsable</th><th>Contenido (Mercurio)</th><th>Coincide en</th></tr></thead><tbody>'+
+    '<tr class="propio"><td><span class="tuyoTag">'+m2i('star')+'TUYO</span></td>'+filaDup(x.d,'')+'<td></td></tr>'+
+    x.rel.sort((a,b)=>b.F.size-a.F.size).map(r=>'<tr><td></td>'+filaDup(r.o,r.o.respEq!==u?' <span class="otroAs">otro asesor</span>':'')+
+      '<td class="coinc">'+[...r.F].map(z=>'<span class="ch chF">'+esc(z)+'</span>').join('')+[...r.W].map(z=>'<span class="ch">'+esc(z)+'</span>').join('')+'</td></tr>').join('')+
+    '</tbody></table></div>';
 }
 function pintaDup(u){
   const th=$('tRec').querySelector('thead'), tb=$('tRec').querySelector('tbody');
   th.innerHTML='';
   const mios=DATOS.filter(d=>d.respEq===u && (d.enVentana||d.vencida) && !evacuado(d));
-  const L=mios.map(d=>({d,rel:relacionesDe(d)})).filter(x=>x.rel.length)
+  const L=mios.map(d=>({d,rel:detectaDuplicados(d)})).filter(x=>x.rel.length)
     .sort((a,b)=>(b.rel.some(r=>r.F.size)-a.rel.some(r=>r.F.size))||((a.d.fSol||0)-(b.d.fSol||0)));
   const nDup=L.filter(x=>x.rel.some(r=>r.F.size)).length;
   $('recInfo').innerHTML='<b>'+L.length+'</b> radicado(s) de '+esc(u)+' con relación a otros · <span class="estSin">'+nDup+
     ' posible(s) duplicado(s)</span> · <span class="estAlg">'+(L.length-nDup)+' con coincidencias</span>';
-  const fila=(d,extra)=>'<td class="rad">'+esc(d.radicado)+'</td><td>'+dFmt(d.fSol)+'</td><td>'+esc((d.cuentas||[]).join(', ')||'—')+'</td>'+
-    '<td>'+(d.nProc?d.procesos.map(p=>'<span class="procHL">'+esc(p.numero)+'</span>').join(' '):'<span class="sp">Sin proceso</span>')+'</td>'+
-    '<td>'+esc(d.respEq||'—')+extra+'</td><td><div class="cont">'+esc(d.contenido||'—')+'</div></td>';
-  tb.innerHTML='<tr><td style="padding:0;border:0">'+(L.length?L.map(x=>{ const dup=x.rel.some(r=>r.F.size);
-    return '<div class="dupG'+(dup?' fuerte':'')+'"><div class="dupH">'+
-      (dup?'<b class="nivDup">'+m2i('ban')+'Posible duplicado</b>':'<b class="nivCoi">'+m2i('warn')+'Radicado con coincidencias, valida si se encuentra duplicado</b>')+'</div>'+
-      '<table><thead><tr><th></th><th>Radicado</th><th>Fecha</th><th>Cuenta</th><th>Proceso(s)</th><th>Responsable</th><th>Contenido (Mercurio)</th><th>Coincide en</th></tr></thead><tbody>'+
-      '<tr class="propio"><td><span class="tuyoTag">'+m2i('star')+'TUYO</span></td>'+fila(x.d,'')+'<td></td></tr>'+
-      x.rel.sort((a,b)=>b.F.size-a.F.size).map(r=>'<tr><td></td>'+fila(r.o,r.o.respEq!==u?' <span class="otroAs">otro asesor</span>':'')+
-        '<td class="coinc">'+[...r.F].map(z=>'<span class="ch chF">'+esc(z)+'</span>').join('')+[...r.W].map(z=>'<span class="ch">'+esc(z)+'</span>').join('')+'</td></tr>').join('')+
-      '</tbody></table></div>'; }).join(''):'<div class="vacio">No se encontraron posibles duplicados para este usuario.</div>')+'</td></tr>';
+  tb.innerHTML='<tr><td style="padding:0;border:0">'+
+    (L.length?L.map(x=>grupoDup(x,u)).join(''):'<div class="vacio">No se encontraron posibles duplicados para este usuario.</div>')+'</td></tr>';
 }
+
+/* ================= DUPLICADOS RÁPIDOS (indicador de «Radicados del día») =================
+   Se abre desde el badge del bloque «Radicados del día» y muestra UN radicado con sus
+   relacionados. No toca la navegación de Rutas (RUTA/SUBREC/recUsr): reutiliza la misma
+   detección (detectaDuplicados → clavesDup/relacionarDup/indiceDup), el mismo render de
+   grupos (grupoDup, con la fila ★ TUYO y los criterios «Coincide en») y la misma búsqueda
+   manual de Mercurio (buscaMercurio + pintaTablaBusq). */
+let DUP_RAD=null, _tDupRap=null;
+function pintaDupRapido(){
+  const d=DUP_RAD; if(!d) return;
+  const rel=detectaDuplicados(d), u=usuarioActivo();
+  const nF=rel.filter(r=>r.F.size).length, pend=rel.length-nF;
+  $('dupRapSub').textContent='Radicado '+d.radicado+' · '+(d.respEq||'sin responsable en Rutas')+' · '+
+    (rel.length?rel.length+' radicado(s) relacionado(s) en Mercurio':'sin relacionados en Mercurio');
+  $('dupRapInfo').innerHTML=rel.length
+    ? '<b>'+rel.length+'</b> radicado(s) relacionado(s) · <span class="estSin">'+nF+' posible(s) duplicado(s)</span> · '+
+      '<span class="estAlg">'+pend+' por validar</span> · mismos criterios de Rutas → Duplicados'
+    : 'Sin coincidencias relevantes en Mercurio para este radicado.';
+  $('dupRapCuerpo').innerHTML=rel.length?grupoDup({d,rel},u)
+    :'<div class="vacio">No se encontraron posibles duplicados para este radicado.</div>';
+  /* búsqueda manual: mismo mínimo de 3 caracteres (sin tildes) que en Rutas → Duplicados */
+  const q=$('dupRapQ').value.trim(), hay=sinTilde(q).length>=3;
+  $('dupRapBusq').style.display=hay?'':'none';
+  if(hay){ const L=buscaMercurio(q,u);
+    $('dupRapBusqInfo').innerHTML='<b>'+L.length+'</b> radicado(s) de Mercurio contienen «'+esc(q)+
+      '» · búsqueda en todos los radicados, sin importar ruta ni usuario';
+    pintaTablaBusq($('tDupRap'),q,L); }
+}
+function abreDupRapido(d){
+  DUP_RAD=d; $('dupRapQ').value=''; $('dupRapBusq').style.display='none';
+  try{ pintaDupRapido(); }catch(e){ reportaError('Duplicados rápidos',e); }
+  $('mDupRapido').classList.add('on');
+}
+function cierraDupRapido(){ $('mDupRapido').classList.remove('on'); }
+$('dupRapX').onclick=cierraDupRapido;
+$('mDupRapido').onclick=e=>{ if(e.target===$('mDupRapido')) cierraDupRapido(); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') cierraDupRapido(); });
+$('dupRapQ').addEventListener('input',()=>{ clearTimeout(_tDupRap); _tDupRap=setTimeout(()=>{ try{ pintaDupRapido(); }catch(e){ reportaError('Duplicados rápidos',e); } },250); });
+$('dupRapLimp').onclick=()=>{ $('dupRapQ').value=''; try{ pintaDupRapido(); }catch(e){ reportaError('Duplicados rápidos',e); } };
+
+/* ================= TOOLTIP DEL BADGE DE DUPLICADOS =================
+   Sustituye el atributo «title» nativo (genérico, lento y sin personalidad)
+   por un panel flotante con el nivel, el desglose 🔴/🟠 y la pista de acción.
+   Se ancla al badge con delegación de eventos (pintaRadicados repinta con
+   frecuencia) y se oculta al hacer clic, desplazar, redimensionar o pulsar Esc. */
+let DUP_TIP=null, DUP_ACT=null, _tDupTip=0;
+function dupTip(){
+  if(!DUP_TIP){
+    DUP_TIP=document.createElement('div');
+    DUP_TIP.id='dupTip'; DUP_TIP.className='dupTip';
+    DUP_TIP.setAttribute('role','tooltip'); DUP_TIP.setAttribute('aria-hidden','true');
+    document.body.appendChild(DUP_TIP);
+  }
+  return DUP_TIP;
+}
+function muestraDupTip(b){
+  if(!b) return;
+  const n=+b.dataset.dn||0, nF=+b.dataset.dnf||0, pend=+b.dataset.dp||0, fuerte=nF>0;
+  const t=dupTip(), anima=!t.classList.contains('on');
+  t.className='dupTip '+(fuerte?'f':'v')+(anima?'':' on');
+  t.innerHTML=
+    '<div class="dupTipHead"><span class="dupTipIco">'+m2i(fuerte?'dupDocs':'warn')+'</span>'+
+      '<div class="dupTipTit"><b>'+(fuerte?'Posible duplicado':'Coincidencias por validar')+'</b>'+
+      '<span><b>'+n+'</b> radicado(s) relacionado(s) en Mercurio</span></div></div>'+
+    '<div class="dupTipRows">'+
+      (nF?'<div class="dupTipRow f"><i></i>'+nF+' posible(s) duplicado(s)</div>':'')+
+      (pend?'<div class="dupTipRow w"><i></i>'+pend+' por validar</div>':'')+
+    '</div>'+
+    '<div class="dupTipFoot"><span class="dupTipKey">Clic</span> para ver el detalle</div>';
+  /* se centra sobre el badge; si no cabe arriba, se coloca debajo */
+  const r=b.getBoundingClientRect();
+  const w=t.offsetWidth, h=t.offsetHeight;
+  let x=Math.round(r.left+r.width/2-w/2);
+  x=Math.max(8,Math.min(x,document.documentElement.clientWidth-w-8));
+  let y=Math.round(r.top-h-11), abajo=false;
+  if(y<8){ y=Math.round(r.bottom+11); abajo=true; }
+  t.classList.toggle('abajo',abajo);
+  t.style.left=x+'px'; t.style.top=y+'px';
+  t.style.setProperty('--tipOx',Math.round(Math.max(14,Math.min(r.left+r.width/2-x,w-14)))+'px');
+  DUP_ACT=b;
+  if(anima) requestAnimationFrame(()=>{ if(DUP_ACT===b) t.classList.add('on'); });
+}
+function ocultaDupTip(){ clearTimeout(_tDupTip); DUP_ACT=null; if(DUP_TIP) DUP_TIP.classList.remove('on'); }
+(function dupTipEventos(){
+  document.addEventListener('mouseover',e=>{
+    const b=e.target&&e.target.closest&&e.target.closest('.dupRad');
+    if(b){ if(b===DUP_ACT) return; clearTimeout(_tDupTip); _tDupTip=setTimeout(()=>muestraDupTip(b),130); }
+    else if(DUP_ACT) ocultaDupTip();
+  });
+  /* foco de teclado: inmediato, sin delay */
+  document.addEventListener('focusin',e=>{ const b=e.target&&e.target.closest&&e.target.closest('.dupRad'); if(b){ clearTimeout(_tDupTip); muestraDupTip(b); } });
+  document.addEventListener('focusout',e=>{ if(e.target&&e.target.closest&&e.target.closest('.dupRad')) ocultaDupTip(); });
+  /* al abrir el modal, desplazar o redimensionar deja de tener sentido */
+  document.addEventListener('click',e=>{ if(e.target&&e.target.closest&&e.target.closest('.dupRad')) ocultaDupTip(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') ocultaDupTip(); });
+  window.addEventListener('scroll',ocultaDupTip,true);
+  window.addEventListener('resize',ocultaDupTip);
+})();
 
 /* ================= REASIGNAR =================
    Sugiere la ruta correcta según tipologías (palabras clave) editables por el usuario. */

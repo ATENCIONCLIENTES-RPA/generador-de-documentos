@@ -556,9 +556,78 @@ html[data-theme="dark"] .diaMarco rect{stroke:#FF5A64}
 html[data-theme="dark"] .dupBox{background:linear-gradient(180deg,#16222e,#132030);border-color:#2E4A63;border-left-color:#5B93F5}
 html[data-theme="dark"] .dupTit{color:#8AB4F8}
 html[data-theme="dark"] .dupFila input[type=search]{background:#161C26;border-color:#2E4A63;color:#E9ECF3}
-#tRec mark{background:#FFF1A8;color:inherit;padding:0 1px;border-radius:2px}
-#tRec tr.propio td{background:#dff3e6}
-html[data-theme="dark"] #tRec mark{background:#5A4A10;color:#fff}
+/* Indicador de posibles duplicados en «Radicados del día» (badge junto al número de radicado):
+   🔴 .dupRad.fuerte = posible duplicado (alguna coincidencia fuerte del detector de Rutas);
+   🟠 .dupRad.valida  = solo coincidencias por validar. El texto es el nº de relacionados. */
+.dupRad{display:inline-flex;align-items:center;gap:3px;margin-left:7px;padding:1px 7px 2px;
+  border:1px solid transparent;border-radius:11px;background:none;cursor:pointer;vertical-align:middle;
+  font-size:11px;font-weight:800;line-height:1.5;font-family:inherit;color:inherit}
+.dupRad .m2i svg{width:13px;height:13px;display:block}
+.dupRad b{font-variant-numeric:tabular-nums}
+.dupRad.fuerte{background:#FBE7E8;border-color:#F3C3C7;color:#A01119}
+.dupRad.valida{background:#FEF4E4;border-color:#F5D8A8;color:#A5560A}
+.dupRad:hover{box-shadow:0 1px 3px rgba(15,25,45,.22);filter:brightness(.98)}
+.dupRad:focus-visible{outline:2px solid #1664B0;outline-offset:2px}
+/* Modal «Duplicados rápidos» (misma caja de búsqueda que Duplicados, alineada a la izquierda) */
+.dupRapBar{justify-content:flex-start}
+.dupRapBar .dupBox{width:100%;max-width:560px}
+.dupRapInfo{font-size:12.5px;color:var(--texto2);margin-bottom:10px}
+.dupRapCuerpo{margin-bottom:4px}
+.dupRapBusqInfo{font-size:12.5px;color:var(--texto2);margin-top:16px;padding-top:12px;border-top:1px solid var(--borde)}
+html[data-theme="dark"] .dupRad.fuerte{background:rgba(255,90,100,.15);border-color:#4A2226;color:#FF8A92}
+html[data-theme="dark"] .dupRad.valida{background:rgba(251,191,107,.13);border-color:#5A4520;color:#FBBF6B}
+html[data-theme="dark"] .dupRad:hover{box-shadow:0 1px 3px rgba(0,0,0,.45);filter:none}
+html[data-theme="dark"] .dupRad:focus-visible{outline-color:#8AB4F8}
+html[data-theme="dark"] .dupRapBusqInfo{border-top-color:var(--borde)}
+/* Tooltip rico del badge de duplicados (#dupTip): sustituye el «title» nativo.
+   Panel con acento de nivel (🔴/🟠), icono en chip tintado, filas con puntos de
+   color y pista de acción; entrada/salida animadas y posicionado por JS. */
+.dupTip{position:fixed;z-index:60;left:0;top:0;width:max-content;max-width:292px;
+  padding:11px 13px 10px;border:1px solid var(--borde);border-left:3px solid var(--niv,#D21624);
+  border-radius:12px;background:var(--blanco);color:var(--texto);
+  box-shadow:0 1px 2px rgba(15,25,45,.06),0 14px 32px -10px rgba(15,25,45,.3);
+  font-size:12px;line-height:1.45;pointer-events:none;
+  opacity:0;visibility:hidden;transform:translateY(5px) scale(.97);
+  transform-origin:var(--tipOx,50%) 100%;
+  transition:opacity .13s ease,transform .17s cubic-bezier(.2,.85,.3,1.2),visibility 0s linear .17s}
+.dupTip.on{opacity:1;visibility:visible;transform:none;transition-delay:0s,0s,0s}
+.dupTip.abajo{transform-origin:var(--tipOx,50%) 0}
+.dupTip.f{--niv:#D21624;--nivInk:#A01119;--nivBg:rgba(210,22,36,.1)}
+.dupTip.v{--niv:#E08A00;--nivInk:#A5560A;--nivBg:rgba(224,138,0,.12)}
+.dupTip::after{content:"";position:absolute;left:var(--tipOx,50%);bottom:-5px;width:10px;height:10px;
+  background:var(--blanco);border-right:1px solid var(--borde);border-bottom:1px solid var(--borde);
+  border-radius:0 0 3px 0;transform:translateX(-50%) rotate(45deg)}
+.dupTip.abajo::after{bottom:auto;top:-5px;border-right:0;border-bottom:0;
+  border-left:1px solid var(--borde);border-top:1px solid var(--borde);border-radius:3px 0 0 0}
+.dupTipHead{display:flex;align-items:center;gap:9px}
+.dupTipIco{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;flex:none;
+  background:var(--nivBg);color:var(--nivInk);font-size:16px}
+.dupTipTit{min-width:0}
+.dupTipTit>b{display:block;font-size:12.5px;font-weight:800;color:var(--nivInk)}
+.dupTipTit>span{display:block;font-size:11.5px;color:var(--texto2);margin-top:1px}
+.dupTipTit>span>b{color:var(--texto);font-weight:800;font-variant-numeric:tabular-nums}
+.dupTipRows{display:grid;gap:4px;margin-top:9px;padding-top:8px;border-top:1px solid var(--borde)}
+.dupTipRow{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--texto)}
+.dupTipRow i{width:7px;height:7px;border-radius:50%;flex:none}
+.dupTipRow.f i{background:#D21624;box-shadow:0 0 0 3px rgba(210,22,36,.14)}
+.dupTipRow.w i{background:#E08A00;box-shadow:0 0 0 3px rgba(224,138,0,.16)}
+.dupTipFoot{display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:7px;
+  border-top:1px solid var(--borde);font-size:11px;color:var(--texto2)}
+.dupTipKey{padding:0 6px 1px;border:1px solid var(--borde);border-bottom-width:2px;border-radius:5px;
+  background:color-mix(in srgb,var(--borde) 28%,transparent);
+  font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--texto)}
+html[data-theme="dark"] .dupTip{box-shadow:0 1px 2px rgba(0,0,0,.45),0 16px 36px -10px rgba(0,0,0,.7)}
+html[data-theme="dark"] .dupTip.f{--niv:#FF5A64;--nivInk:#FF8A92;--nivBg:rgba(255,90,100,.15)}
+html[data-theme="dark"] .dupTip.v{--niv:#FBBF6B;--nivInk:#FBBF6B;--nivBg:rgba(251,191,107,.13)}
+html[data-theme="dark"] .dupTipRow.f i{background:#FF5A64;box-shadow:0 0 0 3px rgba(255,90,100,.18)}
+html[data-theme="dark"] .dupTipRow.w i{background:#FBBF6B;box-shadow:0 0 0 3px rgba(251,191,107,.16)}
+@media (prefers-reduced-motion:reduce){
+  .dupTip{transition:opacity .1s linear;transform:none}
+  .dupTip.on{transform:none}
+}
+#tRec mark,#tDupRap mark{background:#FFF1A8;color:inherit;padding:0 1px;border-radius:2px}
+#tRec tr.propio td,#tDupRap tr.propio td{background:#dff3e6}
+html[data-theme="dark"] #tRec mark,html[data-theme="dark"] #tDupRap mark{background:#5A4A10;color:#fff}
 /* v28 */
 .radBar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .radFiltros{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
@@ -797,7 +866,7 @@ html[data-theme="dark"] .nivDup{color:#FF8A92}
 html[data-theme="dark"] .nivCoi{color:#DCCFBA}
 html[data-theme="dark"] .ch.chF{background:rgba(255,90,100,.15);border-color:#4A2226;color:#FF8A92}
 html[data-theme="dark"] #tRec .ch{background:rgba(96,165,250,.15);border-color:#2E4A63;color:#8AB4F8}
-html[data-theme="dark"] #tRec .cont{color:#E9ECF3}
+html[data-theme="dark"] #tRec .cont,html[data-theme="dark"] #mDupRapido .cont{color:#E9ECF3}
 html[data-theme="dark"] .tipCol{background:#1B2230;border-color:#2A3140}
 html[data-theme="dark"] .tipCol>b{color:#8AB4F8}
 html[data-theme="dark"] .tabs{border-bottom-color:#2A3140}

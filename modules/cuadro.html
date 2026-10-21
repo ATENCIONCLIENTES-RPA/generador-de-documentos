@@ -331,6 +331,34 @@
     </div>
   </div>
 </div>
+<!-- Duplicados rápidos: se abre desde el badge 🔴/🟠 de «Radicados del día».
+     Reutiliza la misma detección y la misma búsqueda manual de Mercurio que
+     Rutas → Duplicados, pero sin depender de la navegación de ese modal. -->
+<div class="modal" id="mDupRapido" role="dialog" aria-modal="true" aria-labelledby="dupRapTit">
+  <div class="mbox" style="max-width:1180px">
+    <div class="mhead">
+      <div><div class="mhTit"><span class="mhIco" data-m2i="copy" aria-hidden="true"></span>
+        <div><h3 id="dupRapTit">Posibles duplicados</h3><p id="dupRapSub">Radicado de «Radicados del día»</p></div></div></div>
+      <button class="cerrar" id="dupRapX" title="Cerrar (Esc)">&times;</button></div>
+    <div class="mbody" style="padding-top:14px">
+      <div class="dupBar dupRapBar">
+        <div class="dupBox">
+          <label class="dupTit" for="dupRapQ"><span class="dupLupa" aria-hidden="true"><span class="m2i" data-m2i="search" aria-hidden="true"></span></span>Búsqueda manual en el contenido de Mercurio</label>
+          <div class="dupFila">
+            <input type="search" id="dupRapQ" placeholder="Correo, cédula, cuenta, número de oficio, frase…">
+            <button class="btn sec mini" id="dupRapLimp" type="button">Limpiar</button>
+          </div>
+        </div>
+      </div>
+      <div id="dupRapInfo" class="dupRapInfo"></div>
+      <div id="dupRapCuerpo" class="dupRapCuerpo"></div>
+      <div id="dupRapBusq" style="display:none">
+        <div id="dupRapBusqInfo" class="dupRapBusqInfo"></div>
+        <div class="recScroll"><table id="tDupRap"><thead></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="modal" id="mHoy" role="dialog" aria-modal="true">
   <div class="mbox" style="max-width:1250px">
     <div class="mhead">
