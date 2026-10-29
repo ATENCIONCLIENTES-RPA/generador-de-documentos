@@ -17,6 +17,13 @@ export function bindThemeEffects(store: ShellStore, frames: () => Iterable<HTMLI
   };
   store.subscribe(s => apply(s.theme)); apply(store.getState().theme);
   byId('adTheme').addEventListener('click', () => store.getState().setTheme(store.getState().theme === 'dark' ? 'light' : 'dark'));
+  /* Sincronía con el Extractor de Resoluciones CREG (pestaña aparte): si su botón de
+     tema cambia el modo, el shell lo sigue aquí. */
+  window.addEventListener('storage', (e: StorageEvent): void => {
+    if (e.key !== 'essa-theme' && e.key !== 'essa_cm_theme') return;
+    const next = normalizeTheme(e.newValue ?? localStorage.getItem('essa-theme'));
+    if (next !== store.getState().theme) store.getState().setTheme(next);
+  });
 }
 export function createThemeApi(store: ShellStore): ThemeApi {
   return { get: () => store.getState().theme, set: m => store.getState().setTheme(normalizeTheme(m)), toggle() { this.set(this.get() === 'dark' ? 'light' : 'dark'); } };

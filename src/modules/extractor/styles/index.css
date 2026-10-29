@@ -1,0 +1,13 @@
+/* Orden = orden de la cascada del HTML original (no reordenar).
+   La integración con el Asistente Documental se hace en dos puntos fijos:
+   primero los tokens/la tipografía compartidos (para que base.css pueda
+   redefinirlos encima, como en el archivo original) y al final la capa de
+   adaptación visual ad.css, que sólo anula presentación. */
+@import '../../../styles/fonts.css';
+@import '../../../styles/ad-tokens.css';
+
+@import './base.css';
+@import './guide.css';
+@import './theme.css';
+
+@import './ad.css';

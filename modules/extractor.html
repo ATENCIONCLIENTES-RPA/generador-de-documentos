@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<!-- Tema inicial: debe ejecutarse antes del primer pintado (evita el parpadeo claro→oscuro).
+     Lee las mismas claves que usa el Asistente Documental (essa-theme / essa_cm_theme) para que
+     esta pestaña arranque con exactamente el mismo modo claro/oscuro que la aplicación. -->
+<script>(function(){var r=document.documentElement,t=null;try{t=localStorage.getItem("essa-theme")||localStorage.getItem("essa_cm_theme")||localStorage.getItem("extractor-theme-v1")}catch(e){}if(t!=="dark"&&t!=="light"){try{t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t="light"}}r.setAttribute("data-theme",t)})();</script>
+<title>Extractor de Resoluciones CREG · Asistente Documental</title>
+<meta name="description" content="Consulta de cuentas, extracción OCR de los datos de la factura y cálculo del ajuste por meta de consumo.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%231664B0'/%3E%3Cpath d='M13 9h10l6 6v15a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Z' fill='%23fff'/%3E%3Cpath d='M31 5l1.4 3.6L36 10l-3.6 1.4L31 15l-1.4-3.6L26 10l3.6-1.4Z' fill='%23D21624'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/src/modules/extractor/styles/index.css">
+</head>
+<body>
+  <div class="aura" aria-hidden="true"></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><path d="M9.200 9.300a2.900 2.900 0 1 1 4.100 2.600c-.8.400-1.300 1-1.300 1.900"/><path d="M12 17.200h.01"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4m0 0L8 8m4-4 4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-sheet" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/></symbol>
+    <symbol id="i-fx" viewBox="0 0 24 24"><path d="M9 20c2 0 2.5-1.5 3-4l2-10c.4-2 1-3 3-3"/><path d="M7 10h9"/><path d="m15 14 5 6m0-6-5 6"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4.5 4.5L19 7"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></symbol>
+    <symbol id="i-err" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6m0-6 6 6"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-calc" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+      <symbol id="i-chevd" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.4"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4m0 1h12l-2 4 2 4H5"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14m0 0-6-6m6 6 6-6"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2.2 2.2L15 10"/></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.2C14.1 8.4 13.1 8 12 8c-1.400 0-2.500.7-2.500 1.800s1 1.500 2.500 2 2.500.9 2.500 2-1.100 1.800-2.500 1.800c-1.100 0-2.100-.4-2.500-1.200M12 6.500V8m0 8v1.500"/></symbol>
+    <symbol id="i-okcircle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.500 12.200 2.500 2.500 4.500-5"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-9 5-14 15-14 0 10-5 15-13 15"/><path d="M5 19c2-5 5-8 9-10"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h15m0 0-4-4m4 4-4 4M20 16H5m0 0 4-4m-4 4 4 4"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></symbol>
+    <symbol id="i-percent" viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.500"/><circle cx="17" cy="17" r="2.500"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h11v4"/><rect x="4" y="7" width="17" height="13" rx="2"/><circle cx="16.500" cy="13.500" r="1.200"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></symbol>
+    <symbol id="i-plusminus" viewBox="0 0 24 24"><path d="M8 4v8M4 8h8M14 18h7M4 20 20 4"/></symbol>
+    <symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 4v16M7 20h10M5 7h14"/><path d="m5 7-3 7a3 3 0 0 0 6 0zm14 0-3 7a3 3 0 0 0 6 0z"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="top-in">
+    <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></div>
+    <div class="brand">
+      <h1>Extractor de Datos <span class="rs">de RESOLUCIÓN No. 101 120 DE 2026</span></h1>
+      <p>Consulta de cuentas · Lectura OCR de la factura · Ajuste según la Calculadora Consumo Meta</p>
+    </div>
+    <div class="spacer"></div>
+    <div class="pills" aria-live="polite">
+      <span class="pill" id="pillData"><span class="dot"></span><span>Base de cuentas</span></span>
+      <span class="pill" id="pillFx"><span class="dot ok"></span><span>Calculadora integrada</span></span>
+      <span class="pill" id="pillOcr"><span class="dot"></span><span>OCR bajo demanda</span></span>
+      <span class="pill" title="Los archivos y las imágenes se procesan en este navegador. No se guardan ni se envían."><svg class="i sm"><use href="#i-lock"/></svg><span>Procesamiento local</span></span>
+    </div>
+    <div class="top-tools">
+      <a class="ad-back" href="../index.html" title="Volver al Asistente Documental">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m0 0 6-6m-6 6 6 6"/></svg>
+        <span>Asistente Documental</span>
+      </a>
+      <button class="gtbtn" id="btnGuide" type="button" aria-haspopup="dialog" title="Recorrido paso a paso por la pantalla"><span class="gtq"><svg class="i" aria-hidden="true"><use href="#i-help"/></svg></span>Guía rápida</button>
+      <button class="thbtn" id="btnTheme" type="button" aria-pressed="false" aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><mask id="thMask" maskUnits="userSpaceOnUse" x="-6" y="-6" width="36" height="36"><rect x="-6" y="-6" width="36" height="36" fill="#fff"/><circle class="th-cut" cx="12" cy="12" r="6.4" fill="#000"/></mask></defs><g mask="url(#thMask)"><circle class="th-core" cx="12" cy="12" r="4.8"/></g><g class="th-rays"><line x1="12" y1="1.6" x2="12" y2="3.8"/><line x1="12" y1="1.6" x2="12" y2="3.8" transform="rotate(45 12 12)"/><line x1="12" y1="1.6" x2="12" y2="3.8" transform="rotate(90 12 12)"/><line x1="12" y1="1.6" x2="12" y2="3.8" transform="rotate(135 12 12)"/><line x1="12" y1="1.6" x2="12" y2="3.8" transform="rotate(180 12 12)"/><line x1="12" y1="1.6" x2="12" y2="3.8" transform="rotate(225 12 12)"/><line x1="12" y1="1.6" x2="12" y2="3.8" transform="rotate(270 12 12)"/><line x1="12" y1="1.6" x2="12" y2="3.8" transform="rotate(315 12 12)"/></g><path class="th-star" d="M18.500 3.500l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- ================= COLUMNA IZQUIERDA ================= -->
+  <div class="col left">
+    <!-- Imagen OCR -->
+    <section class="card" aria-labelledby="hImg">
+      <div class="card-h"><span class="step-n">1</span><h2 id="hImg">Consulta datos</h2><span class="grow"></span><span class="tag">PNG · JPG</span></div>
+      <div class="card-b">
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Seleccionar o arrastrar una imagen">
+          <div class="big"><svg class="i"><use href="#i-image"/></svg><span class="bdg"><svg class="i"><use href="#i-scan"/></svg></span></div>
+          <div><b>Arrastra la captura aquí</b> o <span style="color:var(--ocr);font-weight:600">selecciónala</span></div>
+          <small>Captura de la consulta · también Ctrl+V</small>
+        </div>
+        <input type="file" id="fileImg" accept="image/png,image/jpeg,.png,.jpg,.jpeg" class="sr-only" tabindex="-1">
+        <div id="imgBox" class="hidden">
+          <div class="prev" id="prev" tabindex="0" role="button" aria-label="Ver imagen y datos detectados"><img id="prevImg" alt="Vista previa de la imagen cargada"><svg class="ov" id="ov" preserveAspectRatio="none"></svg><span class="open-hint"><svg class="i sm"><use href="#i-search"/></svg>Ampliar</span></div>
+          <div class="fmeta"><svg class="i sm" style="color:var(--muted)"><use href="#i-image"/></svg><span class="nm" id="imgName"></span><span class="sz" id="imgSize"></span></div>
+          <div class="actions">
+            <button class="btn ocr" id="btnOcr" type="button" style="flex:1"><svg class="i sm"><use href="#i-scan"/></svg>Extraer datos</button>
+            <button class="btn" id="btnReplace" type="button" title="Cambiar imagen"><svg class="i sm"><use href="#i-refresh"/></svg>Cambiar</button>
+            <button class="btn icon" id="btnRemove" type="button" title="Quitar imagen" aria-label="Quitar imagen" style="width:30px"><svg class="i sm"><use href="#i-x"/></svg></button>
+          </div>
+        </div>
+          <button class="btn view hidden" id="btnViewer" type="button"><svg class="i sm"><use href="#i-scan"/></svg>Ver imagen y datos detectados</button>
+        <div class="prog hidden" id="prog" role="status" aria-live="polite">
+          <div class="tr"><div class="fl" id="progFill"></div></div>
+          <div class="tx"><span id="progTx">Preparando…</span><span id="progPct">0%</span></div>
+        </div>
+        <div class="msgs" id="imgMsgs"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= COLUMNA PRINCIPAL ================= -->
+  <div class="col">
+    <!-- Consulta -->
+    <section class="card cmd" aria-labelledby="hQ">
+      <div class="card-h"><span class="step-n">2</span><h2 id="hQ">Cuenta y meta</h2><span class="grow"></span>
+        <button class="btn sm ghost" id="btnResetAll" type="button" title="Empieza de cero: borra la cuenta, la imagen y los datos de la factura."><svg class="i sm"><use href="#i-reset"/></svg>Reiniciar</button>
+      </div>
+      <div class="card-b">
+        <form class="query" id="qForm" autocomplete="off" novalidate>
+          <label class="field" id="qField"><svg class="i"><use href="#i-user"/></svg>
+            <span class="fstack"><span class="flab">Cuenta</span>
+            <input id="qInput" inputmode="numeric" placeholder="Cuenta, p. ej. 64351" maxlength="15" aria-describedby="qHint"></span>
+          </label>
+          <label class="field" id="mField"><svg class="i"><use href="#i-calc"/></svg>
+            <span class="fstack"><span class="flab">Meta</span>
+            <input id="mInput" inputmode="decimal" placeholder="Meta, p. ej. 294" maxlength="14" aria-describedby="qHint"></span>
+            <select id="mUnit" aria-label="Unidad de la meta" title="Elige si la meta que escribes es la del ciclo completo (p. ej. 294 kWh) o la de un día (p. ej. 9,483871 kWh/día)."><option value="ciclo" selected>kWh del ciclo</option><option value="dia">kWh por día</option></select>
+          </label>
+          <button class="btn primary" type="submit" id="btnSearch"><svg class="i sm"><use href="#i-check"/></svg>Aplicar</button>
+          <button class="btn" type="button" id="btnClear"><svg class="i sm"><use href="#i-x"/></svg>Limpiar</button>
+        </form>
+        <div class="hint" id="qHint"></div>
+        <div class="msgs" id="qMsgs"></div>
+      </div>
+    </section>
+
+    <div class="split">
+      <!-- Datos de factura (OCR / manual) -->
+      <section class="card collapsed" id="cardInv" aria-labelledby="hInv">
+        <div class="card-h foldable" id="invHead"><span class="step-n">3</span><h2 id="hInv">Datos de la factura</h2><span class="tag" id="invTag" title="Imagen u otra fuente">Imagen u otra fuente</span>
+          <button class="fold" id="btnFold" type="button" aria-expanded="false" aria-controls="invCollapse" aria-label="Expandir «Datos de la factura»" title="Expandir"><svg class="i"><use href="#i-chevd"/></svg></button></div>
+        <div class="collapse" id="invCollapse" inert><div class="collapse-in">
+          <div class="card-b" id="invBody"></div>
+          <div class="ffoot">
+            <div class="s" id="invState">Ingresa los valores o extráelos de la imagen.</div>
+            <button class="btn sm" id="btnRerun" type="button" disabled><svg class="i sm"><use href="#i-refresh"/></svg>Reprocesar</button>
+            <button class="btn sm ok" id="btnConfirm" type="button" disabled><svg class="i sm"><use href="#i-check"/></svg>Confirmar datos</button>
+          </div>
+        </div></div>
+      </section>
+
+      <!-- Resultados -->
+      <section class="card" aria-labelledby="hRes">
+      <div class="card-h"><span class="step-n">4</span><h2 id="hRes">Resultados calculados</h2><span class="grow"></span>
+        <div class="legend" aria-label="Leyenda de procedencia">
+          <span class="chip ocr">OCR</span><span class="chip fix">Corregido</span><span class="chip manual">Manual</span><span class="chip calc">Calculado</span>
+        </div>
+        <span id="resStatus"></span>
+      </div>
+      <div class="card-b" id="resBody"></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+
+<a class="jump" id="jump" href="#hRes">Ver resultado</a>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="tip" id="tip" role="tooltip"></div>
+<div class="zoom" id="zoom" role="dialog" aria-label="Ampliación de la región"><img alt="Región ampliada" id="zoomImg"></div>
+<div class="vw" id="vw" role="dialog" aria-modal="true" aria-labelledby="vwTitle">
+  <div class="vw-box">
+    <div class="vw-h">
+      <h2 id="vwTitle">Imagen y datos detectados</h2><span class="sub" id="vwSub"></span>
+      <span class="grow"></span>
+      <label class="tgl"><input type="checkbox" id="vwLabels" checked>Etiquetas</label>
+      <label class="tgl"><input type="checkbox" id="vwCross" checked>Contrastes</label>
+      <label class="tgl"><input type="checkbox" id="vwAll">Todo el texto leído</label>
+      <div class="seg" role="group" aria-label="Zoom"><button type="button" data-z="out" aria-label="Alejar">−</button><button type="button" data-z="fit" class="on">Ajustar</button><button type="button" data-z="100">100%</button><button type="button" data-z="in" aria-label="Acercar">+</button></div>
+      <span class="sub num" id="vwZoom" style="min-width:42px;text-align:right"></span>
+      <button class="btn icon" type="button" id="vwClose" aria-label="Cerrar" title="Cerrar (Esc)" style="width:32px"><svg class="i sm"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="vw-b">
+      <div class="stage grab" id="vwStage"><div class="canvasWrap" id="vwWrap"><img id="vwImg" alt="Imagen original con las áreas detectadas"><svg id="vwSvg" preserveAspectRatio="none"></svg><div id="vwTags"></div></div></div>
+      <aside class="side" aria-label="Datos detectados">
+        <div class="hd"><div>Pasa el cursor o haz clic en un dato para ubicarlo en la imagen.</div>
+          <div class="lg"><span><i></i>Valor leído</span><span><i class="l"></i>Etiqueta</span><span><i class="x"></i>Contraste</span></div></div>
+        <div id="vwList"></div>
+        <div class="ft">Sólo lectura: este visor no modifica los datos ni los cálculos. Las correcciones se hacen en «Datos de la factura».</div>
+      </aside>
+    </div>
+  </div>
+</div>
+<script type="module" src="/src/modules/extractor/main.js"></script>
+</body>
+</html>

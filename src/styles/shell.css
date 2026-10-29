@@ -1,22 +1,7 @@
-:root{
-  --azul:#1664B0;--azul-real:#1E40AF;--azul-cielo:#60A5FA;--azul-paz:#BFDBFE;--azul-celeste:#EAF2FC;
-  --escarlata:#D21624;--escarlata-osc:#A01119;--arena:#DCCFBA;--arena-osc:#7A6340;
-  --texto:#1E2A38;--texto-suave:#5C6B7D;--texto-tenue:#93A1B0;
-  --bar:#FFFFFF;--bar-line:#E3E9F1;--stage:#F8FAFC;--chip:#F3F6FA;--chip-line:#E3EAF2;--hover:#F4F7FB;
-  --nav-surface:rgba(248,251,255,.92);--nav-line:#DCE6F1;--nav-active:#F5F9FF;--nav-active-line:#BFD6F1;
-  --focus:0 0 0 3px rgba(22,100,176,.30);
-  --ease:cubic-bezier(.22,1,.36,1);
-  --bar-h:76px;
-  color-scheme:light;
-}
-html[data-theme="dark"]{
-  --azul:#5B93F5;--azul-real:#8AB4F8;--azul-paz:#2E4A63;--azul-celeste:#16222E;
-  --texto:#E9ECF3;--texto-suave:#A9B1C2;--texto-tenue:#737C8E;
-  --bar:#161C27;--bar-line:#262E3C;--stage:#11151D;--chip:#1D2431;--chip-line:#2A3242;--hover:#1B2230;
-  --nav-surface:rgba(20,27,39,.94);--nav-line:#303B4D;--nav-active:#1B2A3D;--nav-active-line:#3E6290;
-  --focus:0 0 0 3px rgba(138,180,248,.38);
-  color-scheme:dark;
-}
+/* Paleta y tipografía compartidas: viven en ad-tokens.css para que el Extractor de
+   Resoluciones CREG (módulo 3) use exactamente los mismos tokens que el shell. */
+@import './ad-tokens.css';
+
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
 body{font-family:var(--ff-text);color:var(--texto);background:var(--stage);
@@ -275,22 +260,8 @@ html[data-theme="dark"] .ad-mark{filter:drop-shadow(0 8px 14px rgba(0,0,0,.55));
   .ad-frame{transform:none;}
 }
 
-/* =====================================================================
-   TIPOGRAFÍA · Manrope + DM Sans (v41)
-   Sistema de dos voces, sin tocar estructura, colores ni tamaños:
-   · MANROPE (display) — marca, títulos y encabezados, cifras e identificadores (radicados, contadores, KPI), botones primarios.
-     Pesos 600 / 700. Es la única de las dos con cifras tabulares (tnum): por eso los números alineados van en Manrope.
-   · DM SANS (texto) — todo lo demás: lectura, descripciones, etiquetas, formularios, tablas, navegación y botones secundarios.
-     Pesos 400 / 500 / 600 (cursiva real incluida).
-   La escala de pesos se limita en @font-face (600–700 y 400–600): cualquier peso mayor (800, 750…) se ajusta al tope,
-   así que la jerarquía es consistente aunque cada componente conserve su peso original.
-   ===================================================================== */
-:root{
-  --ff-display:"Manrope","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
-  --ff-text:"DM Sans","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
-  --tr-title:-.02em;      /* títulos grandes (≥ 18 px): Manrope es ancha y gana cohesión con tracking negativo */
-  --tr-sub:-.012em;       /* títulos pequeños, botones primarios */
-}
+/* Tipografía (--ff-display / --ff-text / --tr-title / --tr-sub): definida en ad-tokens.css
+   (tokens compartidos con el Extractor de Resoluciones CREG). */
 html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-kerning:normal;font-synthesis:none}
 body{font-family:var(--ff-text)}
 button,input,select,textarea,optgroup{font-family:inherit}

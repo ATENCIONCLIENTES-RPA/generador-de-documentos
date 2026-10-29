@@ -19,7 +19,7 @@ export default defineConfig({
     /** Assets < 4 KB se incrustan como data-URL: elimina round-trips de red para iconos pequeños. */
     assetsInlineLimit: 4096,
     rollupOptions: {
-      input: { main: r('./index.html'), recursos: r('./modules/recursos.html'), cuadro: r('./modules/cuadro.html'), documentos: r('./modules/documentos.html') },
+      input: { main: r('./index.html'), recursos: r('./modules/recursos.html'), cuadro: r('./modules/cuadro.html'), documentos: r('./modules/documentos.html'), extractor: r('./modules/extractor.html') },
       output: {
         /** Separar zustand del código de la app: el vendor queda en caché aunque la app cambie. */
         manualChunks(id) {

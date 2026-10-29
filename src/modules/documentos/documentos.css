@@ -44,6 +44,12 @@ input,textarea{font-family:inherit;color:inherit;}
 .brand-sub{font-size:12.5px;color:var(--texto-suave);margin-top:1px;}
 .header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 
+/* El Extractor de Resoluciones CREG se abre como enlace en pestaña nueva: los <a.btn-chip>
+   conservan exactamente el mismo aspecto que los <button.btn-chip> (el color lo pone .btn-chip
+   con var(--acc); no se hereda el azul del enlace). */
+a.btn-chip{text-decoration:none;}
+a.btn-chip:hover{text-decoration:none;}
+
 .btn-chip{
   --acc:var(--azul-real);--acc-bg:#EAF2FC;--acc-bd:#CBDDF6;--acc-bg-h:#DCEAFB;--acc-bd-h:#9FC2EE;
   display:inline-flex;align-items:center;gap:9px;padding:6px 16px 6px 6px;
@@ -59,7 +65,9 @@ input,textarea{font-family:inherit;color:inherit;}
 }
 .btn-chip .chip-ic svg{width:14px;height:14px;}
 .btn-chip:hover .chip-ic{background:var(--blanco);}
-.btn-chip.accent-verde{--acc:#334155;--acc-bg:#EEF1F4;--acc-bd:#D7DEE5;--acc-bg-h:#E3E8ED;--acc-bd-h:#B7C2CC;}
+/* Extractor CREG: acento rojo, la identidad del propio Extractor (su CTA «Extraer datos» es este rojo)
+   y que también existe en la paleta del Asistente (--alerta). Sustituye al anterior gris "apagado". */
+.btn-chip.accent-creg{--acc:#B4121F;--acc-bg:#FDECEE;--acc-bd:#F3B8BE;--acc-bg-h:#FBE3E6;--acc-bd-h:#D3656E;}
 .btn-chip:hover .chip-ic svg{transform:scale(1.08);}
 
 /* El botón "Guía rápida" (.btn-guide) y el tour guiado (#tourOverlay y afines) ahora
@@ -829,7 +837,7 @@ html[data-theme="dark"] .tg-primary{background:linear-gradient(135deg,#3B82F6,#1
 html[data-theme="dark"] .tg-toast{background:#E9ECF3;color:#11151D;}
 html[data-theme="dark"] .tg-toast svg{color:#0F7A6C;}
 html[data-theme="dark"] .tg-segs i.on{background:linear-gradient(90deg,#8AB4F8,#5B93F5);}
-html[data-theme="dark"] .btn-chip.accent-verde{--acc:#D5DDE8;--acc-bg:#283142;--acc-bd:#46536A;--acc-bd-h:#7A8AA3;}
+html[data-theme="dark"] .btn-chip.accent-creg{--acc:#FF5A64;--acc-bg:#3A1C20;--acc-bd:#6A2C33;--acc-bd-h:#E23545;}
 html[data-theme="dark"] .btn-chip{background:linear-gradient(180deg,#1E2636 0%,#192030 100%);color:var(--acc);}
 html[data-theme="dark"] .btn-chip:hover{background:var(--acc-bg);box-shadow:0 4px 12px -3px rgba(0,0,0,.5);}
 html[data-theme="dark"] .btn-chip .chip-ic{background:var(--acc-bg);color:var(--acc);}

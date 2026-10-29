@@ -18,5 +18,17 @@ export default tseslint.config(
       'no-cond-assign': 'off', 'no-control-regex': 'off', 'no-misleading-character-class': 'off', 'no-case-declarations': 'off', 'no-fallthrough': 'off', 'no-sparse-arrays': 'off',
       'prefer-const': 'off', 'no-var': 'off', 'no-redeclare': 'off', 'prefer-rest-params': 'off'
     }
+  },
+  /* Extractor de Resoluciones CREG (módulo 3): JavaScript original del extractor, integrado sin cambios de lógica. */
+  {
+    files: ['src/modules/extractor/**/*.js'],
+    languageOptions: { globals: { ...globals.browser } },
+    rules: {
+      'no-undef': 'error', '@typescript-eslint/no-unused-vars': 'off', '@typescript-eslint/no-unused-expressions': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off', '@typescript-eslint/no-this-alias': 'off', '@typescript-eslint/no-empty-function': 'off', '@typescript-eslint/no-unsafe-*': 'off',
+      'no-empty': 'off', 'no-useless-escape': 'off', 'no-prototype-builtins': 'off', 'no-cond-assign': 'off', 'no-control-regex': 'off',
+      'no-misleading-character-class': 'off', 'no-case-declarations': 'off', 'no-fallthrough': 'off', 'no-sparse-arrays': 'off',
+      'prefer-const': 'off', 'no-var': 'off', 'no-redeclare': 'off', 'prefer-rest-params': 'off', 'no-inner-declarations': 'off', 'no-unused-labels': 'off', 'no-self-assign': 'off'
+    }
   }
 );

@@ -1137,6 +1137,24 @@ function formatoTitulo(v){
      del solicitante usa el mismo valor. */
   const DISTINTIVO='Señor(a)';
 
+  /* Extractor de Resolución CREG · clave compartida con src/modules/extractor/features/crg-export.js
+     (misma origén: el extractor se abre en pestaña aparte, dentro del mismo origen). */
+  const CREG_LS='essa.extractor.creg.v1';
+  /* Campos publicados por el extractor → marcador Word (respetando los nombres exactos de la plantilla). */
+  const CREG_MAP=[['periodoDesde','PERIODO_DESDE'],['periodoHasta','PERIODO_HASTA'],['periodo','PERIODO_META'],
+    ['consumoRegistrado','CONSUMO_REGISTRADO'],['numeroCiclos','NUMERO_DE_CICLO'],['metaIndividual','META_INDIVIDUAL'],
+    ['metaCicloLimite','META_CICLO_LIMITE'],['consumoExcedente','CONSUMO_EXCEDENTE'],['observacionCreg','OBSERVACION_CREG']];
+  /** Lee el último resultado publicado por el extractor; `null` si no hay (o si el dato es inválido). */
+  function readCrgExtract(){
+    try{
+      const raw=localStorage.getItem(CREG_LS);if(!raw)return null;
+      const d=JSON.parse(raw);
+      if(!d||typeof d!=='object'||Array.isArray(d))return null;
+      const out={};CREG_MAP.forEach(([campo])=>{const v=d[campo];out[campo]=(v===null||v===undefined)?'':String(v);});
+      return out;
+    }catch(e){return null;}   /* almacenamiento bloqueado o JSON corrupto: el módulo sigue funcionando sin esos campos */
+  }
+
   function replacementData(){
     const lookup=Object.create(null),put=(k,v,overwrite=true)=>{const nk=normKey(k);if(!nk)return;if(overwrite||!Object.prototype.hasOwnProperty.call(lookup,nk))lookup[nk]=valueText(v);};
     const fieldText=id=>{const el=document.getElementById(id);return el?String(el.value==null?'':el.value):'';};
@@ -1167,6 +1185,14 @@ function formatoTitulo(v){
     Object.entries(aliases).forEach(([k,v])=>put(k,v));
     /* Descripciones del documento → SUS marcadores según `descs` (exacto, conserva saltos de línea). */
     descs.forEach(d=>{const v=fieldText(d.id);d.tokens.forEach(k=>putExact(k,v));});
+    /* Extractor de Resolución CREG → sus nueve marcadores. El extractor corre en su propia pestaña
+       (sin window.AD), así que publica el resultado en el localStorage compartido con este módulo.
+       Los valores llegan YA formateados igual que en la tabla de resultados del extractor
+       (fmtExcel es-CO, fechas y observación efectiva); aquí sólo se enlazan con su marcador.
+       Campo ausente o vacío → se enlaza con '' y el motor aplica el comportamiento habitual
+       de valor vacío del proyecto (marcador sustituido por cadena vacía, sin error). */
+    const crg=readCrgExtract();
+    if(crg)CREG_MAP.forEach(([campo,marcador])=>put(marcador,crg[campo]));
     /* El texto de radicación NO se asigna a cada marcador por separado (eso lo duplicaba):
        se declara como bloque y applyTokenBlocks decide cuántas veces y dónde aparece. */
     const blocks=textoRadicacionActivo?[BLOQUE_RADICACION]:[];
@@ -1207,10 +1233,16 @@ function formatoTitulo(v){
     const cx=Math.round(w*9525),cy=Math.round(h*9525),xml=`<root xmlns:w="${W}" xmlns:r="${R}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Firma ESSA"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="Firma ESSA"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></root>`;
     const d=new DOMParser().parseFromString(xml,'application/xml');return doc.importNode(d.documentElement.firstElementChild,true);
   }
-  function replaceXml(xml,lookup,signature,stats){
+  /* `scanTokens=false`: los motores con normalización previa (docxtemplater / easy-template-x) ya sustituyeron
+     TODOS los marcadores de la plantilla con el mismo TOKEN_RE usado aquí. Volver a escanear el XML generado
+     sólo encontraría marcadores DENTRO de los valores insertados (p. ej. «Residencial» dentro de la
+     observación CREG) y los vaciaría, alterando el texto. Se conservan en cambio los campos combinados
+     (MERGEFIELD) y la firma, que estos motores no resuelven. El motor «ooxml-integrado» (sin normalización)
+     sigue escaneando, ya que él es quien hace el reemplazo. */
+  function replaceXml(xml,lookup,signature,stats,scanTokens=true){
     const doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.getElementsByTagName('parsererror').length)throw new Error('XML DOCX no válido');
     replaceSimpleMergeFields(doc,lookup,stats);
-    q(doc,'p').forEach(p=>{const full=q(p,'t').map(t=>t.textContent||'').join('');const seen=new Set();tokensIn(full).forEach(x=>{if(seen.has(x.token))return;seen.add(x.token);replaceToken(p,x.token,resolveValue(lookup,x.key,stats));});});
+    if(scanTokens)q(doc,'p').forEach(p=>{const full=q(p,'t').map(t=>t.textContent||'').join('');const seen=new Set();tokensIn(full).forEach(x=>{if(seen.has(x.token))return;seen.add(x.token);replaceToken(p,x.token,resolveValue(lookup,x.key,stats));});});
     let signatureUsed=false;
     if(signature){q(doc,'t').forEach((t,i)=>{if(!t.textContent.includes('__ESSA_SIGNATURE__'))return;t.textContent=t.textContent.replace(/__ESSA_SIGNATURE__/g,'');t.parentNode.appendChild(drawingNode(doc,signature.rid,signature.width,signature.height,9000+i));signatureUsed=true;});}
     return {xml:new XMLSerializer().serializeToString(doc),signatureUsed};
@@ -1256,7 +1288,8 @@ function formatoTitulo(v){
     const img=await imageInfo(data.profile.firma,data.profile.firmaSize),media=img&&`word/media/essa_firma.${img.ext}`;if(img){zip.file(media,img.bytes);await ensureContentType(zip,img.ext,img.mime);}
     const parts=Object.keys(zip.files).filter(n=>/^word\/(document|header\d+|footer\d+|footnotes|endnotes|comments\d*)\.xml$/.test(n));
     const stats={tokens:new Set(base&&base.detected||[]),missing:new Set()};for(const k of stats.tokens)if(!data.lookup[k]&&!(k==='PRIMER_NOMBRE'&&data.lookup.TIPO_PERSONA_DETECTADO==='Persona jurídica'))stats.missing.add(k);
-    for(const part of parts){const rid='rIdEssaFirma',src=await zip.file(part).async('string'),res=replaceXml(src,data.lookup,img?{...img,rid}:null,stats);zip.file(part,res.xml);if(res.signatureUsed&&img)await addImageRelationship(zip,part,rid,`media/essa_firma.${img.ext}`);}
+    const scanTokens=!base||!base.engine||base.engine==='ooxml-integrado';
+    for(const part of parts){const rid='rIdEssaFirma',src=await zip.file(part).async('string'),res=replaceXml(src,data.lookup,img?{...img,rid}:null,stats,scanTokens);zip.file(part,res.xml);if(res.signatureUsed&&img)await addImageRelationship(zip,part,rid,`media/essa_firma.${img.ext}`);}
     const out=await zip.generateAsync({type:'blob',mimeType:DOCX_MIME,compression:'DEFLATE',compressionOptions:{level:6}},m=>onProgress&&onProgress(m.percent));
     return {blob:out,stats:{engine:base&&base.engine||'ooxml-integrado',tokens:[...stats.tokens],missing:[...stats.missing]}};
   }
@@ -1479,7 +1512,10 @@ function formatoTitulo(v){
   retry.addEventListener('click',()=>renderDocument(mode,true));
   document.querySelectorAll('#panelSolicitante input,.desc-panel textarea').forEach(el=>el.addEventListener('input',()=>invalidateGenerated(true)));
   /* Respaldo para ejecuciones fuera del shell; dentro del Asistente la reactividad llega por DocStore. */
-  addEventListener('storage',e=>{if(e.key==='essa-perfil'){invalidateGenerated(false);mode='generated';renderDocument('generated',true);}});
+  /* Respaldo para ejecuciones fuera del shell; dentro del Asistente la reactividad llega por DocStore.
+     `essa.extractor.creg.v1` cambia en la pestaña del Extractor CREG → este listener (otro documento
+     del mismo origen) recibe el evento y regenera la vista con los nuevos valores. */
+  addEventListener('storage',e=>{if(e.key==='essa-perfil'||e.key===CREG_LS){invalidateGenerated(false);mode='generated';renderDocument('generated',true);}});
 
   function triggerDownload(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name||'documento_generado.docx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
   bg.addEventListener('click',e=>{
