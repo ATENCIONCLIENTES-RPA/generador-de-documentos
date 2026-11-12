@@ -1,4 +1,4 @@
-// @ts-nocheck — cuerpo legado del módulo «documentos», extraído sin cambios de lógica desde el HTML original.
+﻿// @ts-nocheck — cuerpo legado del módulo «documentos», extraído sin cambios de lógica desde el HTML original.
 import '../../styles/fonts.css';
 import '../shared/module-embedded.css';
 import '../../components/guided-tour/guided-tour.css';
@@ -1447,7 +1447,7 @@ function formatoTitulo(v){
     {g:'Descripciones del documento',k:'OBSERVACION_PROCESO',d:'Lo que pide el cliente (Descripción de la solicitud).',w:'Solicitud: [OBSERVACION_PROCESO]',ej:'Solicita revisión del consumo facturado.'},
     {g:'Descripciones del documento',k:'OBSERVACION_REVISION',d:'Hallazgos de la revisión (Observación del insumo).',w:'Se encontró: [OBSERVACION_REVISION]',ej:'Medidor verificado en sitio.'},
     {g:'Descripciones del documento',k:'OBSERVACION_DECISION',d:'Resultado y justificación de la decisión.',w:'Decisión: [OBSERVACION_DECISION]',ej:'Se reliquida el consumo.'},
-    {g:'Firmante',k:'NOMBRE_FIRMANTE',d:'Tu nombre, tomado del bloque Firmante.',w:'Atentamente, [NOMBRE_FIRMANTE]',ej:'Laura Andrea Báez'},
+    {g:'Firmante',k:'NOMBRE_FIRMANTE',d:'Tu nombre, tomado del bloque Firmante.',w:'Atentamente, [NOMBRE_FIRMANTE]',ej:'Nombre del Gestor'},
     {g:'Firmante',k:'FIRMA_DOCUMENTO',d:'Tu firma como imagen, tomada del bloque Firmante.',w:'[FIRMA_DOCUMENTO]',ej:'__ESSA_SIGNATURE__'}
   ];
   const GROUPS={'Solicitante':{c:'tg-g1',ic:IC.user},'Trámite':{c:'tg-g2',ic:IC.folder},'Descripciones del documento':{c:'tg-g3',ic:IC.text},'Firmante':{c:'tg-g4',ic:IC.pen}};

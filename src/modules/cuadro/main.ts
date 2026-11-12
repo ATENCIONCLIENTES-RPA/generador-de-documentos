@@ -1,4 +1,4 @@
-// @ts-nocheck — cuerpo legado del módulo «cuadro», extraído sin cambios de lógica desde el HTML original.
+﻿// @ts-nocheck — cuerpo legado del módulo «cuadro», extraído sin cambios de lógica desde el HTML original.
 import '../../styles/fonts.css';
 import '../shared/module-embedded.css';
 import '../../components/guided-tour/guided-tour.css';
@@ -262,10 +262,18 @@ const CACHE_EQ={}, ALIAS={};
 function equipoDe(raw){
   const r=txt(raw); if(!r) return '';
   if(r in CACHE_EQ) return CACHE_EQ[r];
+  let eqList = EQUIPO;
+  if(!eqList.length && (USUARIO_FIJO || NOMBRE_FIRMANTE)){
+    const uAct = USUARIO_FIJO || NOMBRE_FIRMANTE;
+    eqList = [{nombre: uAct, toks: tokNombre(uAct)}];
+  }
   const v=tokNombre(r); let best='', bs=0, empate=false;
-  EQUIPO.forEach(e=>{ const p=puntaje(v,e.toks);
+  eqList.forEach(e=>{ const p=puntaje(v,e.toks);
     if(p>bs){ bs=p; best=e.nombre; empate=false; } else if(p && p===bs) empate=true; });
-  const res = (bs && !empate) ? best : '';
+  let res = (bs && !empate) ? best : '';
+  if(!res && eqList.length === 1 && canonNombre(r) === canonNombre(eqList[0].nombre)){
+    res = eqList[0].nombre;
+  }
   if(res) (ALIAS[res]=ALIAS[res]||new Set()).add(r);
   return CACHE_EQ[r]=res;
 }
@@ -361,17 +369,46 @@ function nivelCoincidencia(firmante,oficial){
 }
 const CACHE_ID=new Map();
 const claveId = n => normalizaNombre(n).replace(/,/g,' ').replace(/\s+/g,' ').trim();
+function poolResponsables(){
+  const mapa = new Map();
+  CFG.equipo.forEach(n => {
+    const c = canonNombre(n);
+    if(c && !mapa.has(c)) mapa.set(c, String(n).trim());
+  });
+  if(CRUDO && Array.isArray(CRUDO.mer)){
+    CRUDO.mer.forEach(r => {
+      const g = txt(r['Nombre del Gestor']);
+      const c = canonNombre(g);
+      if(c && c.length >= 4 && !mapa.has(c)) mapa.set(c, g);
+    });
+  }
+  if(CRUDO && Array.isArray(CRUDO.sac)){
+    CRUDO.sac.forEach(r => {
+      const u = txt(r.NOMBRE_USUARIO_INICIAL_PROCESO);
+      const c = canonNombre(u);
+      if(c && c.length >= 4 && !mapa.has(c)) mapa.set(c, u);
+    });
+  }
+  return Array.from(mapa.values());
+}
+
 function identificarResponsable(nombre){
   const k=String(nombre==null?'':nombre).trim(), ck=claveId(k);
   if(CACHE_ID.has(ck)) return CACHE_ID.get(ck);
   let res;
   if(!k || !tokensNombre(k).some(t=>/[a-z]{2,}/.test(t))) res={estado:'vacio',candidatos:[]};
   else{
+    const pool = poolResponsables();
     const hits=[];
-    CFG.equipo.forEach(of=>{ const r=nivelCoincidencia(k,of); if(r.nivel) hits.push({of,nivel:r.nivel,coste:r.coste||0,faltan:r.faltan||0}); });
+    pool.forEach(of=>{ const r=nivelCoincidencia(k,of); if(r.nivel) hits.push({of,nivel:r.nivel,coste:r.coste||0,faltan:r.faltan||0}); });
     hits.sort((x,y)=>(x.nivel-y.nivel)||(x.coste-y.coste)||(x.faltan-y.faltan)||x.of.localeCompare(y.of,'es'));
-    if(!hits.length) res={estado:'sin_coincidencia',candidatos:[]};
-    else{
+    if(!hits.length){
+      if(pool.length === 0){
+        res={estado:'unico',responsable:k,nivel:1,candidatos:[k]};
+      } else {
+        res={estado:'sin_coincidencia',candidatos:[]};
+      }
+    } else {
       const top=hits[0].nivel, grupo=top<=2 ? hits.filter(h=>h.nivel===top) : hits;
       res = grupo.length===1 ? {estado:'unico',responsable:grupo[0].of,nivel:grupo[0].nivel,candidatos:[grupo[0].of]}
                              : {estado:'ambiguo',nivel:top,candidatos:grupo.map(h=>h.of)};
@@ -627,7 +664,6 @@ function aplicarAccesoResponsable(perfil,refrescar){
   if(cambio&&refrescar){poblarFiltros();render();if(DIA_SEL!==null)pintaRadicados();}
   return cambio;
 }
-
 function pintaResponsables(sel){
   const e=selResp();
   if(!RESPONSABLE_VISIBLE||!e) return;
@@ -679,6 +715,7 @@ function fijarUsuario(u){
 function poblarFiltros(){
   const b=baseCanales(), mapa={};
   b.forEach(d=>{ if(d.respEq){ const c=canonNombre(d.respEq); if(!mapa[c]) mapa[c]=d.respEq; } });
+  EQUIPO.forEach(e=>{ const c=canonNombre(e.nombre); if(!mapa[c]) mapa[c]=e.nombre; });
   RESPONSABLES=Object.values(mapa).sort((a,b)=>a.localeCompare(b,'es'));
   const v1=USUARIO_FIJO||valorResp();
   pintaResponsables(RESPONSABLES.includes(v1)?v1:'');
@@ -1540,18 +1577,7 @@ function ordenable(tabla,mem){
 const RUTAS_NOM={pq:'Peticiones',es:'Ruta especializada',cd:'Cambio de datos básicos',rc:'Reclamos',rs:'Recursos',sp:'SSPD',so:'Somos'};
 const SUB_PQ=['pq','es','cd'];
 const PLAZO_ES=10;
-const RUTAS_DEF={
-  pq:['GLORIA LILIANA ROJAS MORENO','EDWARD FELIPE HERNANDEZ OROZCO','KELLY JOHANNA REYES VILLAMIZAR','JORGE LUIS DELGADO RANGEL',
-      'EDWARD LEONARDO MONTAÑEZ CABALLERO','JAIRO CHAVES MALAVER','YURLEY VIVIANA SANDOVAL PÉREZ','LEIDY VIVIANA PEREA BARRAGAN',
-      'LEIDY VIVIANA ALBARRACÍN CAMPOS'],
-  rc:['CLAUDIA MARINA ROA SANCHEZ','LAURA ANDREA GARZON MONSALVE','JESSICA GARCIA RAMIREZ','YANETH CABALLERO PLATA',
-      'MAYRA ALEJANDRA PARDO FLOREZ','ESMERALDA BERMUDEZ RANGEL','NIDIA ESPERANZA BECERRA PINTO','YUDY CAROLINA RODRIGUEZ GUTIERREZ',
-      'DIANA CAROLINA RIOS JONES','DIANA CAROLINA MARTINEZ AMOROCHO','ADRIANA BAUTISTA ALFONSO','LADY VIVIANA ALBARRACIN CAMPOS'],
-  rs:['LIZETH JOHANNA CAICEDO MELO','NORA LILIANA VILLAMIZAR JAIMES'],
-  sp:['YINETH NATALIA LOPEZ LEMUS'],
-  so:['ALBA YANETH LEAL HERNANDEZ'],
-  es:['LEYLA MARIANA SERRANO SANDOVAL'],
-  cd:['ZANDRA MILENA JEREZ JAIMES']};
+const RUTAS_DEF={pq:[],rc:[],rs:[],sp:[],so:[],es:[],cd:[]};
 const LS_RUTAS='essa_rutas';
 let RUTA='pq';
 const LS_ROL='essa_rol_recursos', LS_EXP='essa_expedientes', LS_HOY='essa_checklist_hoy';
@@ -1563,11 +1589,6 @@ if(!RUTAS){ RUTAS=JSON.parse(JSON.stringify(RUTAS_DEF)); const viejo=lsGet(LS_RO
 if(typeof RUTAS!=='object'||!RUTAS||Array.isArray(RUTAS)) RUTAS=JSON.parse(JSON.stringify(RUTAS_DEF));
 Object.keys(RUTAS_DEF).forEach(k=>{ if(!Array.isArray(RUTAS[k])) RUTAS[k]=RUTAS_DEF[k].slice(); });
 RUTAS=SANEA.listas(RUTAS,RUTAS_DEF);
-if(!appDataGet('essa_mig_rc_lady')){
-  if(Array.isArray(RUTAS.rc) && !RUTAS.rc.some(u=>canonNombre(u)===canonNombre('LADY VIVIANA ALBARRACIN CAMPOS'))){
-    RUTAS.rc.push('LADY VIVIANA ALBARRACIN CAMPOS'); lsSet(LS_RUTAS,RUTAS); }
-  try{ appDataSet('essa_mig_rc_lady','1'); }catch(e){}
-}
 function reconstruirEquipo(){
   const vistos=new Set(), lista=[];
   Object.keys(RUTAS).forEach(k=>(Array.isArray(RUTAS[k])?RUTAS[k]:[]).forEach(n=>{
@@ -1592,12 +1613,13 @@ let SUBREC='dup', EXP_VER_EV=false;
 
 function pintaRol(){
   const v=$('recUsr').value;
-  $('recUsr').innerHTML=ROL.map(u=>'<option>'+esc(u)+'</option>').join('');
+  const rolEfectivo=ROL.length?ROL:(NOMBRE_FIRMANTE&&!EQUIPO.length?[NOMBRE_FIRMANTE]:[]);
+  $('recUsr').innerHTML=rolEfectivo.map(u=>'<option>'+esc(u)+'</option>').join('');
   const act=usuarioActivo();
-  $('recUsr').value=(act&&ROL.includes(act))?act:(ROL.includes(v)?v:(ROL[0]||''));
+  $('recUsr').value=(act&&rolEfectivo.includes(act))?act:(rolEfectivo.includes(v)?v:(rolEfectivo[0]||''));
   $('rolChips').innerHTML=ROL.map((u,i)=>'<span class="rolChip">'+esc(u)+' <b data-q="'+i+'" title="Quitar">×</b></span>').join('')||
     '<span class="sp">Sin usuarios en el rol.</span>';
-  $('rolAdd').innerHTML=CFG.equipo.filter(u=>!ROL.includes(u)).map(u=>'<option>'+esc(u)+'</option>').join('');
+  $('rolAdd').value='';
   $('rolChips').querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{ ROL.splice(+b.dataset.q,1); guardaRutas(); pintaRol(); pintaRec(); });
   const nomR=RUTAS_NOM[RUTA]||RUTA, deLaRuta=/^Ruta /.test(nomR)?'de la '+nomR.replace(/^Ruta /,'ruta '):'de la ruta '+nomR;
   const lblUsr=$('recUsrLbl'); if(lblUsr) lblUsr.textContent='Usuario '+deLaRuta;
@@ -1628,8 +1650,8 @@ function rtSync(){
   m.querySelectorAll('.subtab button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.s===SUBREC)));
 }
 $('recRolBtn').onclick=()=>$('rolBox').classList.toggle('on');
-$('rolAddBtn').onclick=()=>{ const u=$('rolAdd').value; if(u&&!ROL.includes(u)){ ROL.push(u); guardaRutas(); pintaRol(); pintaRec(); } };
-$('rolReset').onclick=()=>{ ROL=RUTAS_DEF[RUTA].slice(); guardaRutas(); pintaRol(); pintaRec(); };
+$('rolAddBtn').onclick=()=>{ const inp=$('rolAdd'), u=inp?inp.value.trim():''; if(u&&!ROL.includes(u)){ ROL.push(u); guardaRutas(); pintaRol(); pintaRec(); if(inp) inp.value=''; } };
+$('rolReset').onclick=()=>{ ROL=[]; guardaRutas(); pintaRol(); pintaRec(); };
 
 function procesosDe(u){
   const vistos=new Set();
@@ -1707,7 +1729,7 @@ function relacionarDup(d,o,kd,ko){
     if(cerca && kd.sol && kd.sol===ko.sol) F.add('Mismo solicitante y cuenta'); });
   return {F,W};
 }
-const usuariosRutas=()=>new Set(Object.values(RUTAS).flat());
+const usuariosRutas=()=>{ const s=new Set(Object.values(RUTAS).flat()); if(s.size===0&&NOMBRE_FIRMANTE) s.add(NOMBRE_FIRMANTE); return s; };
 let DUP_IDX=null;
 function indiceDup(){
   if(DUP_IDX) return DUP_IDX;
@@ -1963,12 +1985,12 @@ function pintaVen(u){
     '<span class="estSin">'+nv+' vencido(s)</span> · <span class="estAlg">'+nh+' vence(n) hoy</span>';
   ordenable($('tRec'));
 }
-const ADMIN_TIPOLOGIAS='JAIRO CHAVES MALAVER';
+
 function usuarioActivo(){ return equipoDe(USUARIO_FIJO||valorResp()||NOMBRE_FIRMANTE||'')||''; }
 function rutasVisibles(){
   const claves=Object.keys(RUTAS);
   const u=canonNombre(usuarioActivo());
-  if(NOMBRE_FIRMANTE===FIRMANTE_HABILITA_RESPONSABLE || u===canonNombre(ADMIN_TIPOLOGIAS)) return claves;
+  if(NOMBRE_FIRMANTE===FIRMANTE_HABILITA_RESPONSABLE || !!u) return claves;
   const mias=u?claves.filter(k=>(RUTAS[k]||[]).some(n=>canonNombre(n)===u)):[];
   return mias.length?mias:claves;
 }
@@ -1984,7 +2006,7 @@ function aplicaRutasVisibles(){
   else if($('mRec').classList.contains('on')){ pintaRol(); pintaRec(); }
 }
 function visibilidadTipologias(){
-  const ok = SUBREC==='rea' && canonNombre(usuarioActivo())===canonNombre(ADMIN_TIPOLOGIAS);
+  const ok = SUBREC==='rea' && !!usuarioActivo();
   $('tipBtn').style.display = ok ? '' : 'none';
   if(!ok) $('tipBox').classList.remove('on');
 }
@@ -2124,8 +2146,9 @@ function procHoy(u){
 }
 function usuarioHoyDef(estricto){
   const eq=claveResponsable(USUARIO_FIJO||valorResp());
-  const u=CFG.equipo.find(x=>canonNombre(x)===eq);
-  return u || (estricto?'':($('hoyUsr').value||CFG.equipo[0]));
+  const pool=CFG.equipo.length?CFG.equipo:(NOMBRE_FIRMANTE?[NOMBRE_FIRMANTE]:[]);
+  const u=pool.find(x=>canonNombre(x)===eq)||((EQUIPO.length===0&&USUARIO_FIJO)?USUARIO_FIJO:'');
+  return u || (estricto?'':($('hoyUsr').value||pool[0]||''));
 }
 const ORD_HOY={i:null,desc:false};
 function pintaHoy(){
@@ -2155,7 +2178,8 @@ function pintaHoy(){
 }
 function abrirHoy(){
   const def=usuarioHoyDef(false);
-  $('hoyUsr').innerHTML=CFG.equipo.map(u=>'<option>'+esc(u)+'</option>').join(''); $('hoyUsr').value=def;
+  const hoyOpts=CFG.equipo.length?CFG.equipo:(NOMBRE_FIRMANTE?[NOMBRE_FIRMANTE]:[]);
+  $('hoyUsr').innerHTML=hoyOpts.map(u=>'<option>'+esc(u)+'</option>').join(''); $('hoyUsr').value=def||hoyOpts[0]||'';
   pintaHoy(); $('mHoy').classList.add('on'); }
 ['hoyUsr','hoyVer'].forEach(i=>$(i).addEventListener('change',pintaHoy));
 $('hoyX').onclick=()=>$('mHoy').classList.remove('on');
@@ -2710,21 +2734,25 @@ function estadoVista(snap){
   $('sfTit').textContent=busy?'Preparando la información del Cuadro de Mando…':err?'No se pudo procesar la información':'El Cuadro de Mando aún no tiene información';
 }
 function aplicarFuentes(snap){
-  const cambioAcceso=aplicarAccesoResponsable(snap.profile,false);
   let cambio=false;
   FUENTES.forEach(({c,k})=>{ const r=snap.resources[k];
     if(ocupada(r)) return;
     const filas=r.status==='ready'?AD.store.getRows(k):null;
     if(filas!==APLICADAS[c]){ APLICADAS[c]=filas; CRUDO[c]=filas||[]; cambio=true; } });
   if(cambio){
+    CACHE_ID.clear();
+    Object.keys(CACHE_EQ).forEach(k=>delete CACHE_EQ[k]);
+  }
+  const cambioAcceso=aplicarAccesoResponsable(snap.profile,false);
+  if(cambio){
     unificar(); poblarFiltros(); render();
     try{ actualizaHistorico(); }catch(e){ reportaError('Histórico',e); }
     try{ refrescaFotosCons(); }catch(e){ reportaError('Consultas anteriores',e); }
-    $('aviso').style.display='none';
+    aviso.style.display='none';
     if(CRUDO.sac.length && CRUDO.mer.length && appDataGet('essa_mant')!==clave(HOY)){
       setTimeout(()=>{ try{ mantenimiento(false); revisaAlmacen(); }catch(e){ reportaError('Mantenimiento',e); } },500); }
   }
-  if(cambioAcceso&&!cambio){poblarFiltros();render();}
+  if(cambioAcceso&&!cambio){Object.keys(CACHE_EQ).forEach(k=>delete CACHE_EQ[k]);unificar();poblarFiltros();render();}
   if(cambioAcceso) aplicaRutasVisibles();
   pintaFuentes(snap); estadoVista(snap);
 }
