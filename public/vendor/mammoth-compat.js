@@ -1,0 +1,2 @@
+/*! Asistente Documental local compatibility bundle for Mammoth browser API. Offline/classic-script build. */
+(function(g){'use strict';if(g.mammoth&&typeof g.mammoth.convertToHtml==='function')return;var images={imgElement:function(fn){return fn;}};g.mammoth={version:'1.13.0-local',images:images,convertToHtml:async function(input){if(!g.ADDocxLocal)throw new Error('ADDocxLocal no está disponible');var data=input&&(input.arrayBuffer||input.buffer||input);return{value:await g.ADDocxLocal.html(data),messages:[]};}};})(window);

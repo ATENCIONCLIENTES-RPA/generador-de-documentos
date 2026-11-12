@@ -1,0 +1,9 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "npm run build:ci": true,
+        "Test-Path": true,
+        "git check-ignore": true,
+        "git fetch": true,
+        "git ls-remote": true
+    }
+}
