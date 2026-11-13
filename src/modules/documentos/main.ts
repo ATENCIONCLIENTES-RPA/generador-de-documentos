@@ -44,7 +44,9 @@ function normalizeRecordName(value){
   return String(value==null?'':value).trim().replace(/\s+/g,' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleUpperCase('es-CO');
 }
 function isAnonymousPlaceholderRecord(row){
-  const words=normalizeRecordName(recordDisplay(row).nombre).split(' ').filter(Boolean);
+  const name=recordDisplay(row).nombre;
+  if(!name||!/anonim/i.test(name))return false;
+  const words=normalizeRecordName(name).split(' ').filter(Boolean);
   return words.length>=2&&words.every(word=>word==='ANONIMO');
 }
 function recordSearchText(row){
@@ -93,7 +95,8 @@ function renderRecords(){
 }
 const openDD=()=>dd.classList.add('open'),closeDD=()=>dd.classList.remove('open');
 searchInput.addEventListener('focus',openDD);
-searchInput.addEventListener('input',renderRecords);
+let _renderRecDeb=0;
+searchInput.addEventListener('input',()=>{clearTimeout(_renderRecDeb);_renderRecDeb=setTimeout(renderRecords,120);});
 ['filterToggle','btnCambiar'].forEach(id=>document.getElementById(id).addEventListener('click',()=>{openDD();searchInput.focus();}));
 document.addEventListener('click',e=>{if(!e.target.closest('.search-field,.filter-toggle,.active-record'))closeDD();});
 recordList.addEventListener('click',e=>{const it=e.target.closest('.record-item');if(!it)return;const r=registros[Number(it.dataset.i)];if(!r)return;const d=recordDisplay(r);document.getElementById('activeRad').textContent=d.rad?`Rad. ${d.rad}`:'Sin radicado';closeDD();});
@@ -125,7 +128,8 @@ function renderPl(){
   if(window.__AD_SYNC_SELECTION_GUIDE)window.__AD_SYNC_SELECTION_GUIDE();
 }
 renderPl();
-document.getElementById('plantillaSearch').addEventListener('input',()=>{filtrarPl();page=0;renderPl();});
+let _plSearchDeb=0;
+document.getElementById('plantillaSearch').addEventListener('input',()=>{clearTimeout(_plSearchDeb);_plSearchDeb=setTimeout(()=>{filtrarPl();page=0;renderPl();},100);});
 pl.addEventListener('click',e=>{const it=e.target.closest('.plantilla-item');if(!it)return;asignada=it.dataset.id;renderPl();});
 document.getElementById('pagPrev').onclick=()=>{page=Math.max(0,page-1);renderPl();};
 document.getElementById('pagNext').onclick=()=>{page++;renderPl();};

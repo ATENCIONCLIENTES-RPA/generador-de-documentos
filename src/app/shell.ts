@@ -76,6 +76,28 @@ export async function startShell(): Promise<void> {
   if (!inicial || !MODS[inicial as ModuleId]) inicial = ROUTES[0];
   if (location.hash !== '#/' + inicial) history.replaceState(null, '', '#/' + inicial);
   activate(inicial as ModuleId);
-  const precargar = (): void => { ROUTES.forEach((id, i) => setTimeout(() => host.mount(id), i === 0 ? 0 : 200 + (i - 1) * 600)); };
-  (window.requestIdleCallback || ((fn: () => void) => setTimeout(fn, 800)))(precargar, { timeout: 1500 });
+  const precargar = (): void => {
+    const restantes = ROUTES.filter(id => id !== inicial);
+    let i = 0;
+    const montarSiguiente = (): void => {
+      if (i >= restantes.length) return;
+      const nextId = restantes[i++];
+      host.mount(nextId);
+      if (i < restantes.length) {
+        if ('requestIdleCallback' in window) {
+          window.requestIdleCallback(montarSiguiente, { timeout: 3000 });
+        } else {
+          setTimeout(montarSiguiente, 800);
+        }
+      }
+    };
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(montarSiguiente, { timeout: 2500 });
+    } else {
+      setTimeout(montarSiguiente, 600);
+    }
+  };
+  void host.whenLoaded(inicial as ModuleId).then(() => {
+    setTimeout(precargar, 300);
+  });
 }

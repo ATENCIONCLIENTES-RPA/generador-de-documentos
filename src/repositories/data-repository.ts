@@ -6,6 +6,7 @@ const global: any = typeof window !== 'undefined' ? window : globalThis;
   const DB_NAME = 'essa_cm', DB_VER = 1, DB_STORE = 'h';
   const DIR_KEY = 'dir', DATA_KEY = 'app-data-v2';
   const nativeSet = Storage.prototype.setItem;
+  const nativeGet = Storage.prototype.getItem;
   const nativeRemove = Storage.prototype.removeItem;
 
   function idbOpen() {
@@ -28,14 +29,18 @@ const global: any = typeof window !== 'undefined' ? window : globalThis;
     catch (e) { return false; }
   }
 
-  const rawSet = (k, v) => nativeSet.call(localStorage, k, String(v));
-  const rawRemove = k => nativeRemove.call(localStorage, k);
+  let _cachedDatos = null;
+  const invalidateDatos = () => { _cachedDatos = null; };
+  const rawSet = (k, v) => { invalidateDatos(); return nativeSet.call(localStorage, k, String(v)); };
+  const rawRemove = k => { invalidateDatos(); return nativeRemove.call(localStorage, k); };
   const isAppKey = k => PREFIXES.some(p => String(k || '').indexOf(p) === 0);
   function datos() {
+    if (_cachedDatos) return { ..._cachedDatos };
     const o = {};
     try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (isAppKey(k)) o[k] = localStorage.getItem(k); } }
     catch (e) {}
-    return o;
+    _cachedDatos = o;
+    return { ...o };
   }
   function statsOf(d) {
     const keys = Object.keys(d || {}).filter(k => k !== STAMP);
@@ -84,15 +89,19 @@ const global: any = typeof window !== 'undefined' ? window : globalThis;
   }
   function schedulePersistence() {
     if (!ready || applying) return;
-    setState({ status: 'saving' });
-    clearTimeout(localTimer); localTimer = setTimeout(persistLocal, 20);
+    if (state.status !== 'saving') setState({ status: 'saving' });
+    clearTimeout(localTimer); localTimer = setTimeout(persistLocal, 250);
     if (DIR) { clearTimeout(folderTimer); folderTimer = setTimeout(escribir, 700); }
   }
   function changed() { marca(); schedulePersistence(); }
 
   function getItem(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function setItem(k, v) {
-    try { rawSet(k, v); if (isAppKey(k) && k !== STAMP) changed(); return true; }
+    try {
+      const s = String(v);
+      if (getItem(k) === s) return true;
+      rawSet(k, s); if (isAppKey(k) && k !== STAMP) changed(); return true;
+    }
     catch (e) { setState({ status: 'error', error: 'No se pudo guardar el cambio local.' }); return false; }
   }
   function removeItem(k) {
@@ -195,15 +204,19 @@ const global: any = typeof window !== 'undefined' ? window : globalThis;
 
   global.addEventListener('storage', e => {
     if (applying || !ready) return;
-    if ((e.storageArea === localStorage) && (e.key === null || isAppKey(e.key))) changed();
+    if ((e.storageArea === localStorage) && (e.key === null || isAppKey(e.key))) { invalidateDatos(); changed(); }
   });
   global.addEventListener('pagehide', () => { if (ready) { clearTimeout(localTimer); persistLocal(); } });
+  global.addEventListener('beforeunload', () => { if (ready) { clearTimeout(localTimer); persistLocal(); } });
   Storage.prototype.setItem = function (k, v) {
+    let prev = null; try { prev = nativeGet.call(this, k); } catch (e) {}
     nativeSet.call(this, k, v);
-    if (this === localStorage && isAppKey(k) && k !== STAMP && ready && !applying) changed();
+    if (this === localStorage) invalidateDatos();
+    if (this === localStorage && isAppKey(k) && k !== STAMP && ready && !applying && prev !== String(v)) changed();
   };
   Storage.prototype.removeItem = function (k) {
     nativeRemove.call(this, k);
+    if (this === localStorage) invalidateDatos();
     if (this === localStorage && isAppKey(k) && k !== STAMP && ready && !applying) changed();
   };
 

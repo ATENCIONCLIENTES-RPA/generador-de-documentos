@@ -159,11 +159,24 @@ const global: any = typeof window !== 'undefined' ? window : globalThis;
     try {
       if (!XLSX) throw new Error('Lector XLSX no disponible.');
       const buf = await blobs[key].arrayBuffer();
-      const data = await XLSX.leer(buf, cfg.columns);
+      let data;
+      try {
+        data = await XLSX.leer(buf, cfg.columns, { transfer: true });
+      } catch (e) {
+        // El worker murió después de recibir el buffer: se reintenta desde el Blob original.
+        if (e && e.code === 'worker-interrumpido') data = await XLSX.leer(await blobs[key].arrayBuffer(), cfg.columns);
+        else throw e;
+      }
       if (token !== tokens[key]) return;
       const warnings = validateRows(cfg, data);
       rows[key] = data;
       set(key, { status: STATUS.READY, rowCount: data.length, warnings, error: null }, { type: 'ready', origin });
+      try {
+        const cur = await idb.get(key);
+        if (cur && token === tokens[key]) {
+          await idb.set(key, { ...cur, rows: data, warnings });
+        }
+      } catch (e) {}
     } catch (err) {
       if (token !== tokens[key]) return;
       rows[key] = null;
@@ -325,6 +338,21 @@ const global: any = typeof window !== 'undefined' ? window : globalThis;
       } else {
         if (!rec.blob) return;
         blobs[key] = rec.blob;
+        if (rec.rows && Array.isArray(rec.rows)) {
+          rows[key] = rec.rows;
+          state[key] = {
+            ...state[key],
+            status: STATUS.READY,
+            file: { name: rec.name, size: rec.size, date: rec.date },
+            rowCount: rec.rows.length,
+            warnings: rec.warnings || [],
+            persisted: true,
+            origin: 'hydrate'
+          };
+          emit({ key, type: 'loading', origin: 'hydrate' });
+          emit({ key, type: 'ready', origin: 'hydrate' });
+          return;
+        }
         state[key] = { ...state[key], status: STATUS.LOADING, file: { name: rec.name, size: rec.size, date: rec.date }, persisted: true, origin: 'hydrate' };
       }
       emit({ key, type: 'loading', origin: 'hydrate' });

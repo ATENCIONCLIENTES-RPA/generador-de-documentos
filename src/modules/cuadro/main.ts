@@ -137,9 +137,30 @@ const txt = v => (v==null||v==='') ? '' : String(v).replace(/_x000D_/g,' ').repl
 const num = v => v==null||v==='' ? '' : (typeof v==='number' ? (Number.isInteger(v)?String(v):v.toFixed(0)) : String(v).trim());
 const esc = t => String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const nfmt = n => n.toLocaleString('es-CO');
-const sinTilde = s => String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const _sinTildeCache = new Map();
+const sinTilde = s => {
+  const str = String(s == null ? '' : s).trim();
+  if (!str) return '';
+  if (str.length <= 80) {
+    const hit = _sinTildeCache.get(str);
+    if (hit !== undefined) return hit;
+    const res = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (_sinTildeCache.size < 4000) _sinTildeCache.set(str, res);
+    return res;
+  }
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+};
 const soloNum = v => num(v).replace(/\D/g,'');
-const canonNombre = s => sinTilde(String(s==null?'':s).replace(/\(.*?\)/g,'')).replace(/\s+/g,' ').trim();
+const _canonCache = new Map();
+const canonNombre = s => {
+  const str = String(s == null ? '' : s).replace(/\(.*?\)/g, '').trim();
+  if (!str) return '';
+  const hit = _canonCache.get(str);
+  if (hit !== undefined) return hit;
+  const res = sinTilde(str).replace(/\s+/g, ' ').trim();
+  if (_canonCache.size < 2000) _canonCache.set(str, res);
+  return res;
+};
 const limpiaUsuario = s => txt(s).replace(/^.*\\/,'').trim();
 
 function parseFecha(v){
@@ -552,7 +573,11 @@ function unificar(){
       : d.restan<=CFG.proximoDias ? 'Próximo' : 'En plazo';
     d.busca=[d.radicado,d.cuenta,d.tramites.join(' '),d.solicitante,d.responsable,d.gestor,d.municipio,
       d.procesos.map(p=>p.numero).join(' ')].join(' ').toLowerCase();
-    const ks=[soloNum(d.radicado),soloNum(d.cuenta)].concat(d.procesos.map(p=>soloNum(p.numero)));
+    // Campos normalizados una sola vez: evitan repetir normalizaciones y regex en cada filtrado.
+    d.buscaNorm=sinTilde(d.busca);
+    d.radNum=soloNum(d.radicado); d.ctaNum=soloNum(d.cuenta);
+    d.procNums=d.procesos.map(p=>soloNum(p.numero)); d.excluidoBloque=d.procesos.some(p=>String(p.codTram)==='3904');
+    const ks=[d.radNum,d.ctaNum].concat(d.procNums);
     ks.forEach(k=>{ if(k&&k.length>=5) (INDICE[k]=INDICE[k]||[]).push(d); });
   });
   nFueraEquipo = out.filter(d=>!d.respEq).length;
@@ -583,39 +608,58 @@ function baseCanales(){
   const todo=$('cTodo').checked;
   return DATOS.filter(d=>(todo||d.enVentana)&&d.medioOk);
 }
-function pasaFiltros(d){
+// Contexto del filtro: evita normalizar la consulta y el responsable una vez por registro.
+let _qRaw=null,_qVal='',_qNum='',_respRaw=null,_respVal='';
+function filtroVals(){
+  const raw=$('q').value;
+  if(raw!==_qRaw){ _qRaw=raw; _qVal=sinTilde(raw); _qNum=_qVal.replace(/\D/g,''); }
+  const rawR=USUARIO_FIJO||valorResp();
+  if(rawR!==_respRaw){ _respRaw=rawR; _respVal=claveResponsable(rawR); }
+  return {q:_qVal,qn:_qNum,r:_respVal,t:$('fTram').value};
+}
+function pasaFiltros(d, fvOpt){
   if(accesoBloqueado()) return false;
-  if(sinTilde($('q').value)==='general') return pasaFiltrosSinQ(d);
-  const r=claveResponsable(USUARIO_FIJO||valorResp()), t=$('fTram').value,
-        q=sinTilde($('q').value), qn=q.replace(/\D/g,'');
+  const fv=fvOpt||filtroVals();
+  if(fv.q==='general') return pasaFiltrosSinQ(d);
+  const r=fv.r, t=fv.t, q=fv.q, qn=fv.qn;
   if(r && !d.respCanon.includes(r)) return false;
   if(t && !d.tramites.includes(t)) return false;
   if(q){
-    const okT=sinTilde(d.busca).includes(q);
-    const okN=qn.length>=4 && (soloNum(d.radicado).includes(qn)||soloNum(d.cuenta).includes(qn)||
-      d.procesos.some(p=>soloNum(p.numero).includes(qn)));
+    const okT=(d.buscaNorm||sinTilde(d.busca)).includes(q);
+    const okN=qn.length>=4 && ((d.radNum||soloNum(d.radicado)).includes(qn)||(d.ctaNum||soloNum(d.cuenta)).includes(qn)||
+      (d.procNums||d.procesos.map(p=>soloNum(p.numero))).some(n=>n.includes(qn)));
     if(!okT&&!okN) return false;
   }
   return true;
 }
 function pasaFiltrosSinQ(d){
   if(accesoBloqueado()) return false;
-  const r=claveResponsable(USUARIO_FIJO||valorResp()), t=$('fTram').value;
+  const fv=filtroVals(), r=fv.r, t=fv.t;
   if(r && !d.respCanon.includes(r)) return false;
   if(t && !d.tramites.includes(t)) return false;
   return true;
 }
-function filtrar(){ return base().filter(p=>pasaFiltros(p)&&!excluidoBloqueDias(p)); }
+// Durante un render, filtrar()/vencidas() se calculan una sola vez y se reutilizan.
+let _renderCtx=null;
+function filtrar(){ if(_renderCtx) return _renderCtx.f; const fv=filtroVals(); return base().filter(p=>pasaFiltros(p,fv)&&!excluidoBloqueDias(p)); }
 function vencidas(){
-  const soloM=$('cMedio').checked;
-  return DATOS.filter(d=>d.vencida && (!soloM||d.medioOk) && !evacuado(d) && pasaFiltros(d)
+  if(_renderCtx) return _renderCtx.V;
+  const soloM=$('cMedio').checked, fv=filtroVals();
+  return DATOS.filter(d=>d.vencida && (!soloM||d.medioOk) && !evacuado(d) && pasaFiltros(d,fv)
                         && !excluidoBloqueDias(d))
               .sort((a,b)=>b.dia-a.dia);
 }
 function excluidoBloqueDias(x){
-  return x.procesos.some(p=>String(p.codTram)==='3904');
+  return x.excluidoBloque !== undefined ? x.excluidoBloque : x.procesos.some(p=>String(p.codTram)==='3904');
 }
-const canonResuelto = nombre => { const eq=equipoDe(nombre); return canonNombre(eq||nombre); };
+const CACHE_CR=new Map();
+const canonResuelto = nombre => {
+  const k=String(nombre==null?'':nombre), hit=CACHE_CR.get(k);
+  if(hit!==undefined) return hit;
+  const v=canonNombre(equipoDe(k)||k);
+  if(CACHE_CR.size>4000) CACHE_CR.clear();
+  CACHE_CR.set(k,v); return v;
+};
 function usuariosRegistro(x){
   const us=[];
   x.procesos.forEach(p=>{ if(p.creador) us.push(p.creador); });
@@ -666,7 +710,7 @@ function aplicarAccesoResponsable(perfil,refrescar){
   if(visible){ USUARIO_FIJO=''; montaResp(); }
   else{ desmontaResp(); USUARIO_FIJO=fijo; }
   pintaAcceso();
-  if(cambio&&refrescar){poblarFiltros();render();if(DIA_SEL!==null)pintaRadicados();}
+  if(cambio&&refrescar){poblarFiltros();render();}
   return cambio;
 }
 function pintaResponsables(sel){
@@ -870,7 +914,9 @@ function escalaColores(vals){
 }
 
 function render(){
-  const f=filtrar();
+  const f=filtrar(), V=vencidas();
+  const prevCtx=_renderCtx; _renderCtx={f,V};
+  try{
   $('kpis').innerHTML=
     '<div class="kpi kpiTotal" data-k="total" role="button" tabindex="0">'+
       '<i class="kBeam" aria-hidden="true"></i>'+
@@ -899,10 +945,11 @@ function render(){
   $('kpis').appendChild(k2);
   $('kpis').querySelectorAll('.kpi').forEach(k=>k.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); k.click(); } });
 
-  const V=vencidas();
   pintaVencidas(V);
 
-  const cont={}; ESCALERA.forEach(s=>cont[s.dia]=f.filter(x=>x.dia===s.dia).length);
+  const cont={}, contV={};
+  for(let i=0;i<f.length;i++){ const d=f[i].dia; cont[d]=(cont[d]||0)+1; }
+  for(let i=0;i<V.length;i++){ const d=V[i].dia; contV[d]=(contV[d]||0)+1; }
   const vals=ESCALERA.map(s=>cont[s.dia]), mx=Math.max(...vals,0);
   const color=escalaColores(vals);
   const pico=ESCALERA.find(s=>cont[s.dia]===mx&&mx>0);
@@ -920,8 +967,8 @@ function render(){
   const recIni=diasSem.length?ESCALERA_EXT.length&&(()=>{ let d=new Date(diasSem[0]),n=1; while(n<CFG.diasHabiles){ d=addD(d,-1); if(esHabil(d)) n++; } return d; })():null;
   const recFin=diasSem.length?(()=>{ let d=new Date(diasSem[diasSem.length-1]),n=1; while(n<CFG.diasHabiles){ d=addD(d,-1); if(esHabil(d)) n++; } return d; })():null;
   if(DATOS.length && diasSem.length){
-    const soloM=$('cMedio').checked;
-    const n=DATOS.filter(d=>(!soloM||d.medioOk) && pasaFiltros(d) && (()=>{ const v=fechaVence(d.fEfe); return v && v>=lunes && v<=viernes; })()).length;
+    const soloM=$('cMedio').checked, fv=filtroVals();
+    const n=DATOS.filter(d=>(!soloM||d.medioOk) && pasaFiltros(d,fv) && (()=>{ const v=fechaVence(d.fEfe); return v && v>=lunes && v<=viernes; })()).length;
     if(!snap || n>snap.n){ snap={n,d:diasSem.length}; PS.u[kUsr]=snap; lsSet('essa_prom_semana3',PS); }
   }
   snap=snap||{n:0,d:diasSem.length};
@@ -977,7 +1024,7 @@ function render(){
   const mrc=d=>diasFiltro.has(d)?MARCO:'';
   const diasVenc=[...new Set(V.map(x=>x.dia))].sort((a,b)=>b-a);
   const filasVenc=diasVenc.map(dv=>{
-    const it=ESCALERA_EXT.find(s=>s.dia===dv), n=V.filter(x=>x.dia===dv).length;
+    const it=ESCALERA_EXT.find(s=>s.dia===dv), n=contV[dv]||0;
     return '<tr class="clic vencFila'+(DIA_SEL===dv?' sel':'')+clsF(dv)+'" data-d="'+dv+'" tabindex="0">'+
       '<td>'+mrc(dv)+'<b>Día '+dv+'</b> <span class="badge bVenc">Vencida</span></td>'+
       '<td>'+dFmt(it?it.fecha:null)+'</td><td>'+celdaVence(it?it.fecha:null)+'</td>'+
@@ -985,10 +1032,10 @@ function render(){
       '<td class="ver">ver ›</td></tr>';
   }).join('');
   const filasDia=orden.map(s=>{
-    const r=f.filter(x=>x.dia===s.dia);
-    return '<tr class="'+(r.length?'clic':'cero')+tonoDia(s.fecha)+(DIA_SEL===s.dia?' sel':'')+clsF(s.dia)+'" data-d="'+s.dia+'"'+(r.length?' tabindex="0"':'')+'>'+
+    const n=cont[s.dia]||0;
+    return '<tr class="'+(n?'clic':'cero')+tonoDia(s.fecha)+(DIA_SEL===s.dia?' sel':'')+clsF(s.dia)+'" data-d="'+s.dia+'"'+(n?' tabindex="0"':'')+'>'+
       '<td>'+mrc(s.dia)+'<b>Día '+s.dia+'</b></td><td>'+dFmt(s.fecha)+'</td><td>'+celdaVence(s.fecha)+'</td>'+
-      '<td class="num n"><span class="cnt">'+nfmt(r.length)+'</span></td>'+
+      '<td class="num n"><span class="cnt">'+nfmt(n)+'</span></td>'+
       '<td class="ver">ver ›</td></tr>';
   }).join('');
   $('tDias').querySelector('tbody').innerHTML=filasVenc+filasDia;
@@ -999,9 +1046,10 @@ function render(){
 
   pintaRev();
   if(REV_AUTO && alertasRevision().length && !$('mRev').classList.contains('on')) abrirRev();
+  } finally { _renderCtx=prevCtx; }
 }
 
-function selDia(d){ DIA_PREV=null; if(conNotas()){ $('fNotas').value=''; pintaFiltro(); } DIA_SEL=d; RAD_SEL=null; $('detalle').classList.remove('on'); render(); pintaRadicados(); }
+function selDia(d){ DIA_PREV=null; if(conNotas()){ $('fNotas').value=''; pintaFiltro(); } DIA_SEL=d; RAD_SEL=null; $('detalle').classList.remove('on'); render(); }
 
 function filtroActivo(){ const q=sinTilde($('q').value); return !!$('fTram').value || (!!q && q!=='general'); }
 const conNotas=()=>$('fNotas').value==='notas';
@@ -1270,12 +1318,12 @@ function verDetalle(d){
     $('bAjuste').onclick=()=>{
       const v=$('fAjuste').value; if(!v) return;
       AJUSTES[k]=v; guardaAjustes(); unificar(); poblarFiltros(); render();
-      const nd=DATOS.find(x=>(x.llave||x.radicado)===k); if(nd){ if(nd.dia) DIA_SEL=nd.dia; render(); pintaRadicados(); verDetalle(nd); }
+      const nd=DATOS.find(x=>(x.llave||x.radicado)===k); if(nd){ if(nd.dia) DIA_SEL=nd.dia; render(); verDetalle(nd); }
     };
     const bQuitar=document.getElementById('bQuitar');
     if(bQuitar) bQuitar.onclick=()=>{
       delete AJUSTES[k]; guardaAjustes(); unificar(); poblarFiltros(); render();
-      const nd=DATOS.find(x=>(x.llave||x.radicado)===k); if(nd){ if(nd.dia) DIA_SEL=nd.dia; render(); pintaRadicados(); verDetalle(nd); }
+      const nd=DATOS.find(x=>(x.llave||x.radicado)===k); if(nd){ if(nd.dia) DIA_SEL=nd.dia; render(); verDetalle(nd); }
     };
   }
 }
@@ -1369,13 +1417,17 @@ function exportar(regs,nombre){
 }
 $('mExp').onclick=()=>exportar(DET,'detalle_pqrs.xlsx');
 
-['fTram','q'].forEach(i=>$(i).addEventListener('input',()=>{ if(filtroActivo()) DIA_SEL=null; render(); }));
+let _tRenderFiltro=0;
+const programaRenderFiltro=()=>{ clearTimeout(_tRenderFiltro); _tRenderFiltro=setTimeout(()=>{ _tRenderFiltro=0; try{ render(); }catch(e){ reportaError('Filtros del cuadro',e); } },120); };
+['fTram','q'].forEach(i=>$(i).addEventListener('input',()=>{ if(filtroActivo()) DIA_SEL=null; programaRenderFiltro(); }));
+$('fTram').addEventListener('change',()=>{ if(!_tRenderFiltro) return; clearTimeout(_tRenderFiltro); _tRenderFiltro=0; try{ render(); }catch(e){ reportaError('Filtros del cuadro',e); } });
 function cambiaNotas(){
   if(conNotas()){ if(DIA_SEL!==null) DIA_PREV=DIA_SEL; DIA_SEL=null; }
   else if(DIA_PREV!==null && !filtroActivo()){ DIA_SEL=DIA_PREV; DIA_PREV=null; }
   render(); }
 $('fNotas').addEventListener('change',cambiaNotas);
 $('q').addEventListener('input',()=>{ $('lnkRes').style.display = sinTilde($('q').value)==='general' ? '' : 'none'; });
+$('q').addEventListener('keydown',e=>{ if(e.key==='Enter'){ clearTimeout(_tRenderFiltro); _tRenderFiltro=0; if(filtroActivo()) DIA_SEL=null; render(); } });
 ['cMedio','cTodo'].forEach(i=>$(i).addEventListener('change',()=>{poblarFiltros();render();}));
 $('fColor').addEventListener('change',()=>{ render(); });
 $('fFiltro').addEventListener('change',()=>{
@@ -1393,7 +1445,7 @@ $('limpiar').onclick=()=>{ ['fTram','q'].forEach(i=>$(i).value=''); { const e=se
 let RES_DIA=[], RES_USR=[];
 function resumenGeneral(){
   if(!DATOS.length){ alert('Primero carga los archivos.'); return; }
-  const soloM=$('cMedio').checked;
+  const soloM=$('cMedio').checked, fv=filtroVals();
   const enRango=DATOS.filter(d=>d.enVentana && (!soloM||d.medioOk) && !evacuado(d));
   const venc=DATOS.filter(d=>d.vencida && (!soloM||d.medioOk) && !evacuado(d));
   RES_DIA=[];
@@ -1604,6 +1656,7 @@ function reconstruirEquipo(){
   Object.keys(CACHE_EQ).forEach(k=>delete CACHE_EQ[k]);
   Object.keys(ALIAS).forEach(k=>delete ALIAS[k]);
   CACHE_ID.clear();
+  CACHE_CR.clear();
 }
 reconstruirEquipo();
 let ROL=RUTAS[RUTA], EXP=lsGet(LS_EXP,{}), CHK=lsGet(LS_HOY,{});
@@ -1716,14 +1769,14 @@ function clavesDup(d){
   (d.cuentas||[]).forEach(x=>{ const n=soloNum(x); if(n.length>=3&&!basura(n)) ctas.add(n); });
   (t.toLowerCase().match(/[\w.+-]+@[\w-]+\.[\w.]+/g)||[]).forEach(e=>{ if(!/essa\.com\.co$/.test(e)) mails.add(e); });
   const sol=canonNombre(d.solicitante||''), solOk=sol.split(' ').length>=2 && !/^(essa|api|atencion)/.test(sol);
-  return {ids,pars,ctas,mails,sol:solOk?sol:''};
+  return {ids,pars,ctas,mails,sol:solOk?sol:'',normCont:normTxt(d.contenido)};
 }
 function relacionarDup(d,o,kd,ko){
   const F=new Set(), W=new Set();
   const dias=d.fSol&&o.fSol?Math.abs(difDias(d.fSol,o.fSol)):0, cerca=dias<=VENT_DUP;
   kd.ids.forEach(i=>{ if(ko.ids.has(i)) F.add('Mismo ID '+i); });
   const ctas=[...kd.ctas].filter(c=>ko.ctas.has(c));
-  const mismoTxt=()=>{ const a=normTxt(d.contenido), b=normTxt(o.contenido); return a.length>=10 && a===b; };
+  const mismoTxt=()=>{ const a=kd.normCont||normTxt(d.contenido), b=ko.normCont||normTxt(o.contenido); return a.length>=10 && a===b; };
   let np=0; kd.pars.forEach(p=>{ if(ko.pars.has(p)) np++; });
   if(np && (mismoTxt() || ctas.some(c=>!CTAS_GENERICAS.has(c))))
     F.add(mismoTxt()?'Contenido idéntico':(np>1?np+' párrafos idénticos y misma cuenta':'Párrafo idéntico y misma cuenta'));
@@ -2195,6 +2248,7 @@ function notificaPadreRev(n){
   try{ if(window.parent&&window.parent!==window) window.parent.dispatchEvent(new CustomEvent('ad-rev-count',{detail:{n:n}})); }catch(e){ }
 }
 function procsRevision(){
+  if(_renderCtx && _renderCtx.rev) return _renderCtx.rev;
   const u=canonNombre(usuarioActivo()), libre=!u;
   const out=[];
   DATOS.forEach(d=>{
@@ -2203,6 +2257,7 @@ function procsRevision(){
     if(!libre && !usuariosRegistro(d).some(n=>canonResuelto(n)===u)) return;
     d.procesos.forEach(p=>{ if(p.respRevision && !p.obsRevision) out.push({d,p}); });
   });
+  if(_renderCtx) _renderCtx.rev=out;
   return out;
 }
 const revCampo=v=>{ const t=txt(v); return t?esc(t):'<span class="sp">—</span>'; };
@@ -2753,6 +2808,7 @@ function aplicarFuentes(snap){
   if(cambio){
     CACHE_ID.clear();
     Object.keys(CACHE_EQ).forEach(k=>delete CACHE_EQ[k]);
+    CACHE_CR.clear();
   }
   const cambioAcceso=aplicarAccesoResponsable(snap.profile,false);
   if(cambio){
@@ -2763,7 +2819,7 @@ function aplicarFuentes(snap){
     if(CRUDO.sac.length && CRUDO.mer.length && appDataGet('essa_mant')!==clave(HOY)){
       setTimeout(()=>{ try{ mantenimiento(false); revisaAlmacen(); }catch(e){ reportaError('Mantenimiento',e); } },500); }
   }
-  if(cambioAcceso&&!cambio){Object.keys(CACHE_EQ).forEach(k=>delete CACHE_EQ[k]);unificar();poblarFiltros();render();}
+  if(cambioAcceso&&!cambio){Object.keys(CACHE_EQ).forEach(k=>delete CACHE_EQ[k]);CACHE_CR.clear();unificar();poblarFiltros();render();}
   if(cambioAcceso) aplicaRutasVisibles();
   pintaFuentes(snap); estadoVista(snap);
 }

@@ -1,6 +1,7 @@
 import { XLSXLite } from './xlsx-lite';
 export type XlsxRow = Record<string, unknown>;
-export interface XlsxReader { leer(buffer: ArrayBuffer, columns?: readonly string[]): Promise<XlsxRow[]> }
+export interface XlsxReaderOptions { transfer?: boolean }
+export interface XlsxReader { leer(buffer: ArrayBuffer, columns?: readonly string[], options?: XlsxReaderOptions): Promise<XlsxRow[]> }
 interface WorkerReply { id: number; ok: boolean; rows?: XlsxRow[]; message?: string }
 class FileError extends Error {}
 
@@ -27,21 +28,28 @@ function getWorker(): Worker | null {
     worker = w; return w;
   } catch (e) { disableWorker(e); return null; }
 }
-function readInWorker(w: Worker, buffer: ArrayBuffer, columns?: readonly string[]): Promise<XlsxRow[]> {
+function readInWorker(w: Worker, buffer: ArrayBuffer, columns?: readonly string[], transfer: boolean = false): Promise<XlsxRow[]> {
   return new Promise<XlsxRow[]>((resolve, reject) => {
     const id = ++seq; pending.set(id, { resolve, reject });
-    const copy = buffer.slice(0);
-    try { w.postMessage({ id, buffer: copy, columns: columns ? [...columns] : undefined }, [copy]); } catch (e) { pending.delete(id); reject(e as Error); }
+    const payload = transfer ? buffer : buffer.slice(0);
+    try { w.postMessage({ id, buffer: payload, columns: columns ? [...columns] : undefined }, [payload]); } catch (e) { pending.delete(id); reject(e as Error); }
   });
 }
 export const xlsxReader: XlsxReader = {
-  async leer(buffer, columns) {
-    const w = getWorker();
+  async leer(buffer, columns, options) {
+    const w = getWorker(), transfer = !!options?.transfer;
     if (w) {
-      try { return await readInWorker(w, buffer, columns); }
+      try { return await readInWorker(w, buffer, columns, transfer); }
       catch (e) {
         if (e instanceof FileError) throw new Error(e.message);
         if (!workerUnavailable) disableWorker(e);
+        // Si el buffer se transfirió y el worker murió, ya no es recuperable:
+        // se avisa al llamador para que reintente desde su origen (Blob).
+        if (transfer && buffer.byteLength === 0) {
+          const err = new Error('worker-interrumpido') as Error & { code?: string };
+          err.code = 'worker-interrumpido';
+          throw err;
+        }
       }
     }
     return XLSXLite.leer(buffer, columns) as Promise<XlsxRow[]>;

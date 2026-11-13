@@ -85,7 +85,7 @@ export const XLSXLite = (function () {
 
   const reTexto = /<t\b[^>]*?(?:\/>|>([\s\S]*?)<\/t>)/g;
   function textoDe(body) {
-    if (!body) return '';
+    if (!body || body.indexOf('<t') < 0) return '';
     const limpio = body.indexOf('<rPh') < 0 ? body : body.replace(/<rPh\b[^>]*?(?:\/>|>[\s\S]*?<\/rPh>)/g, '');
     let s = '', t;
     reTexto.lastIndex = 0;
@@ -130,14 +130,19 @@ export const XLSXLite = (function () {
                     d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds());
   }
 
+  const _colIdxCache = new Map();
   const colIdx = ref => {
+    let hit = _colIdxCache.get(ref);
+    if (hit !== undefined) return hit;
     let n = 0;
     for (let i = 0; i < ref.length; i++) {
       const c = ref.charCodeAt(i);
       if (c < 65 || c > 90) break;
       n = n * 26 + (c - 64);
     }
-    return n - 1;
+    const res = n - 1;
+    if (_colIdxCache.size < 512) _colIdxCache.set(ref, res);
+    return res;
   };
 
   function parseHoja(xml, shared, esFecha, quiero) {

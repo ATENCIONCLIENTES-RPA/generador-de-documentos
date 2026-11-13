@@ -4,7 +4,16 @@ export const PersonName = (function () {
   const PARTICULAS = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'e', 'da', 'das', 'do', 'dos', 'di', 'du', 'van', 'von', 'der', 'den']);
   const TRATAMIENTOS = new Set(['sr', 'sra', 'srta', 'senor', 'senora', 'senorita', 'don', 'dona', 'dr', 'dra', 'doctor', 'doctora', 'ing', 'lic', 'abg', 'abog', 'prof', 'mg']);
   const RELLENO = new Set(['anonimo', 'anonima', 'nn', 'na', 'sin', 'nombre', 'desconocido', 'desconocida', 'ninguno', 'null', 'undefined', 'xx', 'xxx']);
-  const clave = w => String(w || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9ñ]/g, '');
+  const _claveCache = new Map();
+  const clave = w => {
+    const s = String(w || '');
+    if (!s) return '';
+    const hit = _claveCache.get(s);
+    if (hit !== undefined) return hit;
+    const res = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9ñ]/g, '');
+    if (_claveCache.size < 2000) _claveCache.set(s, res);
+    return res;
+  };
   const tieneLetra = w => /\p{L}/u.test(w);
   function palabras(texto) {
     return String(texto == null ? '' : texto).normalize('NFC').replace(/\([^)]*\)/g, ' ')
