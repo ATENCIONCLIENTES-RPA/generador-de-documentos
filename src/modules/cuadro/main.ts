@@ -562,12 +562,17 @@ function unificar(){
 
 }
 
-function aviso(m,e){ const a=$('aviso'); a.className='aviso'+(e?' err':''); a.innerHTML=m; }
+// Helpers del aviso: se resuelve el elemento por id en cada uso y nunca se asume
+// que exista. El nombre de la función no debe coincidir con el id del elemento
+// (#aviso), porque entonces `aviso.style` apunta a la función y no al DOM.
+const avisoEl=()=>document.getElementById('aviso');
+function muestraAviso(m,e){ const a=avisoEl(); if(!a) return; a.className='aviso'+(e?' err':''); a.innerHTML=m; a.style.display=''; }
+function ocultaAviso(){ const a=avisoEl(); if(a) a.style.display='none'; }
 ['dragover','drop'].forEach(ev=>document.addEventListener(ev,e=>{
   if(!e.dataTransfer || ![...(e.dataTransfer.types||[])].includes('Files')) return;
   e.preventDefault();
-  if(ev==='drop'){ $('aviso').style.display='';
-    aviso('Los archivos se cargan una sola vez desde <b>Recursos</b>. <button type="button" class="btnIrRec" data-ad-nav="recursos">Ir a Recursos ›</button>'); }
+  if(ev==='drop'){
+    muestraAviso('Los archivos se cargan una sola vez desde <b>Recursos</b>. <button type="button" class="btnIrRec" data-ad-nav="recursos">Ir a Recursos ›</button>'); }
 }));
 
 function base(){
@@ -2706,38 +2711,44 @@ render();
 
 const FUENTES=[{c:'sac',k:'sac'},{c:'mer',k:'mercurio'}];
 const APLICADAS={sac:null,mer:null};
-const ocupada=r=>r.status==='loading'||r.status==='processing';
+// Recurso neutro para cuando el store todavía no expone una fuente: evita leer
+// `status`/`file` de undefined y mantiene la interfaz en estado «pendiente».
+const RECURSO_VACIO=Object.freeze({status:'empty',file:null,rowCount:0,error:null,warnings:[]});
+const recursoDe=(snap,k)=>(snap&&snap.resources&&snap.resources[k])||RECURSO_VACIO;
+const ocupada=r=>!!r&&(r.status==='loading'||r.status==='processing');
 const ICO_F={ok:'<path d="M20 6 9 17l-5-5"/>',err:'<path d="M12 7v6M12 17v.01"/>',pend:'<path d="M12 5v14M5 12h14"/>'};
 const icoF=p=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
 function textoFuente(r){
-  if(r.status==='ready') return esc(r.file.name)+' · '+nfmt(r.rowCount)+' registros';
+  if(!r) return 'Pendiente · cárgalo en Recursos';
+  if(r.status==='ready') return esc(r.file?r.file.name:'Archivo')+' · '+nfmt(r.rowCount)+' registros';
   if(r.status==='processing') return 'Procesando '+esc(r.file?r.file.name:'')+'…';
   if(r.status==='loading') return 'Recibiendo '+esc(r.file?r.file.name:'')+'…';
   if(r.status==='error') return esc(r.error||'No se pudo procesar');
   return 'Pendiente · cárgalo en Recursos';
 }
 function pintaFuentes(snap){
-  const cfg=AD.store.config.resources;
-  $('sfList').innerHTML=FUENTES.map(({k})=>{ const r=snap.resources[k];
+  const cfg=((window.AD&&window.AD.store&&window.AD.store.config&&window.AD.store.config.resources)||{});
+  $('sfList').innerHTML=FUENTES.map(({k})=>{ const r=recursoDe(snap,k);
     const cls=r.status==='ready'?'ok':ocupada(r)?'busy':r.status==='error'?'err':'pend';
     const ic=cls==='busy'?'<i class="fzSpin"></i>':icoF(cls==='ok'?ICO_F.ok:cls==='err'?ICO_F.err:ICO_F.pend);
-    return '<li class="'+cls+'"><span class="sfIc">'+ic+'</span><div><b>'+esc(cfg[k].label)+'</b><small>'+textoFuente(r)+'</small></div></li>'; }).join('');
+    return '<li class="'+cls+'"><span class="sfIc">'+ic+'</span><div><b>'+esc((cfg[k]&&cfg[k].label)||k)+'</b><small>'+textoFuente(r)+'</small></div></li>'; }).join('');
 }
 function estadoVista(snap){
-  const R=snap.resources, rs=FUENTES.map(f=>R[f.k]);
+  const rs=FUENTES.map(f=>recursoDe(snap,f.k));
   const sin=!rs.some(r=>r.status==='ready');
   document.body.classList.toggle('cm-sin-datos',sin);
   if(!sin) return;
   const busy=rs.some(ocupada), err=rs.some(r=>r.status==='error');
   const b=$('sfBadge'); b.className='sf-badge'+(busy?' busy':err?' err':'');
-  b.querySelector('span').textContent=busy?'Procesando':err?'Requiere atención':'Esperando datos';
+  const txt=b.querySelector('span'); if(txt) txt.textContent=busy?'Procesando':err?'Requiere atención':'Esperando datos';
   $('sfTit').textContent=busy?'Preparando la información del Cuadro de Mando…':err?'No se pudo procesar la información':'El Cuadro de Mando aún no tiene información';
 }
 function aplicarFuentes(snap){
+  snap=snap||{resources:{},profile:null};
   let cambio=false;
-  FUENTES.forEach(({c,k})=>{ const r=snap.resources[k];
+  FUENTES.forEach(({c,k})=>{ const r=recursoDe(snap,k);
     if(ocupada(r)) return;
-    const filas=r.status==='ready'?AD.store.getRows(k):null;
+    const filas=(r.status==='ready'&&window.AD&&window.AD.store)?window.AD.store.getRows(k):null;
     if(filas!==APLICADAS[c]){ APLICADAS[c]=filas; CRUDO[c]=filas||[]; cambio=true; } });
   if(cambio){
     CACHE_ID.clear();
@@ -2748,7 +2759,7 @@ function aplicarFuentes(snap){
     unificar(); poblarFiltros(); render();
     try{ actualizaHistorico(); }catch(e){ reportaError('Histórico',e); }
     try{ refrescaFotosCons(); }catch(e){ reportaError('Consultas anteriores',e); }
-    aviso.style.display='none';
+    ocultaAviso();
     if(CRUDO.sac.length && CRUDO.mer.length && appDataGet('essa_mant')!==clave(HOY)){
       setTimeout(()=>{ try{ mantenimiento(false); revisaAlmacen(); }catch(e){ reportaError('Mantenimiento',e); } },500); }
   }
