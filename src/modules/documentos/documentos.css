@@ -168,6 +168,13 @@ html[data-theme="dark"] .theme-toggle .tt-knob{transform:translateX(26px);backgr
 
 .main-layout{flex:1;display:grid;grid-template-columns:300px minmax(0,1fr) 330px;gap:18px;padding:18px 28px 28px;max-width:1700px;margin:0 auto;width:100%;}
 .col{display:flex;flex-direction:column;gap:18px;min-width:0;}
+/* Fichas laterales fijas: «Elige una plantilla» y «Descripciones del documento» quedan ancladas
+   justo debajo de la ficha del solicitante. --side-top lo calcula main.ts con el top y el alto
+   reales de .solicitante-bar-wrap (+18 px de separación), y se recalcula al plegar/desplegar. */
+.col-side > .panel{position:sticky;top:var(--side-top,220px);max-height:calc(100dvh - var(--side-top,220px) - 18px);min-height:0;}
+.col-side #panelPlantillas .panel-body,
+.col-side .desc-panel .panel-body{min-height:0;}
+.col-side .plantilla-list{min-height:0;}
 
 #panelPlantillas .panel-body{padding:12px;}
 .plantilla-search{position:relative;margin-bottom:10px;}
@@ -315,6 +322,8 @@ html[data-theme="dark"] .theme-toggle .tt-knob{transform:translateX(26px);backgr
 @media (max-width:1180px){
   .main-layout{grid-template-columns:1fr;max-width:820px;}
   .app-header,.searchbar-wrap,.solicitante-bar-wrap{position:static;}
+  .col-side > .panel{position:static;max-height:none;}
+  .col-side .plantilla-list{min-height:300px;}
   .field-row{grid-template-columns:1fr 1fr;}
   .plantilla-list{min-height:300px;}
 }

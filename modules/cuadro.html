@@ -375,10 +375,15 @@ window.addEventListener('error',r,true);setTimeout(r,10000);})();
 <div class="modal" id="mRev" role="dialog" aria-modal="true" aria-labelledby="revTit">
   <div class="mbox" style="max-width:980px">
     <div class="mhead">
-      <div><div class="mhTit"><span class="mhIco" data-m2i="bell" aria-hidden="true"></span><div><h3 id="revTit">Seguimiento de revisiones</h3><p id="revSub"></p></div></div></div>
+      <div><div class="mhTit"><span class="mhIco" data-m2i="bell" aria-hidden="true"></span><div><h3 id="revTit">Próximos a vencer sin insumo, en días 13, 14 y 15</h3><p id="revSub"></p></div></div></div>
       <button class="cerrar" id="revX" type="button" aria-label="Cerrar">&times;</button></div>
     <div class="mbody" style="padding-top:14px">
-      <div class="revIntro">Alertas pendientes: procesos en día 13 a 15 del usuario activo con responsable de revisión asignado y sin observación de revisión, y radicados de «Radicados del día» con una nota registrada. Usa «Evacuar alerta» para darla por atendida; el radicado y su nota se conservan.</div>
+      <div class="revBar">
+        <div class="revBarCampo"><label class="lf" for="revResp">Responsable de revisión</label>
+          <select id="revResp"><option value="">— Todos —</option></select></div>
+        <button class="btn sec" id="revExp" type="button"><span class="m2i" data-m2i="download" aria-hidden="true"></span>Exportar Excel</button>
+        <span class="revBarN" id="revBarN"></span>
+      </div>
       <div class="recScroll" id="revLista"></div>
     </div>
   </div>

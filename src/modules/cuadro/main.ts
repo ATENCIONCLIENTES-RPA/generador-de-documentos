@@ -963,6 +963,7 @@ function render(){
 
   const fc0=$('fColor').value, fn0=conNotas();
   const cumple=x=>(!fn0||!!marcaDe(x).nota)&&(!fc0||(fc0==='__sin'?!marcaDe(x).color:marcaDe(x).color===fc0));
+  /* el proceso 3904 ya sale de filtrar()/vencidas(): f y V llegan listos a este bloque */
   const diasFiltro=new Set((fc0||fn0)?f.concat(V).filter(cumple).map(x=>x.dia):[]);
   const clsF=d=>diasFiltro.has(d)?' diaFiltro':'';
   const tonoDia=f=>{ const v=fechaVence(f); if(!v) return ' tSin'; const dd=difDias(v,HOY);
@@ -1990,7 +1991,7 @@ function usuarioActivo(){ return equipoDe(USUARIO_FIJO||valorResp()||NOMBRE_FIRM
 function rutasVisibles(){
   const claves=Object.keys(RUTAS);
   const u=canonNombre(usuarioActivo());
-  if(NOMBRE_FIRMANTE===FIRMANTE_HABILITA_RESPONSABLE || !!u) return claves;
+  if(NOMBRE_FIRMANTE===FIRMANTE_HABILITA_RESPONSABLE) return claves;
   const mias=u?claves.filter(k=>(RUTAS[k]||[]).some(n=>canonNombre(n)===u)):[];
   return mias.length?mias:claves;
 }
@@ -2185,67 +2186,137 @@ function abrirHoy(){
 $('hoyX').onclick=()=>$('mHoy').classList.remove('on');
 $('mHoy').onclick=e=>{ if(e.target===$('mHoy')) $('mHoy').classList.remove('on'); };
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('mRec').classList.remove('on'); $('mHoy').classList.remove('on'); } });
-let REV_AUTO=true;
+/* ================= SEGUIMIENTO DE REVISIONES (día 13 a 15) ================= */
+/* Un proceso requiere seguimiento cuando: está en día 13-15 (misma lógica de d.dia que
+   el resto del módulo), tiene USUARIO_RESPONSABLE_REVISION asignado y no tiene
+   OBSERVACION_REVISION (txt() ya normaliza null/undefined/''/espacios a '').
+   Además pertenece al usuario ACTIVO (Módulo 1): es el DUEÑO del radicado
+   (creador del proceso, NOMBRE_USUARIO_INICIAL_PROCESO o gestor de Mercurio), resuelto con
+   el mismo resolutor difuso del módulo. Sin usuario identificado la vista queda libre.
+   p.respRevision se conserva como el «Responsable» que se MUESTRA (no es el filtro).
+   Las notas del radicado se muestran cuando existen, pero no son requisito.
+   Los evacuados (gestionados) quedan fuera. */
+let REV_AUTO=true;   /* se desactiva al cerrar manualmente: no vuelve a autoabrirse en la sesión */
+/* Emite el conteo al shell (encabezado global): el botón «Revisiones» vive en index.html. */
 function notificaPadreRev(n){
-  try{ if(window.parent&&window.parent!==window) window.parent.dispatchEvent(new CustomEvent('ad-rev-count',{detail:{n:n}})); }catch(e){ }
+  try{ if(window.parent&&window.parent!==window) window.parent.dispatchEvent(new CustomEvent('ad-rev-count',{detail:{n:n}})); }catch(e){ /* sin shell */ }
+}
+/* Pertenencia al usuario ACTIVO (Módulo 1): mismo resolutor difuso que el resto del módulo.
+   Sin usuario identificado la vista queda libre, igual que antes. */
+function delUsuarioActivo(d){
+  const u=canonNombre(usuarioActivo());
+  return !u || usuariosRegistro(d).some(n=>canonResuelto(n)===u);
 }
 function procsRevision(){
-  const u=canonNombre(usuarioActivo()), libre=!u;
   const out=[];
   DATOS.forEach(d=>{
     if(evacuado(d)) return;
     if(!(d.dia>=13 && d.dia<=15)) return;
-    if(!libre && !usuariosRegistro(d).some(n=>canonResuelto(n)===u)) return;
+    if(!delUsuarioActivo(d)) return;
     d.procesos.forEach(p=>{ if(p.respRevision && !p.obsRevision) out.push({d,p}); });
   });
   return out;
 }
+/* Valor de un campo del proceso: nunca undefined/null → «—». */
 const revCampo=v=>{ const t=txt(v); return t?esc(t):'<span class="sp">—</span>'; };
+/* ---------- alertas ----------
+   Una alerta se da por atendida con «Evacuar alerta» (ALERTA_EV) sin borrar el radicado
+   ni su nota. Los códigos de estado se conservan; solo se traducen al mostrarlos. */
 const esAlertaEv=(k,nota)=>{ const e=ALERTA_EV[k]; return !!e && (nota==null || e.t===nota); };
 const alertasRevision=()=>procsRevision().filter(x=>!esAlertaEv('r:'+x.p.numero));
+/* Notas de «Radicados del día»: misma regla de días que las revisiones (13 a 15) y
+   calculadas directamente sobre DATOS. No usan filtrar()/vencidas(), así que los filtros
+   de «PQRS por día de vencimiento», «Radicados del día», trámite, búsqueda o responsable
+   no hacen desaparecer las alertas. */
 function alertasNota(){
-  const out=[], vistos=new Set();
-  filtrar().concat(vencidas()).forEach(d=>{
-    const k=claveR(d); if(vistos.has(k)) return; vistos.add(k);
-    const nota=marcaDe(d).nota||''; if(!nota||esAlertaEv('n:'+k,nota)) return;
+  const out=[];
+  DATOS.forEach(d=>{
+    if(evacuado(d)) return;
+    if(!(d.dia>=13 && d.dia<=15)) return;
+    if(excluidoBloqueDias(d)) return;
+    if(!delUsuarioActivo(d)) return;
+    const k=claveR(d), nota=marcaDe(d).nota||'';
+    if(!nota || esAlertaEv('n:'+k,nota)) return;
     out.push(d);
   });
   return out.sort((a,b)=>(b.dia??0)-(a.dia??0)||cmpRad(a.radicado,b.radicado));
 }
+/* ---------- filtro por responsable de revisión y exportación ---------- */
+let REV_RESP='';   /* código mostrado en USUARIO_RESPONSABLE_REVISION (MBUELVAS, ELEALP…) */
+const revRespDe=d=>[...new Set(d.procesos.map(p=>p.respRevision).filter(Boolean))];
+function revRespuestas(rev,notas){
+  const c=new Map();
+  rev.forEach(x=>{ const r=x.p.respRevision; if(r) c.set(r,(c.get(r)||0)+1); });
+  notas.forEach(d=>revRespDe(d).forEach(r=>c.set(r,(c.get(r)||0)+1)));
+  return [...c.entries()].sort((a,b)=>a[0].localeCompare(b[0],'es'));
+}
+const revAlertas=(rev,notas)=>!REV_RESP?[rev,notas]
+  :[rev.filter(x=>x.p.respRevision===REV_RESP), notas.filter(d=>revRespDe(d).includes(REV_RESP))];
+/* Orden único de las alertas (lista visible y Excel): radicado ascendente con cmpRad,
+   sin mezclar tipos. A igual radicado va primero la revisión (por número de proceso)
+   y después la nota. */
+function alertasOrdenadas(rev,notas){
+  const out:any[]=[];
+  rev.forEach(x=>out.push({rad:x.d.radicado,pri:0,num:x.p.numero,rev:x}));
+  notas.forEach(d=>out.push({rad:d.radicado,pri:1,num:'',nota:d}));
+  return out.sort((a,b)=>cmpRad(a.rad,b.rad)||a.pri-b.pri
+    ||(a.pri===0?cmpRad(a.num,b.num):0));
+}
+/* Reconstruye el selector solo si cambió la lista o los conteos, para no cerrar el
+   desplegable mientras el usuario lo está usando en un repintado de fondo. */
+function pintaRevBarra(rev,notas){
+  const sel=$('revResp'); if(!sel) return;
+  const entradas=revRespuestas(rev,notas);
+  if(REV_RESP && !entradas.some(([r])=>r===REV_RESP)) REV_RESP='';
+  const firma=entradas.map(([r,n])=>r+'|'+n).join('\u0001');
+  if(sel.dataset.firma!==firma){
+    sel.innerHTML='<option value="">— Todos —</option>'+
+      entradas.map(([r,n])=>'<option value="'+esc(r)+'">'+esc(r)+' · '+n+'</option>').join('');
+    sel.dataset.firma=firma;
+  }
+  sel.value=REV_RESP;
+}
 const ESTADO_REV_NOM={P:'Pendiente',F:'Finalizado',T:'Trámite',A:'Activo'};
 const estadoRevNom=v=>{ const t=txt(v); return ESTADO_REV_NOM[t.toUpperCase()]||t; };
-function pintaRevLista(){
-  const rev=alertasRevision(), notas=alertasNota(), filas=[];
-  rev.forEach(x=>{
-    const nota=marcaDe(x.d).nota||'';
-    filas.push('<div class="revItem" data-alerta="r:'+esc(x.p.numero)+'">'+
-      '<div class="revTope"><span class="revEst">PENDIENTE DE REVISIÓN</span>'+
-        '<span class="revRad">Radicado <b>'+revCampo(x.d.radicado)+'</b></span>'+
-        '<span>Proceso <b>'+revCampo(x.p.numero)+'</b></span>'+
-        '<span class="revDia">Día '+revCampo(x.d.dia)+'</span></div>'+
-      '<div class="revGrid">'+
-        '<div class="revF"><span class="revL">Cuenta</span><span class="revV">'+revCampo(x.d.cuenta)+'</span></div>'+
-        '<div class="revF"><span class="revL">Tipo de proceso</span><span class="revV">'+revCampo(x.p.tramite)+'</span></div>'+
-        '<div class="revF"><span class="revL">Responsable</span><span class="revV">'+revCampo(x.p.respRevision)+'</span></div>'+
-        '<div class="revF"><span class="revL">Estado</span><span class="revV">'+revCampo(estadoRevNom(x.p.estadoRevision))+'</span></div>'+
-      '</div>'+
-      '<div class="revF revObs"><span class="revL">OBSERVACION_PROCESO</span><span class="revV">'+revCampo(x.p.obsProc)+'</span></div>'+
-      (nota?'<div class="revNotas"><span class="revL">Nota del radicado</span><span class="revV">'+esc(nota)+'</span></div>':'')+
-      '<div class="revAcc"><button class="btnFila btnEvacAlerta" type="button" data-alev="r:'+esc(x.p.numero)+'">'+m2i('undo')+'Evacuar alerta</button></div>'+
-      '</div>');
-  });
-  notas.forEach(d=>{
-    const k=claveR(d), nota=marcaDe(d).nota||'';
+function pintaRevLista(rev=alertasRevision(),notas=alertasNota()){
+  pintaRevBarra(rev,notas);
+  const [revVis,notasVis]=revAlertas(rev,notas), filas=[];
+  alertasOrdenadas(revVis,notasVis).forEach(a=>{
+    if(a.rev){
+      const x=a.rev, nota=marcaDe(x.d).nota||'';
+      filas.push('<div class="revItem" data-alerta="r:'+esc(x.p.numero)+'">'+
+        '<div class="revTope"><span class="revEst">PENDIENTE DE REVISIÓN</span>'+
+          '<span class="revRad">Radicado <b>'+revCampo(x.d.radicado)+'</b></span>'+
+          '<span>Proceso <b>'+revCampo(x.p.numero)+'</b></span>'+
+          '<span class="revDia">Día '+revCampo(x.d.dia)+'</span></div>'+
+        '<div class="revGrid">'+
+          '<div class="revF"><span class="revL">Cuenta</span><span class="revV">'+revCampo(x.d.cuenta)+'</span></div>'+
+          '<div class="revF"><span class="revL">Tipo de proceso</span><span class="revV">'+revCampo(x.p.tramite)+'</span></div>'+
+          '<div class="revF"><span class="revL">Responsable</span><span class="revV">'+revCampo(x.p.respRevision)+'</span></div>'+
+          '<div class="revF"><span class="revL">Estado</span><span class="revV">'+revCampo(estadoRevNom(x.p.estadoRevision))+'</span></div>'+
+        '</div>'+
+        '<div class="revF revObs"><span class="revL">OBSERVACION_PROCESO</span><span class="revV">'+revCampo(x.p.obsProc)+'</span></div>'+
+        (nota?'<div class="revNotas"><span class="revL">Nota del radicado</span><span class="revV">'+esc(nota)+'</span></div>':'')+
+        '<div class="revAcc"><button class="btnFila btnEvacAlerta" type="button" data-alev="r:'+esc(x.p.numero)+'">'+m2i('undo')+'Evacuar alerta</button></div>'+
+        '</div>');
+      return;
+    }
+    const d=a.nota, k=claveR(d), nota=marcaDe(d).nota||'', rr=revRespDe(d);
     filas.push('<div class="revItem revNota" data-alerta="n:'+esc(k)+'">'+
       '<div class="revTope"><span class="revEst revEstNota">ALERTA · RADICADOS DEL DÍA</span>'+
         '<span class="revRad">Radicado <b>'+revCampo(d.radicado)+'</b></span>'+
         '<span>Cuenta <b>'+revCampo(d.cuenta)+'</b></span>'+
         '<span class="revDia">Día '+revCampo(d.dia)+'</span></div>'+
       '<div class="revF revNotaTxt"><span class="revL">Nota registrada</span><span class="revV">'+esc(nota)+'</span></div>'+
+      (rr.length?'<div class="revF revRespNota"><span class="revL">Responsable de revisión</span><span class="revV">'+esc(rr.join(' · '))+'</span></div>':'')+
       '<div class="revAcc"><button class="btnFila btnEvacAlerta" type="button" data-alev="n:'+esc(k)+'">'+m2i('undo')+'Evacuar alerta</button></div>'+
       '</div>');
   });
-  $('revLista').innerHTML=filas.length?filas.join(''):'<div class="vacio">No hay alertas pendientes.</div>';
+  const total=rev.length+notas.length, vis=revVis.length+notasVis.length;
+  const cnt=$('revBarN');
+  if(cnt) cnt.textContent=REV_RESP?vis+' de '+total+(total===1?' alerta':' alertas'):total+(total===1?' alerta':' alertas');
+  $('revLista').innerHTML=filas.length?filas.join('')
+    :'<div class="vacio">'+(REV_RESP?'No hay alertas de este responsable.':'No hay alertas pendientes.')+'</div>';
   $('revLista').querySelectorAll('[data-alev]').forEach(b=>b.onclick=()=>{
     const k=b.dataset.alev;
     if(k.indexOf('n:')===0){ const ck=k.slice(2), d=DATOS.find(x=>claveR(x)===ck);
@@ -2255,21 +2326,52 @@ function pintaRevLista(){
   });
 }
 function pintaRev(){
-  const nr=alertasRevision().length, nn=alertasNota().length, n=nr+nn, badge=$('revBadge');
+  const rev=alertasRevision(), notas=alertasNota(), nr=rev.length, nn=notas.length, n=nr+nn, badge=$('revBadge');
+  if(REV_RESP && !revRespuestas(rev,notas).some(([r])=>r===REV_RESP)) REV_RESP='';
+  const [revVis,notasVis]=revAlertas(rev,notas), f=revVis.length+notasVis.length;
   badge.textContent=String(n); badge.hidden=!n;
   $('revSub').textContent=!n?'Sin alertas pendientes'
+    :REV_RESP?f+' de '+n+(n===1?' alerta':' alertas')+' · responsable '+REV_RESP
     :nr&&nn?nr+(nr===1?' revisión pendiente':' revisiones pendientes')+' · '+nn+(nn===1?' nota pendiente':' notas pendientes')
     :nr?nr+(nr===1?' proceso requiere seguimiento':' procesos requieren seguimiento')
     :nn+(nn===1?' nota de «Radicados del día» requiere atención':' notas de «Radicados del día» requieren atención');
-  if($('mRev').classList.contains('on')) pintaRevLista();
-  notificaPadreRev(n);
+  if($('mRev').classList.contains('on')) pintaRevLista(rev,notas);   /* el modal abierto siempre refleja el estado real */
+  notificaPadreRev(n);                                      /* el botón global del shell refleja el mismo conteo */
 }
-function cerrarRev(){ $('mRev').classList.remove('on'); REV_AUTO=false; }
+/* Exporta exactamente las alertas visibles (tras el filtro de responsable). */
+function exportarAlertasRev(){
+  const [rev,notas]=revAlertas(alertasRevision(),alertasNota());
+  if(!rev.length&&!notas.length) return alert('No hay alertas para exportar.');
+  const h=['Tipo de alerta','Radicado','Cuenta','Día','Proceso(s)','Tipo de proceso','Responsable de revisión','Estado de revisión','Observación del proceso','Nota del radicado','Origen'];
+  const l=[];
+  alertasOrdenadas(rev,notas).forEach(a=>{
+    if(a.rev){
+      const x=a.rev;
+      l.push(['Revisión pendiente',txt(x.d.radicado),txt(x.d.cuenta),x.d.dia??'',txt(x.p.numero),
+        txt(x.p.tramite),txt(x.p.respRevision),estadoRevNom(x.p.estadoRevision),txt(x.p.obsProc),
+        txt(marcaDe(x.d).nota||''),'Seguimiento de revisiones']);
+      return;
+    }
+    const d=a.nota;
+    l.push(['Nota registrada',txt(d.radicado),txt(d.cuenta),d.dia??'',
+      d.procesos.map(p=>p.numero).filter(Boolean).join(' | '),d.tramites.join(' | '),revRespDe(d).join(' | '),'','',
+      txt(marcaDe(d).nota||''),'Radicados del día']);
+  });
+  XLSXW.descargar('alertas_revision_'+clave(HOY)+'.xlsx',[{nombre:'Alertas',filas:[h].concat(l)}]);
+}
+function cerrarRev(){ $('mRev').classList.remove('on'); REV_AUTO=false; }   /* cierre manual: sin reapertura automática */
 function abrirRev(){ pintaRevLista(); $('mRev').classList.add('on'); }
 $('btnRev').onclick=abrirRev;
+$('revResp').onchange=()=>{ REV_RESP=$('revResp').value; pintaRev(); };
+$('revExp').onclick=exportarAlertasRev;
 $('revX').onclick=cerrarRev;
 $('mRev').onclick=e=>{ if(e.target===$('mRev')) cerrarRev(); };
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('mRev').classList.contains('on')) cerrarRev(); });
+/* ---------- puente con el shell (botones globales del encabezado) ----------
+   Los botones Matrices/CIIU/Calendario/Revisiones viven en index.html (visibles desde
+   cualquier módulo). Al pulsarlos, el shell navega al Cuadro y dispara este evento en
+   este documento: se ejecuta la MISMA acción del botón local (oculto al embebido),
+   sin duplicar lógica. El conteo de revisiones viaja en sentido inverso (notificaPadreRev). */
 window.addEventListener('ad-cuadro-tool',e=>{
   const a=e&&e.detail&&e.detail.action;
   if(a==='mat') abreHerr('mat');
@@ -2748,7 +2850,7 @@ function aplicarFuentes(snap){
     unificar(); poblarFiltros(); render();
     try{ actualizaHistorico(); }catch(e){ reportaError('Histórico',e); }
     try{ refrescaFotosCons(); }catch(e){ reportaError('Consultas anteriores',e); }
-    aviso.style.display='none';
+    $('aviso').style.display='none';
     if(CRUDO.sac.length && CRUDO.mer.length && appDataGet('essa_mant')!==clave(HOY)){
       setTimeout(()=>{ try{ mantenimiento(false); revisaAlmacen(); }catch(e){ reportaError('Mantenimiento',e); } },500); }
   }
