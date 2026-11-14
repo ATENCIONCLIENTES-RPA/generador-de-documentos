@@ -2070,3 +2070,11 @@ html[data-theme="dark"] #m2ui .btnEvacAlerta:focus-visible{box-shadow:0 0 0 3px 
 html[data-theme="dark"] #m2ui .btnGen:hover{color:#0F1C33}
 #m2ui .btnFila[aria-disabled="true"]{opacity:.55;cursor:not-allowed;filter:grayscale(.35);box-shadow:none}
 #m2ui .btnFila[aria-disabled="true"]:hover{background:var(--m2-blue-t);border-color:var(--m2-blue-l);color:var(--m2-blue)}
+
+/* Detalle del radicado como ventana flotante */
+#m2ui #detModal .detBox{max-width:1180px;max-height:none;background:transparent;border:0;box-shadow:none;overflow:visible}
+#m2ui #detModal #detalle.card{margin:0;max-height:90vh;overflow-y:auto;overscroll-behavior:contain;padding:22px 24px 24px}
+#m2ui #detModal .detCerrar{margin-left:auto;flex:none;align-self:flex-start;font-size:26px;line-height:1;padding:0 4px}
+#m2ui .btnVer{font-weight:700}
+#m2ui #tRad td.detCell{white-space:nowrap}
+

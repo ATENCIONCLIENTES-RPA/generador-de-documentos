@@ -997,7 +997,7 @@ function render(){
   if(REV_AUTO && alertasRevision().length && !$('mRev').classList.contains('on')) abrirRev();
 }
 
-function selDia(d){ DIA_PREV=null; if(conNotas()){ $('fNotas').value=''; pintaFiltro(); } DIA_SEL=d; RAD_SEL=null; $('detalle').classList.remove('on'); render(); pintaRadicados(); }
+function selDia(d){ DIA_PREV=null; if(conNotas()){ $('fNotas').value=''; pintaFiltro(); } DIA_SEL=d; RAD_SEL=null; cerrarDetalle(); render(); pintaRadicados(); }
 
 function filtroActivo(){ const q=sinTilde($('q').value); return !!$('fTram').value || (!!q && q!=='general'); }
 const conNotas=()=>$('fNotas').value==='notas';
@@ -1012,7 +1012,7 @@ function pintaRadicados(){
   const multi=modoMulti();
   if(DIA_SEL===null && !multi){
     $('radTit').textContent='Radicados del día'; $('radSub').textContent='Selecciona un día en la tabla o en la gráfica.'; $('radSub').style.display='';
-    $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th>Radicado</th><th>Número de proceso</th><th style="width:290px"></th></tr>';
+    $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th>Radicado</th><th>Detalles</th><th style="width:290px"></th></tr>';
     $('tRad').querySelector('tbody').innerHTML='<tr><td colspan="4" class="vacio">Sin día seleccionado.</td></tr>'; return; }
   const s=multi?null:ESCALERA_EXT.find(x=>x.dia===DIA_SEL);
   const esVenc=!multi && DIA_SEL>CFG.diasHabiles;
@@ -1035,14 +1035,12 @@ function pintaRadicados(){
   regs.sort((a,b)=>cmpRad(a.radicado,b.radicado)*(ORDEN_RAD==='desc'?-1:1));
   $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th class="thOrden" id="thRadOrden" title="Ordenar por radicado">Radicado <span class="flechaOrd">'+
     (ORDEN_RAD==='desc'?'▼':'▲')+'</span></th>'+(multi?'<th>Día</th>':'')+
-    '<th>Número de proceso</th><th style="width:260px"></th></tr>';
+    '<th style="width:110px">Detalles</th><th style="width:260px"></th></tr>';
   const thO=document.getElementById('thRadOrden');
   if(thO) thO.onclick=()=>{ ORDEN_RAD=ORDEN_RAD==='desc'?'asc':'desc'; pintaRadicados(); };
   const nCols=multi?5:4;
 
   $('tRad').querySelector('tbody').innerHTML = regs.length ? regs.map((x,i)=>{
-    const proc = x.nProc===0 ? '<span class="sp">Sin proceso creado en SAC</span>'
-                             : esc(x.procesos.map(p=>p.numero).join(', '));
     const mk=marcaDe(x), col=mk.color||'', nota=mk.nota||'';
     const dup=detectaDuplicados(x);
     const dupBtn=!dup.length?'':(()=>{
@@ -1061,7 +1059,8 @@ function pintaRadicados(){
         (x.ajuste?' <span class="badge b-a sinDot" title="Fecha ajustada">'+m2i('calendar')+'</span>':'')+
         (nota?'<div class="notaPrev">'+esc(nota)+'</div>':'')+'</td>'+
       (multi?'<td class="clicRad'+(x.dia>CFG.diasHabiles?' vtoPas':'')+'" data-i="'+i+'">Día '+(x.dia??'—')+'</td>':'')+
-      '<td class="clicRad" data-i="'+i+'">'+proc+'</td>'+
+      '<td class="detCell"><button type="button" class="btnFila btnVer" data-act="ver" data-i="'+i+'"'+
+        ' aria-label="Ver detalle del radicado '+esc(x.radicado)+'">Ver</button></td>'+
       '<td class="acc">'+
         '<button class="btnFila btnGen" data-act="gen" data-i="'+i+'"'+
           (tieneProcesoSAC(x)?' title="Generar la respuesta de este radicado (Módulo 3)"'
@@ -1080,7 +1079,14 @@ function pintaRadicados(){
     if(enControl(e.target)) return;
     tb.querySelectorAll('tr').forEach(t=>t.classList.remove('sel'));
     tr.classList.add('sel');
-    verDetalle(regs[+tr.dataset.i]);
+    RAD_SEL=regs[+tr.dataset.i].radicado;
+  });
+  tb.querySelectorAll('[data-act="ver"]').forEach(el=>el.onclick=e=>{
+    e.stopPropagation();
+    const tr=el.closest('tr');
+    tb.querySelectorAll('tr').forEach(t=>t.classList.remove('sel'));
+    if(tr) tr.classList.add('sel');
+    verDetalle(regs[+el.dataset.i], el);
   });
   tb.querySelectorAll('[data-act="gen"]:not([aria-disabled="true"])').forEach(el=>el.onclick=e=>{
     e.stopPropagation();
@@ -1187,12 +1193,18 @@ function pintaFiltro(){
 const NOMBRE_COLOR={'#d93025':'Rojo','#f29d38':'Naranja','#f7c600':'Amarillo',
   '#2e9e5b':'Verde','#1565d8':'Azul','#7b61d8':'Morado','#61708a':'Gris'};
 
-function verDetalle(d){
+let DET_OPENER=null;
+function cerrarDetalle(){
+  const modal=$('detModal'), card=$('detalle');
+  if(modal) modal.classList.remove('on');
+  if(card) card.classList.remove('on');
+  if(DET_OPENER&&document.contains(DET_OPENER)) DET_OPENER.focus({preventScroll:true});
+  DET_OPENER=null;
+}
+function verDetalle(d, opener){
+  const yaAbierto=$('detModal').classList.contains('on');
   RAD_SEL=d.radicado;
   const bc={'Vencido':'b-r','Crítico':'b-n','Próximo':'b-a','En plazo':'b-v','Sin fecha':'b-g'};
-  const conRev=d.procesos.filter(p=>p.respRevision||p.numRevision);
-  const revTxt = d.nProc===0 ? 'No aplica (sin proceso en SAC)'
-    : conRev.length ? ('Sí · '+conRev.length+' de '+d.nProc+' proceso(s)') : 'No tiene revisión asignada';
 
   const k=d.llave||d.radicado;
 
@@ -1218,15 +1230,10 @@ function verDetalle(d){
     fila('D\u00eda','D\u00eda '+(d.dia??'\u2014'),'t1')+
     fila('F. radicaci\u00f3n',dFmt(d.fSol)+(d.ajuste?' <span class="badge b-a">\u2192 '+dFmt(d.ajuste)+'</span>':''))+
     fila('F. vencimiento',dFmt(d.fVto)+' <span class="badge '+bc[d.estadoV]+'">'+d.estadoV+'</span>','t1')+
-    fila('Vence (15 d\u00edas h\u00e1b.)',celdaVence(d.fEfe),'t1')+
     fila('N\u00famero de cuenta',(d.cuenta?esc(d.cuenta):'\u2014')+
       (d.nCuentas>1?' <span class="badge b-b">'+d.nCuentas+' cuentas</span>':''))+
-    fila('Procesos en SAC',d.nProc?nfmt(d.nProc):'<span class="sp">Sin proceso creado en SAC</span>','t3')+
-    fila('\u00bfRevisi\u00f3n asignada?',esc(revTxt),'t3')+
     fila('Responsable',esc(d.responsable))+
     fila('Solicitante',esc(d.solicitante||'\u2014'))+
-    fila('Origen',esc(d.fuente),'t3')+
-    fila('Tr\u00e1mite',esc(d.tramites.join(' \u00b7 ')),'f-wide')+
     '</div>';
 
   const conObs=d.procesos.filter(p=>p.obsRevision);
@@ -1255,10 +1262,12 @@ function verDetalle(d){
       (conObs.length?'<span class="hCnt">'+conObs.length+'</span>':'')+'</h4>'+obs+'</div>'+
     '</div>';
 
+  if(!yaAbierto) DET_OPENER=opener||document.activeElement;
   $('detTit').innerHTML='Detalle del radicado '+radLinkHtml(d);
   $('detSub').textContent=d.tramites.join(' · ');
   $('detBody').innerHTML=html;
   $('detalle').classList.add('on');
+  $('detModal').classList.add('on');
   enlazaRadicado($('detalle'),d);
   const bCta=document.getElementById('btnCta'); if(bCta) bCta.onclick=()=>abrirCuenta(d);
 
@@ -1274,7 +1283,15 @@ function verDetalle(d){
       const nd=DATOS.find(x=>(x.llave||x.radicado)===k); if(nd){ if(nd.dia) DIA_SEL=nd.dia; render(); pintaRadicados(); verDetalle(nd); }
     };
   }
+  const close=document.getElementById('detCerrar');
+  if(close) close.focus({preventScroll:true});
 }
+
+$('detCerrar').onclick=cerrarDetalle;
+$('detModal').onclick=e=>{ if(e.target===$('detModal')) cerrarDetalle(); };
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&$('detModal').classList.contains('on')) cerrarDetalle();
+});
 
 let DET=[];
 function abrir(titulo,sub,regs){
@@ -1507,7 +1524,7 @@ function pedirEvacuar(regs,que,alCancelar){
     const hoy=clave(HOY);
     regs.forEach(r=>{ EVAC[claveR(r)]={f:hoy,r:r.radicado,u:r.responsable}; });
     guardaEvac(); histEvacuar(regs);
-    if(regs.some(r=>r.radicado===RAD_SEL)) $('detalle').classList.remove('on');
+    if(regs.some(r=>r.radicado===RAD_SEL)) cerrarDetalle();
     refrescaEvac();
   };
   abreConf('no');

@@ -206,19 +206,26 @@ window.addEventListener('error',r,true);setTimeout(r,10000);})();
           </div>
         </div></div>
         <div class="scroll"><table id="tRad"><thead><tr>
-          <th style="width:26px"></th><th>Radicado</th><th>Número de proceso</th><th style="width:290px"></th>
+          <th style="width:26px"></th><th>Radicado</th><th>Detalles</th><th style="width:290px"></th>
         </tr></thead><tbody><tr><td colspan="4" class="vacio">Sin día seleccionado.</td></tr></tbody></table></div>
       </div>
     </div>
   </section>
 
-  <div class="card" id="detalle" style="margin-top:16px">
-    <div class="m2Head"><span class="m2Ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><circle cx="11" cy="14" r="2.3"/><path d="m12.8 15.8 2 2"/></svg></span><div class="m2HeadTxt"><h2 id="detTit">Detalle del radicado</h2>
-    <p class="sub" id="detSub"></p></div></div>
-    <div id="detBody"></div>
-  </div>
-
 </main>
+
+<div class="modal detModal" id="detModal" role="dialog" aria-modal="true" aria-labelledby="detTit">
+  <div class="mbox detBox">
+    <div class="card" id="detalle">
+      <div class="m2Head">
+        <span class="m2Ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><circle cx="11" cy="14" r="2.3"/><path d="m12.8 15.8 2 2"/></svg></span>
+        <div class="m2HeadTxt"><h2 id="detTit">Detalle del radicado</h2><p class="sub" id="detSub"></p></div>
+        <button class="cerrar detCerrar" id="detCerrar" type="button" aria-label="Cerrar detalle">&times;</button>
+      </div>
+      <div id="detBody"></div>
+    </div>
+  </div>
+</div>
 
 <div class="modal" id="modal" role="dialog" aria-modal="true">
   <div class="mbox">
