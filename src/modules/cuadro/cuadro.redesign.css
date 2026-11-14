@@ -2078,3 +2078,14 @@ html[data-theme="dark"] #m2ui .btnGen:hover{color:#0F1C33}
 #m2ui .btnVer{font-weight:700}
 #m2ui #tRad td.detCell{white-space:nowrap}
 
+/* Acciones visuales por proceso */
+#m2ui .procAcc{white-space:nowrap;text-align:right}
+#m2ui .procBtn{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;border:1px solid transparent;cursor:pointer;transition:transform .15s ease,background .15s ease,box-shadow .15s ease;margin-left:4px}
+#m2ui .procBtn svg{width:14px;height:14px}
+#m2ui .procBtn:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.16)}
+#m2ui .procBtnOk{background:var(--u-green-t);color:var(--u-green);border-color:var(--u-green-l)}
+#m2ui .procBtnNo{background:var(--m2-red-t);color:var(--m2-red);border-color:var(--m2-red-l)}
+#m2ui .procBtnOk:hover{background:var(--u-green);color:#fff;border-color:var(--u-green)}
+#m2ui .procBtnNo:hover{background:var(--m2-red);color:#fff;border-color:var(--m2-red)}
+html[data-theme="dark"] #m2ui .procBtnOk:hover{color:#0F1C33}
+

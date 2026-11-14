@@ -772,6 +772,7 @@ const M2P={
   undo:'<path d="M9 14 4.5 9.5 9 5"/><path d="M4.5 9.5H15a5 5 0 0 1 0 10h-3"/>',
   back:'<path d="M19 12H5"/><path d="m11 6-6 6 6 6"/>',
   check:'<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  x:'<path d="M6 6l12 12M18 6 6 18"/>',
   user:'<circle cx="12" cy="8" r="4"/><path d="M4.5 20c.6-3.6 3.6-5.5 7.5-5.5s6.9 1.9 7.5 5.5"/>',
   receipt:'<path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8.5h6M9 12h6"/>',
   calendar:'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/>',
@@ -1247,11 +1248,15 @@ function verDetalle(d, opener){
 
   const tablaProc = d.nProc
     ? '<div class="procWrap"><table class="tablaProc"><thead><tr><th>Proceso</th><th>Tr\u00e1mite</th>'+
-      '<th>Cuenta</th><th>\u00daltima acci\u00f3n</th><th>Resp. revisi\u00f3n</th><th>Estado</th></tr></thead><tbody>'+
+      '<th>Cuenta</th><th>\u00daltima acci\u00f3n</th><th>Resp. revisi\u00f3n</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>'+
       d.procesos.map(p=>'<tr><td class="rad">'+esc(p.numero)+'</td><td>'+esc(p.tramite)+'</td>'+
         '<td>'+esc(p.cuenta||'\u2014')+'</td><td>'+esc(p.ultimaAccion||'\u2014')+'</td>'+
         '<td>'+(p.respRevision?'<b>'+esc(p.respRevision)+'</b>':'<span class="sp">Sin asignar</span>')+'</td>'+
-        '<td>'+esc(p.estadoRevision||'\u2014')+'</td></tr>').join('')+'</tbody></table></div>'
+        '<td>'+esc(p.estadoRevision||'\u2014')+'</td>'+
+        '<td class="procAcc">'+
+          '<button type="button" class="procBtn procBtnOk" title="No Cancelar proceso" aria-label="No Cancelar proceso">'+m2i('check')+'</button>'+
+          '<button type="button" class="procBtn procBtnNo" title="Cancelar proceso" aria-label="Cancelar proceso">'+m2i('x')+'</button>'+
+        '</td></tr>').join('')+'</tbody></table></div>'
     : '<div class="ficha"><div class="f"><span class="sp">Sin proceso creado en SAC.</span></div></div>';
 
   html+='<div class="detCols">'+
