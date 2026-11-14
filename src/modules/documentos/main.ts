@@ -181,9 +181,9 @@ const tourSteps = [
   {sel:'.desc-panel', ic:ICN.edit,
    title:'Cuenta la historia del caso',
    text:'En estas tres tarjetas describes qué pidió el cliente, qué encontraste al revisar y cuál fue la decisión. El botón "Mejorar texto" te ayuda a dejar la redacción más clara en un clic.'},
-  {sel:'.btn-guide', ic:ICN.check,
+  {sel:'#btnMore', ic:ICN.check,
    title:'¡Listo, ya sabes lo esencial! 🎉',
-   text:'Puedes volver a ver esta guía cuando quieras dándole clic a este mismo botón. ¡Ahora sí, manos a la obra con tus radicados!'}
+   text:'Puedes volver a ver esta guía cuando quieras abriendo «Más» y eligiendo «Guía rápida». ¡Ahora sí, manos a la obra con tus radicados!'}
 ];
 
 GuidedTour.mount(tourSteps);
@@ -1667,4 +1667,33 @@ function formatoTitulo(v){
   document.addEventListener('scroll',schedule,{capture:true,passive:true});
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(anchor,()=>{});
   if(typeof ResizeObserver!=='undefined'){const ro=new ResizeObserver(anchor);ro.observe(wrap);ro.observe(bar);}
+})();
+
+/* Menú «Más»: agrupa Construir mi plantilla y Guía rápida. */
+(function(){
+  const wrap=document.querySelector('.more-wrap');
+  const btn=document.getElementById('btnMore');
+  const menu=document.getElementById('moreMenu');
+  if(!wrap||!btn||!menu)return;
+  const setOpen=open=>{
+    wrap.classList.toggle('open',open);
+    btn.setAttribute('aria-expanded',String(open));
+    menu.hidden=!open;
+  };
+  btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    setOpen(menu.hidden);
+  });
+  btn.addEventListener('keydown',e=>{
+    if(e.key==='ArrowDown'){ e.preventDefault(); setOpen(true); menu.querySelector('.more-item')?.focus(); }
+  });
+  menu.addEventListener('click',e=>{
+    if(e.target.closest('.more-item')) setOpen(false);
+  });
+  document.addEventListener('click',e=>{
+    if(!wrap.contains(e.target)) setOpen(false);
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'&&!menu.hidden){ setOpen(false); btn.focus(); }
+  });
 })();

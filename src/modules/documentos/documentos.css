@@ -1183,3 +1183,20 @@ button,input,select,textarea,optgroup{font-family:inherit}
 .field label,.sg-badge,.sg-item-status,.sg-visual-note,.sg-step-label,.tg-eyebrow,.tg-sheet-tag,.tg-group h4,.tg-dt-top span,.tg-dt-arrow,
 .tg-sim-bar>span:first-child,.tg-pane-h,.tg-brand small,.tag,.tg-src,.tg-kbd,kbd{font-weight:600}
 .active-record.empty .rad{font-family:var(--ff-text);font-weight:500}
+
+/* Header compacto y menú «Más» */
+.header-actions{gap:7px}
+.header-actions .btn-chip{padding:5px 12px 5px 5px;font-size:12px}
+.header-actions .btn-generate{height:38px;padding:3px 14px 3px 3px;font-size:12px}
+.header-actions .btn-generate .bg-ic{width:30px;height:30px}
+html.ad-embedded .app-header{padding-top:6px;padding-bottom:6px}
+.more-wrap{position:relative}
+.more-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:70;min-width:248px;padding:6px;background:var(--blanco);border:1px solid var(--bordes);border-radius:12px;box-shadow:0 14px 34px rgba(23,43,99,.18)}
+.more-item{display:flex;align-items:center;gap:9px;width:100%;padding:9px 10px;border-radius:8px;font:inherit;font-size:12.5px;font-weight:600;color:var(--texto);background:transparent;text-align:left;cursor:pointer}
+.more-item:hover,.more-item:focus-visible{background:var(--azul-celeste);outline:none}
+.more-ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:#EEF2FB;color:var(--azul-real);flex:none}
+.more-ic svg{width:14px;height:14px}
+html[data-theme="dark"] .more-ic{background:#243044;color:#8AB4F8}
+.btn-more{position:relative}
+.btn-more .pulse-dot{position:absolute;top:2px;right:2px;width:9px;height:9px;border-radius:50%;background:#D21624}
+.btn-more .pulse-dot::after{content:"";position:absolute;inset:0;border-radius:50%;background:#D21624;animation:pulseDotGuide 1.8s ease-out infinite}
