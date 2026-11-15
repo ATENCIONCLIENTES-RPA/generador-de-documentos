@@ -94,9 +94,9 @@ function renderRecords(){
 const openDD=()=>dd.classList.add('open'),closeDD=()=>dd.classList.remove('open');
 searchInput.addEventListener('focus',openDD);
 searchInput.addEventListener('input',renderRecords);
-['filterToggle','btnCambiar'].forEach(id=>document.getElementById(id).addEventListener('click',()=>{openDD();searchInput.focus();}));
-document.addEventListener('click',e=>{if(!e.target.closest('.search-field,.filter-toggle,.active-record'))closeDD();});
-recordList.addEventListener('click',e=>{const it=e.target.closest('.record-item');if(!it)return;const r=registros[Number(it.dataset.i)];if(!r)return;const d=recordDisplay(r);document.getElementById('activeRad').textContent=d.rad?`Rad. ${d.rad}`:'Sin radicado';closeDD();});
+document.getElementById('filterToggle').addEventListener('click',()=>{openDD();searchInput.focus();});
+document.addEventListener('click',e=>{if(!e.target.closest('.search-field,.filter-toggle'))closeDD();});
+recordList.addEventListener('click',e=>{const it=e.target.closest('.record-item');if(!it)return;const r=registros[Number(it.dataset.i)];if(!r)return;closeDD();});
 let ai=-1;
 searchInput.addEventListener('keydown',e=>{const items=[...recordList.querySelectorAll('.record-item')];if(e.key==='ArrowDown'){e.preventDefault();ai=Math.min(ai+1,items.length-1);}else if(e.key==='ArrowUp'){e.preventDefault();ai=Math.max(ai-1,0);}else if(e.key==='Enter'){e.preventDefault();items[ai]&&items[ai].click();return;}else return;items.forEach(i=>i.classList.remove('active'));items[ai]&&items[ai].classList.add('active');items[ai]&&items[ai].scrollIntoView({block:'nearest'});});
 renderRecords();
@@ -161,7 +161,7 @@ const tourSteps = [
    text:'Este es el módulo donde armas y generas tus documentos de respuesta. Te voy a mostrar rapidito cómo funciona cada parte, ¡toma solo un minuto!'},
   {sel:'.searchbar', ic:ICN.search,
    title:'Busca tu caso aquí',
-   text:'Con "Filtro general" puedes afinar la búsqueda, y en la barra escribes el radicado, la cuenta o el nombre del solicitante para encontrar el caso que necesitas. A la derecha siempre ves cuál registro tienes activo.'},
+   text:'Con "Filtro general" puedes afinar la búsqueda, y en la barra escribes el radicado, la cuenta o el nombre del solicitante para encontrar el caso que necesitas.'},
   {sel:'#panelSolicitante', ic:ICN.user,
    title:'Datos del solicitante',
    text:'Aquí van los datos de la persona o entidad a la que le vas a responder: nombre, dirección, correo, etc. Fíjate que el campo "Radicado de salida" está resaltado en naranja porque se llena solo cuando radicas.'},
@@ -420,7 +420,6 @@ function formatoTitulo(v){
 })();
 (function(){
   const stage=document.querySelector('.doc-stage'),host=document.getElementById('previewHost'),bar=document.querySelector('.searchbar');
-  const ar=document.querySelector('.active-record'),rad=document.getElementById('activeRad'),btnC=document.getElementById('btnCambiar');
   const gen=document.getElementById('btnGenerar'),sIn=document.getElementById('searchInput'),plInput=document.getElementById('plantillaSearch');
   const searchIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
   const templateIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>';
@@ -512,9 +511,8 @@ function formatoTitulo(v){
   function setState(r){
     hasRecord=!!r;currentRecord=r||null;window.__AD_ACTIVE_RECORD=currentRecord;
     window.dispatchEvent(new CustomEvent('ad-record-change',{detail:currentRecord}));
-    ar.classList.toggle('empty',!hasRecord);btnC.textContent=hasRecord?'Cambiar':'Buscar';
-    if(!hasRecord){rad.textContent='Ningún registro';syncGuide();return;}
-    const d=recordDisplay(r);rad.textContent=d.rad?`Rad. ${d.rad}`:'Sin radicado';
+    if(!hasRecord){syncGuide();return;}
+    const d=recordDisplay(r);
     const subj=document.querySelector('.paper-subject'),asunto=['Asunto: Respuesta al radicado número '+(d.rad||''),d.cuenta?'Cuenta '+d.cuenta:'',d.proceso?'ID Proceso No. '+d.proceso:''].filter(Boolean);if(subj)subj.textContent=asunto.join(' · ');
     syncGuide();
   }
@@ -1664,7 +1662,7 @@ function formatoTitulo(v){
 })();
 
 (()=>{
-  const wrap=document.querySelector('.solicitante-bar-wrap'),bar=document.querySelector('.searchbar-wrap');
+  const wrap=document.querySelector('.solicitante-bar-wrap'),bar=document.querySelector('.app-header');
   if(!wrap||!bar)return;
   const layout=document.querySelector('.main-layout')||document.documentElement;
   let raf=0;
