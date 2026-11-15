@@ -205,8 +205,7 @@ themeToggle.addEventListener('click', ()=>{
   const cur = document.documentElement.getAttribute('data-theme');
   applyTheme(cur==='dark' ? 'light' : 'dark');
 });
-const CAMPOS_TITULO=[0,2,3,4];
-const IDX_CORREO=5;
+const CAMPOS_TITULO=new Set(['nombre','direccion','departamento','municipio']);
 const correoMin=v=>String(v==null?'':v).toLowerCase();
 function formatoTitulo(v){
   const t=String(v==null?'':v).trim().replace(/\s+/g,' ');
@@ -328,12 +327,12 @@ function formatoTitulo(v){
   addHead('.desc-panel',3,'Contexto que alimenta el documento');
 
   const head=$('#panelSolicitante .panel-head > div:last-child');
-  head.insertAdjacentHTML('afterbegin','<span class="completion" id="compl"><span class="bar"><i></i></span><span id="complTxt">0 de 5</span></span>');
-  const inputs=$$('#panelSolicitante .field:not(.field-radicado) input');
+  head.insertAdjacentHTML('afterbegin','<span class="completion" id="compl"><span class="bar"><i></i></span><span id="complTxt">0 de 8</span></span>');
   const rec=$('.paper-recipient');
-  rec.innerHTML='<div class="name">Señor(a)</div><div class="dyn" data-k="0"></div><div class="dyn" data-k="2"></div><div class="dyn" data-k="mun"></div><div><a href="#" class="dyn" data-k="5"></a></div>';
-  const all=$$('#panelSolicitante .field input');
-  const correoEl=all[IDX_CORREO];
+  rec.innerHTML='<div class="name">Señor(a)</div><div class="dyn" data-k="nombre"></div><div class="dyn" data-k="direccion"></div><div class="dyn" data-k="mun"></div><div><a href="#" class="dyn" data-k="correo"></a></div>';
+  const all=$$('#panelSolicitante .field input[data-k]');
+  const byKey=Object.fromEntries(all.map(i=>[i.dataset.k,i]));
+  const correoEl=byKey.correo;
   if(correoEl){
     const fuerzaMin=()=>{const v=correoEl.value,m=correoMin(v);if(v===m)return;
       const a=correoEl.selectionStart,z=correoEl.selectionEnd;correoEl.value=m;
@@ -341,24 +340,28 @@ function formatoTitulo(v){
     $('#panelSolicitante').addEventListener('input',e=>{if(e.target===correoEl)fuerzaMin();},true);
     correoEl.addEventListener('change',fuerzaMin);
   }
-  const PH=['Nombre del solicitante','','Dirección de notificación','','','correo@ejemplo.com'];
+  const PH={nombre:'Nombre del solicitante',direccion:'Dirección de notificación',correo:'correo@ejemplo.com'};
   function sync(changed){
-    const v=all.map(i=>i.value.trim());
+    const v={}; all.forEach(i=>{v[i.dataset.k]=i.value.trim();});
     const set=(k,txt,ph)=>{const el=rec.querySelector(`[data-k="${k}"]`);el.textContent=txt||ph;el.classList.toggle('empty',!txt);
-      if(changed!==undefined&&(String(changed)===String(k)||(k==='mun'&&(changed==3||changed==4)))){el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),500);}};
-    set(0,v[0],PH[0]);set(2,v[2],PH[2]);set(5,correoMin(v[5]),PH[5]);
-    set('mun',[v[4],v[3]].filter(Boolean).join(', '),'Municipio, Departamento');
+      if(changed!==undefined&&(changed===k||(k==='mun'&&(changed==='municipio'||changed==='departamento')))){el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),500);}};
+    set('nombre',v.nombre,PH.nombre);
+    set('direccion',v.direccion,PH.direccion);
+    set('correo',correoMin(v.correo),PH.correo);
+    set('mun',[v.municipio,v.departamento].filter(Boolean).join(', '),'Municipio, Departamento');
     all.forEach(i=>i.classList.toggle('filled',!!i.value.trim()));
-    const n=inputs.filter(i=>i.value.trim()).length;
-    $('#compl .bar i').style.width=(n/inputs.length*100)+'%';
-    $('#complTxt').textContent=n===inputs.length?'Completo':`${n} de ${inputs.length}`;
-    $('#compl').classList.toggle('full',n===inputs.length);
+    const required=all.filter(i=>i.dataset.k!=='radicado_salida');
+    const n=required.filter(i=>i.value.trim()).length;
+    $('#compl .bar i').style.width=(n/required.length*100)+'%';
+    $('#complTxt').textContent=n===required.length?'Completo':`${n} de ${required.length}`;
+    $('#compl').classList.toggle('full',n===required.length);
   }
-  all.forEach((i,k)=>i.addEventListener('input',()=>sync(k)));
-  $$('#panelSolicitante .field input').forEach(i=>i.addEventListener('click',e=>e.stopPropagation()));
-  all.forEach((i,k)=>{ if(!CAMPOS_TITULO.includes(k))return;
+  all.forEach(i=>i.addEventListener('input',()=>sync(i.dataset.k)));
+  $$('#panelSolicitante .field input[data-k]').forEach(i=>i.addEventListener('click',e=>e.stopPropagation()));
+  all.filter(i=>CAMPOS_TITULO.has(i.dataset.k)).forEach(i=>{
     i.addEventListener('change',()=>{const f=formatoTitulo(i.value);
-      if(f && f!==i.value){i.value=f;i.dispatchEvent(new Event('input',{bubbles:true}));}}); });
+      if(f && f!==i.value){i.value=f;i.dispatchEvent(new Event('input',{bubbles:true}));}});
+  });
   sync();
 
   const psInput=$('#plantillaSearch'),psWrap=$('.plantilla-search');
@@ -1055,23 +1058,26 @@ function formatoTitulo(v){
     const fieldText=id=>{const el=document.getElementById(id);return el?String(el.value==null?'':el.value):'';};
     const putExact=(k,v)=>{const nk=normKey(k);if(nk)lookup[nk]=v==null?'':String(v);};
     if(activeRecord)Object.entries(activeRecord).forEach(([k,v])=>put(k,v));
-    const fields=Array.from(document.querySelectorAll('#panelSolicitante .field input')).map(i=>i.value.trim());
-    const p=profile(),realName=fields[0]||sacValue(activeRecord,['NOMBRE_SOLICITANTE','NOMBRE_SUSCRIPTOR']),kind=applicantKind(activeRecord,realName),name=normalizeName(realName);
+    const fields=Object.fromEntries(
+      Array.from(document.querySelectorAll('#panelSolicitante .field input[data-k]'))
+        .map(i=>[i.dataset.k,i.value.trim()])
+    );
+    const p=profile(),realName=fields.nombre||sacValue(activeRecord,['NOMBRE_SOLICITANTE','NOMBRE_SUSCRIPTOR']),kind=applicantKind(activeRecord,realName),name=normalizeName(realName);
     const requestDate=sacValue(activeRecord,['FECHA_SOLICITUD']),today=new Date();
-    const departamento=fields[3]||formatoTitulo(sacValue(activeRecord,['DEPTO_SOLICITANTE','DEPARTAMENTO_SOLICITANTE','DEPARTAMENTO_SUSCRIPTOR','DEPARTAMENTO']));
+    const departamento=fields.departamento||formatoTitulo(sacValue(activeRecord,['DEPTO_SOLICITANTE','DEPARTAMENTO_SOLICITANTE','DEPARTAMENTO_SUSCRIPTOR','DEPARTAMENTO']));
     const aliases={DISTINTIVO,NOMBRE:name,NOMBRE_COMPLETO:name,NOMBRE_SOLICITANTE:name,NOMBRE_SUSCRIPTOR:name,PRIMER_NOMBRE:firstGivenName(activeRecord,realName,kind),
       TIPO_PERSONA_DETECTADO:kind==='company'?'Persona jurídica':'Persona natural',
-      RADICADO_ENTRADA:sacValue(activeRecord,['RADICADO_ENTRADA']),RADICADO_SALIDA:fields[1]||sacValue(activeRecord,['RADICADO_SALIDA']),
+      RADICADO_ENTRADA:fields.radicado_entrada||sacValue(activeRecord,['RADICADO_ENTRADA']),RADICADO_SALIDA:fields.radicado_salida||sacValue(activeRecord,['RADICADO_SALIDA']),
       FECHA_SOLICITUD:longDateEs(requestDate),FECHA_RAD_SALIDA:longDateEs(today),FECHA_RADICADO_SALIDA:longDateEs(today),
-      NUMERO_CUENTA:sacValue(activeRecord,['NUMERO_CUENTA']),NUMERO_PROCESO:sacValue(activeRecord,['NUMERO_PROCESO']),
-      DIRECCION_SOLICITANTE:fields[2]||formatoTitulo(sacValue(activeRecord,['DIRECCION_SOLICITANTE','DIRECCION_SUSCRIPTOR','DIRECCION'])),
-      DIRECCION_NOTIFICACION:fields[2]||formatoTitulo(sacValue(activeRecord,['DIRECCION_SOLICITANTE','DIRECCION_SUSCRIPTOR','DIRECCION'])),
+      NUMERO_CUENTA:sacValue(activeRecord,['NUMERO_CUENTA']),NUMERO_PROCESO:fields.proceso||sacValue(activeRecord,['NUMERO_PROCESO']),
+      DIRECCION_SOLICITANTE:fields.direccion||formatoTitulo(sacValue(activeRecord,['DIRECCION_SOLICITANTE','DIRECCION_SUSCRIPTOR','DIRECCION'])),
+      DIRECCION_NOTIFICACION:fields.direccion||formatoTitulo(sacValue(activeRecord,['DIRECCION_SOLICITANTE','DIRECCION_SUSCRIPTOR','DIRECCION'])),
       DEPARTAMENTO:departamento,
       DEPARTAMENTO_SOLICITANTE:departamento,
-      MUNICIPIO:fields[4]||formatoTitulo(sacValue(activeRecord,['MUNICIPIO_SOLICITANTE','MUNICIPIO_SUSCRIPTOR'])),
-      MUNICIPIO_SOLICITANTE:fields[4]||formatoTitulo(sacValue(activeRecord,['MUNICIPIO_SOLICITANTE','MUNICIPIO_SUSCRIPTOR'])),
-      CORREO_SOLICITANTE:correoMin(fields[IDX_CORREO]||sacValue(activeRecord,['CORREO_SOLICITANTE','CORREO_SUSCRIPTOR','CORREO','EMAIL'])),
-      TELEFONO_SOLICITANTE:sacValue(activeRecord,['CELULAR_SOLICITANTE']),
+      MUNICIPIO:fields.municipio||formatoTitulo(sacValue(activeRecord,['MUNICIPIO_SOLICITANTE','MUNICIPIO_SUSCRIPTOR'])),
+      MUNICIPIO_SOLICITANTE:fields.municipio||formatoTitulo(sacValue(activeRecord,['MUNICIPIO_SOLICITANTE','MUNICIPIO_SUSCRIPTOR'])),
+      CORREO_SOLICITANTE:correoMin(fields.correo||sacValue(activeRecord,['CORREO_SOLICITANTE','CORREO_SUSCRIPTOR','CORREO','EMAIL'])),
+      TELEFONO_SOLICITANTE:fields.telefono||sacValue(activeRecord,['CELULAR_SOLICITANTE','TELEFONO_SOLICITANTE']),
       NOMBRE_FIRMANTE:normalizeName(p.nombre||''),
       FIRMA_DOCUMENTO:p.firma?'__ESSA_SIGNATURE__':''};
     Object.entries(aliases).forEach(([k,v])=>put(k,v));
@@ -1354,9 +1360,22 @@ function formatoTitulo(v){
     return String(r);
   }
   function populateRecord(r){
-    const inputs=Array.from(document.querySelectorAll('#panelSolicitante .field input'));
-    const vals=r?[sacValue(r,['NOMBRE_SOLICITANTE','NOMBRE_SUSCRIPTOR']),sacValue(r,['RADICADO_SALIDA']),sacValue(r,['DIRECCION_SOLICITANTE','DIRECCION_SUSCRIPTOR','DIRECCION']),sacValue(r,['DEPTO_SOLICITANTE','DEPARTAMENTO_SOLICITANTE','DEPARTAMENTO_SUSCRIPTOR','DEPARTAMENTO']),sacValue(r,['MUNICIPIO_SOLICITANTE','MUNICIPIO_SUSCRIPTOR']),sacValue(r,['CORREO_SOLICITANTE','CORREO_SUSCRIPTOR','CORREO','EMAIL'])]:['','','','','',''];
-    inputs.forEach((i,k)=>{const t=valueText(vals[k]);i.value=CAMPOS_TITULO.includes(k)?formatoTitulo(t):(k===IDX_CORREO?correoMin(t):t);i.dispatchEvent(new Event('input',{bubbles:true}));});
+    const vals=r?{
+      nombre:sacValue(r,['NOMBRE_SOLICITANTE','NOMBRE_SUSCRIPTOR']),
+      radicado_salida:sacValue(r,['RADICADO_SALIDA']),
+      direccion:sacValue(r,['DIRECCION_SOLICITANTE','DIRECCION_SUSCRIPTOR','DIRECCION']),
+      departamento:sacValue(r,['DEPTO_SOLICITANTE','DEPARTAMENTO_SOLICITANTE','DEPARTAMENTO_SUSCRIPTOR','DEPARTAMENTO']),
+      municipio:sacValue(r,['MUNICIPIO_SOLICITANTE','MUNICIPIO_SUSCRIPTOR']),
+      correo:sacValue(r,['CORREO_SOLICITANTE','CORREO_SUSCRIPTOR','CORREO','EMAIL']),
+      telefono:sacValue(r,['CELULAR_SOLICITANTE','TELEFONO_SOLICITANTE']),
+      radicado_entrada:sacValue(r,['RADICADO_ENTRADA']),
+      proceso:sacValue(r,['NUMERO_PROCESO'])
+    }:{nombre:'',radicado_salida:'',direccion:'',departamento:'',municipio:'',correo:'',telefono:'',radicado_entrada:'',proceso:''};
+    document.querySelectorAll('#panelSolicitante .field input[data-k]').forEach(i=>{
+      const k=i.dataset.k,t=valueText(vals[k]);
+      i.value=CAMPOS_TITULO.has(k)?formatoTitulo(t):(k==='correo'?correoMin(t):t);
+      i.dispatchEvent(new Event('input',{bubbles:true}));
+    });
     descs.forEach(d=>{const el=document.getElementById(d.id);if(!el)return;const v=r?sacValue(r,[d.col]):'';el.value=v==null?'':String(v);el.dispatchEvent(new Event('input',{bubbles:true}));});
   }
   window.addEventListener('ad-record-change',e=>{
