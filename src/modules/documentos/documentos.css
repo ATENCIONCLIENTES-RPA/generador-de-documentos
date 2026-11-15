@@ -128,12 +128,9 @@ html[data-theme="dark"] .theme-toggle .tt-knob{transform:translateX(26px);backgr
 .record-item:hover,.record-item.active{background:var(--azul-celeste);}
 .rec-icon{width:26px;height:26px;border-radius:7px;background:#EEF2FB;color:var(--azul-real);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .rec-icon svg{width:13px;height:13px;}
-.rec-body{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:nowrap;overflow:hidden;}
-.rec-name{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;}
-.rec-tags{display:flex;gap:4px;flex-shrink:0;}
-.tag{font-size:9.5px;font-weight:700;padding:1.5px 6px;border-radius:5px;background:#EEF1F6;color:var(--texto-suave);white-space:nowrap;}
-.tag.rad{background:#E7EEFB;color:var(--azul-real);}
-.rec-sub{font-size:10.5px;color:var(--texto-tenue);flex-shrink:0;white-space:nowrap;}
+.rec-body{flex:1;min-width:0;overflow:hidden;}
+.rec-line{display:block;font-size:12.5px;color:var(--texto-suave);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rec-line .rec-name{font-weight:600;color:var(--texto);}
 .btn-cargar{flex-shrink:0;background:var(--azul-principal);color:var(--blanco);padding:5px 13px;border-radius:7px;font-size:11px;font-weight:700;}
 .btn-cargar:hover{background:#1F3C80;}
 
@@ -349,8 +346,6 @@ html[data-theme="dark"] .plantilla-item:hover{background:#1C2330;}
 html[data-theme="dark"] .plantilla-item:not(:last-child)::after{background:linear-gradient(90deg,rgba(60,70,90,0) 0%,rgba(60,70,90,.9) 14%,rgba(60,70,90,.9) 86%,rgba(60,70,90,0) 100%);}
 html[data-theme="dark"] .rec-icon,html[data-theme="dark"] .pl-icon{background:#1E2635;}
 html[data-theme="dark"] .panel-count,html[data-theme="dark"] .btn-reg{background:#1E2938;}
-html[data-theme="dark"] .tag{background:#222A38;}
-html[data-theme="dark"] .tag.rad{background:#1E2938;}
 html[data-theme="dark"] .searchbar{background:linear-gradient(0deg,#15191F,#191D24);}
 html[data-theme="dark"] .field input,html[data-theme="dark"] .plantilla-search input,html[data-theme="dark"] .search-dropdown-list{background:#161C26;}
 html[data-theme="dark"] .field.field-radicado input{background:#2A1316;}
@@ -815,7 +810,7 @@ html[data-theme="dark"] .btn-chip:hover{background:var(--acc-bg);box-shadow:0 4p
 html[data-theme="dark"] .btn-chip .chip-ic{background:var(--acc-bg);color:var(--acc);}
 html[data-theme="dark"] .btn-chip:hover .chip-ic{background:#11151D;}
 html[data-theme="dark"] .brand-title{color:#8AB4F8;}
-html[data-theme="dark"] .panel-count,html[data-theme="dark"] .btn-reg,html[data-theme="dark"] .tag.rad{color:#8AB4F8;}
+html[data-theme="dark"] .panel-count,html[data-theme="dark"] .btn-reg{color:#8AB4F8;}
 html[data-theme="dark"] .field label{color:#B6C0D2;}
 html[data-theme="dark"] .field-radicado label{color:#FF7A82;}
 html[data-theme="dark"] .field.field-radicado input{border-color:#5A2A30;}
@@ -1178,11 +1173,11 @@ button,input,select,textarea,optgroup{font-family:inherit}
 .btn-generate,.sg-primary,.btn-download,.btn-mejorar,.tg-btn.tg-primary{font-family:var(--ff-display);font-weight:700;letter-spacing:var(--tr-sub)}
 .sg-secondary{font-weight:600}
 .tab-switch-btn,.btn-chip,.btn-cargar,.btn-reg,.btn-change,.filter-toggle,.tg-btn,.tg-copy,.tg-mini,.tg-draft{font-weight:600}
-.tag.rad,.panel-count,.desc-step,.sg-step-num,.tg-num,.tg-node em,.flow-step,
+.panel-count,.desc-step,.sg-step-num,.tg-num,.tg-node em,.flow-step,
 .pagination span,.tg-count,.tg-stats{font-family:var(--ff-display);font-weight:700;font-variant-numeric:tabular-nums lining-nums}
 .tg-tok,.tg-val.bad,.tg-fmain code,.tg-kbd,.tg-ins{font-weight:600;letter-spacing:.01em}
 .field label,.sg-badge,.sg-item-status,.sg-visual-note,.sg-step-label,.tg-eyebrow,.tg-sheet-tag,.tg-group h4,.tg-dt-top span,.tg-dt-arrow,
-.tg-sim-bar>span:first-child,.tg-pane-h,.tg-brand small,.tag,.tg-src,.tg-kbd,kbd{font-weight:600}
+.tg-sim-bar>span:first-child,.tg-pane-h,.tg-brand small,.tg-src,.tg-kbd,kbd{font-weight:600}
 
 /* Header compacto y menú «Más» */
 .header-actions{gap:7px}

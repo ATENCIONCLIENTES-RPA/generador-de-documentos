@@ -36,6 +36,7 @@ function recordDisplay(row){
   const d=Object.freeze({rad:sacValue(row,['RADICADO_ENTRADA']),cuenta:sacValue(row,['NUMERO_CUENTA']),
     nombre:sacValue(row,['NOMBRE_SOLICITANTE','NOMBRE_SUSCRIPTOR','NOMBRE_USUARIO_INICIAL_PROCESO']),
     cc:sacValue(row,['CEDULA_SOLICITANTE']),proceso:sacValue(row,['NUMERO_PROCESO']),
+    procesoTipo:sacValue(row,['PROCESO','TIPO_PROCESO']),
     fechaSolicitud:sacValue(row,['FECHA_SOLICITUD'])});
   if(isObj(row))DISPLAY_CACHE.set(row,d);
   return d;
@@ -49,7 +50,7 @@ function isAnonymousPlaceholderRecord(row){
 }
 function recordSearchText(row){
   let t=isObj(row)?SEARCH_CACHE.get(row):undefined;if(t!==undefined)return t;
-  const d=recordDisplay(row);t=[d.nombre,d.rad,d.cuenta,d.cc,d.proceso].map(v=>String(v||'')).join(' ').toLocaleLowerCase('es-CO');
+  const d=recordDisplay(row);t=[d.nombre,d.rad,d.cuenta,d.cc,d.proceso,d.procesoTipo].map(v=>String(v||'')).join(' ').toLocaleLowerCase('es-CO');
   if(isObj(row))SEARCH_CACHE.set(row,t);return t;
 }
 const digitsOnly=v=>String(v==null?'':v).replace(/\D/g,'');
@@ -84,11 +85,17 @@ function renderRecords(){
     recordList.innerHTML=`<div class="empty-state"><span class="es-ic">${DOC}</span><b>Sin datos disponibles</b><span>${escRec(msg)}</span></div>`;return;
   }
   const hits=[];for(let i=0;i<registros.length&&hits.length<MAX_RECORD_RESULTS;i++)if(!q||recordSearchText(registros[i]).includes(q))hits.push(i);
-  if(!hits.length){recordList.innerHTML=`<div class="empty-state"><span class="es-ic">${DOC}</span><b>Sin resultados</b><span>Revisa el radicado, la cuenta, el proceso o el solicitante.</span></div>`;return;}
-  recordList.innerHTML=hits.map(i=>{const d=recordDisplay(registros[i]);return `<div class="record-item" data-i="${i}">
-    <span class="rec-icon">${DOC}</span><span class="rec-body"><span class="rec-name">${escRec(d.nombre||'Sin nombre disponible')}</span>
-    <span class="rec-tags"><span class="tag rad">${escRec(d.rad||'Sin radicado')}</span><span class="tag">Cta: ${escRec(d.cuenta||'Sin cuenta')}</span></span>
-    ${d.cc?`<span class="rec-sub">C.C. ${escRec(d.cc)}</span>`:''}</span><button class="btn-cargar">Cargar</button></div>`;}).join('')+
+  if(!hits.length){recordList.innerHTML=`<div class="empty-state"><span class="es-ic">${DOC}</span><b>Sin resultados</b><span>Revisa el radicado, la cuenta, el proceso, el tipo de proceso o el solicitante.</span></div>`;return;}
+  recordList.innerHTML=hits.map(i=>{const d=recordDisplay(registros[i]);
+    const nombre=d.nombre||'Sin nombre disponible';
+    const resto=[(d.rad||'Sin radicado')+','];
+    if(d.proceso)resto.push('Proceso '+d.proceso+(d.procesoTipo?' ('+d.procesoTipo+')':''));
+    resto.push('Cta: '+(d.cuenta||'—'));
+    const linea=nombre+' '+resto.join(' ');
+    return `<div class="record-item" data-i="${i}">
+    <span class="rec-icon">${DOC}</span>
+    <span class="rec-body"><span class="rec-line" title="${escRec(linea)}"><b class="rec-name">${escRec(nombre)}</b> ${escRec(resto.join(' '))}</span></span>
+    <button class="btn-cargar">Cargar</button></div>`;}).join('')+
     (hits.length===MAX_RECORD_RESULTS?`<div class="empty-state"><span>Mostrando los primeros ${MAX_RECORD_RESULTS.toLocaleString('es-CO')} resultados. Escribe más datos para afinar la búsqueda.</span></div>`:'');
 }
 const openDD=()=>dd.classList.add('open'),closeDD=()=>dd.classList.remove('open');
