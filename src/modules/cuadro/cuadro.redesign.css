@@ -2078,6 +2078,12 @@ html[data-theme="dark"] #m2ui .btnGen:hover{color:#0F1C33}
 #m2ui .btnVer{font-weight:700}
 #m2ui #tRad td.detCell{white-space:nowrap}
 
+/* Columna de duplicados */
+#m2ui #tRad th.thDup{white-space:nowrap}
+#m2ui #tRad td.dupCell{white-space:nowrap;text-align:center;width:104px}
+#m2ui #tRad td.dupCell .dupRad{margin-left:0}
+#m2ui #tRad td.dupCell .sp{font-size:13px;font-style:normal;color:var(--m2-mut,#78879A)}
+
 /* Acciones visuales por proceso */
 #m2ui .procAcc{white-space:nowrap;text-align:right}
 #m2ui .procBtn{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;border:1px solid transparent;cursor:pointer;transition:transform .15s ease,background .15s ease,box-shadow .15s ease;margin-left:4px}

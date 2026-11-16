@@ -1013,8 +1013,8 @@ function pintaRadicados(){
   const multi=modoMulti();
   if(DIA_SEL===null && !multi){
     $('radTit').textContent='Radicados del día'; $('radSub').textContent='Selecciona un día en la tabla o en la gráfica.'; $('radSub').style.display='';
-    $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th>Radicado</th><th>Detalles</th><th style="width:290px"></th></tr>';
-    $('tRad').querySelector('tbody').innerHTML='<tr><td colspan="4" class="vacio">Sin día seleccionado.</td></tr>'; return; }
+    $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th>Radicado</th><th class="thDup" style="width:104px">Duplicados</th><th>Detalles</th><th style="width:290px"></th></tr>';
+    $('tRad').querySelector('tbody').innerHTML='<tr><td colspan="5" class="vacio">Sin día seleccionado.</td></tr>'; return; }
   const s=multi?null:ESCALERA_EXT.find(x=>x.dia===DIA_SEL);
   const esVenc=!multi && DIA_SEL>CFG.diasHabiles;
   const fc=$('fColor').value;
@@ -1036,10 +1036,11 @@ function pintaRadicados(){
   regs.sort((a,b)=>cmpRad(a.radicado,b.radicado)*(ORDEN_RAD==='desc'?-1:1));
   $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th class="thOrden" id="thRadOrden" title="Ordenar por radicado">Radicado <span class="flechaOrd">'+
     (ORDEN_RAD==='desc'?'▼':'▲')+'</span></th>'+(multi?'<th>Día</th>':'')+
+    '<th class="thDup" style="width:104px">Duplicados</th>'+
     '<th style="width:110px">Detalles</th><th style="width:260px"></th></tr>';
   const thO=document.getElementById('thRadOrden');
   if(thO) thO.onclick=()=>{ ORDEN_RAD=ORDEN_RAD==='desc'?'asc':'desc'; pintaRadicados(); };
-  const nCols=multi?5:4;
+  const nCols=multi?6:5;
 
   $('tRad').querySelector('tbody').innerHTML = regs.length ? regs.map((x,i)=>{
     const mk=marcaDe(x), col=mk.color||'', nota=mk.nota||'';
@@ -1056,9 +1057,10 @@ function pintaRadicados(){
       (col?' style="--mk:'+col+';--mkbg:'+rgba(col,.13)+';--mkbg2:'+rgba(col,.22)+'"':'')+'>'+
       '<td><span class="dot'+(col?'':' vacio')+'" data-act="col" data-i="'+i+'"'+
         (col?' style="background:'+col+';border-color:'+col+'"':'')+' title="Marcar con color"></span></td>'+
-      '<td class="clicRad" data-i="'+i+'">'+radTxtHtml(x)+dupBtn+
+      '<td class="clicRad" data-i="'+i+'">'+radTxtHtml(x)+
         (x.ajuste?' <span class="badge b-a sinDot" title="Fecha ajustada">'+m2i('calendar')+'</span>':'')+
         (nota?'<div class="notaPrev">'+esc(nota)+'</div>':'')+'</td>'+
+      '<td class="dupCell">'+(dupBtn||'<span class="sp" title="Sin duplicados en Mercurio">—</span>')+'</td>'+
       (multi?'<td class="clicRad'+(x.dia>CFG.diasHabiles?' vtoPas':'')+'" data-i="'+i+'">Día '+(x.dia??'—')+'</td>':'')+
       '<td class="detCell"><button type="button" class="btnFila btnVer" data-act="ver" data-i="'+i+'"'+
         ' aria-label="Ver detalle del radicado '+esc(x.radicado)+'">Ver</button></td>'+
@@ -1752,11 +1754,10 @@ function relacionarDup(d,o,kd,ko){
     if(cerca && kd.sol && kd.sol===ko.sol) F.add('Mismo solicitante y cuenta'); });
   return {F,W};
 }
-const usuariosRutas=()=>{ const s=new Set(Object.values(RUTAS).flat()); if(s.size===0&&NOMBRE_FIRMANTE) s.add(NOMBRE_FIRMANTE); return s; };
 let DUP_IDX=null;
 function indiceDup(){
   if(DUP_IDX) return DUP_IDX;
-  const U=usuariosRutas(), R=ALLRAD.filter(d=>!d.relleno && d.respEq && U.has(d.respEq));
+  const R=ALLRAD.filter(d=>!d.relleno && d.respEq);
   const ix=new Map(), keys=new Map(), put=(z,d)=>{ if(!ix.has(z)) ix.set(z,[]); ix.get(z).push(d); };
   R.forEach(d=>{ const k=clavesDup(d); keys.set(d,k);
     k.ids.forEach(v=>put('i:'+v,d)); k.pars.forEach(v=>put('p:'+v,d)); k.ctas.forEach(v=>put('c:'+v,d)); });
