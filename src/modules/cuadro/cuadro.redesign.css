@@ -2084,6 +2084,13 @@ html[data-theme="dark"] #m2ui .btnGen:hover{color:#0F1C33}
 #m2ui #tRad td.dupCell .dupRad{margin-left:0}
 #m2ui #tRad td.dupCell .sp{font-size:13px;font-style:normal;color:var(--m2-mut,#78879A)}
 
+/* Columna de vencimiento por radicado */
+#m2ui #tRad th.thVto{width:150px;white-space:nowrap}
+#m2ui #tRad td.vtoCell{white-space:nowrap;font-variant-numeric:tabular-nums}
+#m2ui #tRad .inpPlazo{width:56px;margin-left:8px;padding:4px 6px;border:1px solid var(--m2-line);
+  border-radius:7px;background:var(--u-surface);color:var(--m2-ink);font-size:12px;text-align:right;font-family:inherit}
+#m2ui #tRad .inpPlazo:focus{outline:none;border-color:var(--m2-blue);box-shadow:0 0 0 3px var(--m2-blue-t)}
+
 /* Acciones visuales por proceso */
 #m2ui .procAcc{white-space:nowrap;text-align:right}
 #m2ui .procBtn{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:999px;

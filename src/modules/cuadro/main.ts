@@ -169,6 +169,8 @@ function sanearMapa(o,fn){ const r={}; if(!_esObj(o)) return r;
   Object.keys(o).forEach(k=>{ try{ const v=fn(o[k],k); if(v!==undefined) r[k]=v; }catch(e){} }); return r; }
 const SANEA={
   ajustes:o=>sanearMapa(o,v=>_fecha(v)||undefined),
+  plazos:o=>sanearMapa(o,v=>{ const n=parseInt(_str(v),10);
+    return Number.isFinite(n)&&n>=1&&n<=60?n:undefined; }),
   marcas:o=>sanearMapa(o,v=>{ if(!_esObj(v)) return undefined; const r=Object.assign({},v);
     if('nota' in r){ r.nota=_str(r.nota); if(!r.nota) delete r.nota; }
     if('color' in r){ r.color=_color(r.color); if(!r.color) delete r.color; }
@@ -202,6 +204,14 @@ let AJUSTES={};
 try{ AJUSTES=JSON.parse(appDataGet(LS)||'{}'); }catch(e){ AJUSTES={}; }
 AJUSTES=SANEA.ajustes(AJUSTES);
 const guardaAjustes=()=>{ try{ appDataSet(LS,JSON.stringify(AJUSTES)); }catch(e){ reportaError('No se pudo guardar ('+LS+'): almacenamiento lleno',e); } };
+
+const LS_PLAZOS='essa_plazos';
+let PLAZOS={};
+try{ PLAZOS=JSON.parse(appDataGet(LS_PLAZOS)||'{}'); }catch(e){ PLAZOS={}; }
+PLAZOS=SANEA.plazos(PLAZOS);
+const guardaPlazos=()=>{ try{ appDataSet(LS_PLAZOS,JSON.stringify(PLAZOS)); }
+  catch(e){ reportaError('No se pudo guardar ('+LS_PLAZOS+'): almacenamiento lleno',e); } };
+const diasRad=d=>PLAZOS[d.llave||d.radicado]||CFG.diasHabiles;
 
 let CRUDO={sac:[],mer:[]}, DATOS=[], INDICE={}, nRelleno=0, nCancel=0, nRuta=0;
 
@@ -539,6 +549,8 @@ function unificar(){
     d.esCorreo = esCorreo(d.medio);
     d.ajuste = (d.esCorreo && AJUSTES[d.llave||d.radicado]) ? parseFecha(AJUSTES[d.llave||d.radicado]) : null;
     d.fEfe = d.ajuste || d.fSol;
+    d.plazo = diasRad(d);
+    d.fVto = d.fEfe ? venceEn(d.fEfe,d.plazo) : (d.fVto||null);
     const fh = d.fEfe ? aDiaHabil(d.fEfe) : null;
     d.dia = fh ? (MAPA_DIA[clave(fh)] ?? null) : null;
     d.enVentana = d.dia !== null && d.dia <= CFG.diasHabiles;
@@ -1011,10 +1023,12 @@ function cmpRad(a,b){ const x=soloNum(a), y=soloNum(b);
 function pintaRadicados(){
   ocultaDupTip();
   const multi=modoMulti();
+  const conPlazo=esUsuarioPlazoEspecial();
   if(DIA_SEL===null && !multi){
     $('radTit').textContent='Radicados del día'; $('radSub').textContent='Selecciona un día en la tabla o en la gráfica.'; $('radSub').style.display='';
-    $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th>Radicado</th><th class="thDup" style="width:104px">Duplicados</th><th>Detalles</th><th style="width:290px"></th></tr>';
-    $('tRad').querySelector('tbody').innerHTML='<tr><td colspan="5" class="vacio">Sin día seleccionado.</td></tr>'; return; }
+    $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th>Radicado</th><th class="thDup" style="width:104px">Duplicados</th><th>Detalles</th>'+
+      (conPlazo?'<th class="thVto">Vencimiento</th>':'')+'<th style="width:290px"></th></tr>';
+    $('tRad').querySelector('tbody').innerHTML='<tr><td colspan="'+(5+(conPlazo?1:0))+'" class="vacio">Sin día seleccionado.</td></tr>'; return; }
   const s=multi?null:ESCALERA_EXT.find(x=>x.dia===DIA_SEL);
   const esVenc=!multi && DIA_SEL>CFG.diasHabiles;
   const fc=$('fColor').value;
@@ -1037,10 +1051,12 @@ function pintaRadicados(){
   $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th class="thOrden" id="thRadOrden" title="Ordenar por radicado">Radicado <span class="flechaOrd">'+
     (ORDEN_RAD==='desc'?'▼':'▲')+'</span></th>'+(multi?'<th>Día</th>':'')+
     '<th class="thDup" style="width:104px">Duplicados</th>'+
-    '<th style="width:110px">Detalles</th><th style="width:260px"></th></tr>';
+    '<th style="width:110px">Detalles</th>'+
+    (conPlazo?'<th class="thVto">Vencimiento</th>':'')+
+    '<th style="width:260px"></th></tr>';
   const thO=document.getElementById('thRadOrden');
   if(thO) thO.onclick=()=>{ ORDEN_RAD=ORDEN_RAD==='desc'?'asc':'desc'; pintaRadicados(); };
-  const nCols=multi?6:5;
+  const nCols=5+(multi?1:0)+(conPlazo?1:0);
 
   $('tRad').querySelector('tbody').innerHTML = regs.length ? regs.map((x,i)=>{
     const mk=marcaDe(x), col=mk.color||'', nota=mk.nota||'';
@@ -1060,10 +1076,14 @@ function pintaRadicados(){
       '<td class="clicRad" data-i="'+i+'">'+radTxtHtml(x)+
         (x.ajuste?' <span class="badge b-a sinDot" title="Fecha ajustada">'+m2i('calendar')+'</span>':'')+
         (nota?'<div class="notaPrev">'+esc(nota)+'</div>':'')+'</td>'+
-      '<td class="dupCell">'+(dupBtn||'<span class="sp" title="Sin duplicados en Mercurio">—</span>')+'</td>'+
       (multi?'<td class="clicRad'+(x.dia>CFG.diasHabiles?' vtoPas':'')+'" data-i="'+i+'">Día '+(x.dia??'—')+'</td>':'')+
+      '<td class="dupCell">'+(dupBtn||'<span class="sp" title="Sin duplicados en Mercurio">—</span>')+'</td>'+
       '<td class="detCell"><button type="button" class="btnFila btnVer" data-act="ver" data-i="'+i+'"'+
         ' aria-label="Ver detalle del radicado '+esc(x.radicado)+'">Ver</button></td>'+
+      (conPlazo?'<td class="vtoCell">'+(x.fVto?dFmt(x.fVto):'—')+
+        '<input type="number" class="inpPlazo" data-plazo="'+i+'" value="'+(x.plazo??CFG.diasHabiles)+'"'+
+        ' min="1" max="60" step="1" title="Días hábiles de respuesta para este radicado"'+
+        ' aria-label="Días hábiles de respuesta para el radicado '+esc(x.radicado)+'">'+'</td>':'')+
       '<td class="acc">'+
         '<button class="btnFila btnGen" data-act="gen" data-i="'+i+'"'+
           (tieneProcesoSAC(x)?' title="Generar la respuesta de este radicado (Módulo 3)"'
@@ -1108,6 +1128,21 @@ function pintaRadicados(){
     tb.querySelectorAll('tr').forEach(t=>t.classList.remove('sel'));
     el.closest('tr').classList.add('sel');
     abreDupRapido(regs[+el.dataset.i]);
+  });
+  tb.querySelectorAll('.inpPlazo').forEach(inp=>{
+    const commit=()=>{
+      const d=regs[+inp.dataset.plazo]; if(!d) return;
+      const n=parseInt(inp.value,10);
+      if(!Number.isFinite(n)||n<1||n>60){ inp.value=String(d.plazo); return; }
+      const k=claveR(d);
+      if(n===CFG.diasHabiles) delete PLAZOS[k]; else PLAZOS[k]=n;
+      guardaPlazos(); unificar(); render();
+      if($('detModal').classList.contains('on') && RAD_SEL===d.radicado){
+        const nd=DATOS.find(x=>(x.llave||x.radicado)===k); if(nd) verDetalle(nd);
+      }
+    };
+    inp.onchange=commit;
+    inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); inp.blur(); } };
   });
   tb.querySelectorAll('.chkEvLbl').forEach(c=>c.onclick=e=>e.stopPropagation());
   tb.querySelectorAll('[data-evr]').forEach(ch=>ch.onchange=()=>{
@@ -1600,7 +1635,6 @@ function ordenable(tabla,mem){
 
 const RUTAS_NOM={pq:'Peticiones',es:'Ruta especializada',cd:'Cambio de datos básicos',rc:'Reclamos',rs:'Recursos',sp:'SSPD',so:'Somos'};
 const SUB_PQ=['pq','es','cd'];
-const PLAZO_ES=10;
 const RUTAS_DEF={pq:[],rc:[],rs:[],sp:[],so:[],es:[],cd:[]};
 const LS_RUTAS='essa_rutas';
 let RUTA='pq';
@@ -1995,21 +2029,26 @@ function habilesEntre(a,b){ let n=0,s=a<=b?1:-1,x=new Date(a); while(clave(x)!==
 function pintaVen(u){
   const th=$('tRec').querySelector('thead'), tb=$('tRec').querySelector('tbody');
   const L=DATOS.filter(d=>d.respEq===u && d.dia!==null && !evacuado(d))
-    .map(d=>{ const v=venceEn(d.fEfe,PLAZO_ES); return {d,v,r:v?habilesEntre(HOY,v):null}; })
+    .map(d=>{ const n=diasRad(d), v=venceEn(d.fEfe,n); return {d,v,r:v?habilesEntre(HOY,v):null}; })
     .sort((a,b)=>(a.r??99)-(b.r??99));
   const nv=L.filter(x=>x.r!==null&&x.r<0).length, nh=L.filter(x=>x.r===0).length;
-  th.innerHTML='<tr><th>Radicado</th><th>Cuenta</th><th>Proceso(s)</th><th>F. recibo</th><th>Día</th><th>Vence (10 días háb.)</th><th>Días háb. restantes</th><th>Estado</th></tr>';
+  th.innerHTML='<tr><th>Radicado</th><th>Cuenta</th><th>Proceso(s)</th><th>F. recibo</th><th>Día</th><th>Vence</th><th>Días háb. restantes</th><th>Estado</th></tr>';
   tb.innerHTML=L.length?L.map(x=>{ const est=x.r<0?'<span class="badge b-r">Vencido</span>':x.r===0?'<span class="badge b-n">Vence hoy</span>':x.r<=2?'<span class="badge b-a">Próximo</span>':'<span class="badge b-v">En plazo</span>';
     return '<tr><td class="rad">'+esc(x.d.radicado)+'</td><td>'+esc(x.d.cuenta||'—')+'</td>'+
       '<td>'+(x.d.nProc?x.d.procesos.map(p=>'<span class="procHL">'+esc(p.numero)+'</span>').join(' '):'<span class="sp">Sin proceso</span>')+'</td>'+
       '<td>'+dFmt(x.d.fEfe)+'</td><td>Día '+x.d.dia+'</td><td><b>'+dFmt(x.v)+'</b></td><td class="num">'+(x.r??'—')+'</td><td>'+est+'</td></tr>'; }).join('')
     :'<tr><td colspan="8" class="vacio">Sin radicados para este usuario.</td></tr>';
-  $('recInfo').innerHTML='Plazo de respuesta de la ruta especializada: <b>'+PLAZO_ES+' días hábiles</b> · '+L.length+' radicado(s) · '+
-    '<span class="estSin">'+nv+' vencido(s)</span> · <span class="estAlg">'+nh+' vence(n) hoy</span>';
+  $('recInfo').innerHTML='Plazo de respuesta: <b>'+CFG.diasHabiles+' días hábiles</b> por defecto'+
+    ' · '+L.length+' radicado(s) · <span class="estSin">'+nv+' vencido(s)</span> · '+
+    '<span class="estAlg">'+nh+' vence(n) hoy</span>';
   ordenable($('tRec'));
 }
 
 function usuarioActivo(){ return equipoDe(USUARIO_FIJO||valorResp()||NOMBRE_FIRMANTE||'')||''; }
+function esUsuarioPlazoEspecial(){
+  const u=canonNombre(usuarioActivo()); if(!u) return false;
+  return [].concat(RUTAS.es||[],RUTAS.so||[]).some(n=>canonNombre(n)===u);
+}
 function rutasVisibles(){
   const claves=Object.keys(RUTAS);
   const u=canonNombre(usuarioActivo());
@@ -2544,7 +2583,7 @@ function edadDias(f){ if(!f) return 0; const p=String(f).split('-'); return difD
 function mantenimiento(manual){
   if(!CRUDO.sac.length || !CRUDO.mer.length){ if(manual) alert('Carga los dos archivos (SAC y Mercurio) antes de ejecutar el mantenimiento.'); return null; }
   const hoy=clave(HOY), rad=new Set(ALLRAD.map(claveR)), proc=new Set(ALLPROC.map(x=>x.p.numero));
-  const r={evac:0,marcas:0,exp:0,aju:0,cons:0,cal:0};
+  const r={evac:0,marcas:0,exp:0,aju:0,cons:0,cal:0,pla:0};
   const pasa=(obj,presente,dias,cont,proteger)=>{ Object.keys(obj).forEach(k=>{ const e=obj[k];
     if(e===null||typeof e!=='object'){ if(!presente(k)){ delete obj[k]; r[cont]++; } return; }
     if(presente(k)){ e.vis=hoy; return; }
@@ -2555,6 +2594,8 @@ function mantenimiento(manual){
   pasa(MARCAS,k=>rad.has(k),RETENER.marcaColor,'marcas',(k,e)=>!!e.nota);
   pasa(EXP,k=>proc.has(k),RETENER.expediente,'exp',(k,e)=>!!e.n||!!e.ev);
   Object.keys(AJUSTES).forEach(k=>{ if(!rad.has(k) && edadDias(AJUSTES[k])>RETENER.ajuste){ delete AJUSTES[k]; r.aju++; } });
+  Object.keys(PLAZOS).forEach(k=>{ if(!rad.has(k)){ delete PLAZOS[k]; r.pla++; } });
+  guardaPlazos();
   [CAL].concat(Object.values(CAL.u||{})).forEach(b=>{ if(!b||!b.notas) return;
     Object.keys(b.notas).forEach(k=>{ if(edadDias(k)>RETENER.cal){ delete b.notas[k]; r.cal++; } }); });
   guardaEvac(); guardaMarcas(); lsSet(LS_EXP,EXP); guardaAjustes(); guardaCons(); guardaCal();
