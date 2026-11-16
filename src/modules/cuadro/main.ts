@@ -1250,14 +1250,13 @@ function verDetalle(d, opener){
 
   const tablaProc = d.nProc
     ? '<div class="procWrap"><table class="tablaProc"><thead><tr><th>Proceso</th><th>Tr\u00e1mite</th>'+
-      '<th>Cuenta</th><th>\u00daltima acci\u00f3n</th><th>Resp. revisi\u00f3n</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>'+
+      '<th>Cuenta</th><th>Resp. revisi\u00f3n</th><th>Acciones</th></tr></thead><tbody>'+
       d.procesos.map(p=>'<tr><td class="rad">'+esc(p.numero)+'</td><td>'+esc(p.tramite)+'</td>'+
-        '<td>'+esc(p.cuenta||'\u2014')+'</td><td>'+esc(p.ultimaAccion||'\u2014')+'</td>'+
+        '<td>'+esc(p.cuenta||'\u2014')+'</td>'+
         '<td>'+(p.respRevision?'<b>'+esc(p.respRevision)+'</b>':'<span class="sp">Sin asignar</span>')+'</td>'+
-        '<td>'+esc(p.estadoRevision||'\u2014')+'</td>'+
         '<td class="procAcc">'+
-          '<button type="button" class="procBtn procBtnOk" title="No Cancelar proceso" aria-label="No Cancelar proceso">'+m2i('check')+'</button>'+
-          '<button type="button" class="procBtn procBtnNo" title="Cancelar proceso" aria-label="Cancelar proceso">'+m2i('x')+'</button>'+
+          '<button type="button" class="procBtn procBtnOk" title="No Cancelar proceso" aria-label="No Cancelar proceso">'+m2i('check')+'<span>No cancelar</span></button>'+
+          '<button type="button" class="procBtn procBtnNo" title="Cancelar proceso" aria-label="Cancelar proceso">'+m2i('x')+'<span>Cancelar</span></button>'+
         '</td></tr>').join('')+'</tbody></table></div>'
     : '<div class="ficha"><div class="f"><span class="sp">Sin proceso creado en SAC.</span></div></div>';
 
