@@ -98,7 +98,7 @@ function renderRecords(){
     <button class="btn-cargar">Cargar</button></div>`;}).join('')+
     (hits.length===MAX_RECORD_RESULTS?`<div class="empty-state"><span>Mostrando los primeros ${MAX_RECORD_RESULTS.toLocaleString('es-CO')} resultados. Escribe más datos para afinar la búsqueda.</span></div>`:'');
 }
-const openDD=()=>dd.classList.add('open'),closeDD=()=>dd.classList.remove('open');
+const openDD=()=>{dd.classList.add('open');const b=document.getElementById('filterToggle');if(b)b.setAttribute('aria-expanded','true');},closeDD=()=>{dd.classList.remove('open');const b=document.getElementById('filterToggle');if(b)b.setAttribute('aria-expanded','false');};
 searchInput.addEventListener('focus',openDD);
 searchInput.addEventListener('input',renderRecords);
 document.getElementById('filterToggle').addEventListener('click',()=>{openDD();searchInput.focus();});
@@ -417,7 +417,7 @@ function formatoTitulo(v){
     else if(e.key==='/'&&!typing){e.preventDefault();psInput.focus();}
     else if(e.key==='Escape'){
       if($('#tourOverlay').classList.contains('open'))$('#tourSkip').click();
-      else{$('#searchDropdown').classList.remove('open');if(typing)document.activeElement.blur();}
+      else{closeDD();if(typing)document.activeElement.blur();}
     }
   });
 
@@ -483,7 +483,7 @@ function formatoTitulo(v){
 
   const setItem=(el,on,current,status)=>{el.classList.toggle('done',on);el.classList.toggle('current',!on&&current);status.innerHTML=on?checkIcon+' Lista':'Pendiente';};
   const setStep=(name,state)=>{const el=guide.querySelector(`[data-step="${name}"]`);if(!el)return;el.classList.toggle('done',state==='done');el.classList.toggle('current',state==='current');};
-  const openSearch=()=>{sIn.focus();sIn.select();document.getElementById('searchDropdown').classList.add('open');bar.scrollIntoView({block:'nearest',behavior:'smooth'});};
+  const openSearch=()=>{sIn.focus();sIn.select();openDD();bar.scrollIntoView({block:'nearest',behavior:'smooth'});};
   const openTemplates=()=>{const panel=document.getElementById('panelPlantillas');panel.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(()=>{if(!plInput.disabled){plInput.focus();plInput.select();}},320);};
   const goResources=()=>{if(window.AD&&typeof AD.navigate==='function')AD.navigate('recursos');};
 

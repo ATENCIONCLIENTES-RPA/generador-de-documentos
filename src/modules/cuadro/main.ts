@@ -6,6 +6,7 @@ import './cuadro.base.css';
 import './cuadro.redesign.css';
 import '../shared/module-bridge';
 import { GuidedTour } from '../../components/guided-tour/guided-tour';
+import { SAL_ANALISTAS, HUELLAS_RUTAS } from './analistas.huellas';
 
 (function(){
   const SUN='<circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>';
@@ -267,6 +268,52 @@ function puntaje(v,c){
     if(!ok) return 0;
   }
   return full>=2 ? full : 0;
+}
+function sha256hex(str){
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const b=new TextEncoder().encode(str), l=b.length, n=((l+9+63)>>6)<<6, m=new Uint8Array(n);
+  m.set(b); m[l]=0x80; const dv=new DataView(m.buffer); dv.setUint32(n-4,l*8);
+  let H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const W=new Uint32Array(64), r=(x,y)=>(x>>>y)|(x<<(32-y));
+  for(let o=0;o<n;o+=64){
+    for(let i=0;i<16;i++) W[i]=dv.getUint32(o+i*4);
+    for(let i=16;i<64;i++){ const s0=r(W[i-15],7)^r(W[i-15],18)^(W[i-15]>>>3), s1=r(W[i-2],17)^r(W[i-2],19)^(W[i-2]>>>10); W[i]=(W[i-16]+s0+W[i-7]+s1)|0; }
+    let a=H[0],bb=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+    for(let i=0;i<64;i++){ const t1=(h+(r(e,6)^r(e,11)^r(e,25))+((e&f)^(~e&g))+K[i]+W[i])|0, t2=((r(a,2)^r(a,13)^r(a,22))+((a&bb)^(a&c)^(bb&c)))|0;
+      h=g; g=f; f=e; e=(d+t1)|0; d=c; c=bb; bb=a; a=(t1+t2)|0; }
+    H=[(H[0]+a)|0,(H[1]+bb)|0,(H[2]+c)|0,(H[3]+d)|0,(H[4]+e)|0,(H[5]+f)|0,(H[6]+g)|0,(H[7]+h)|0];
+  }
+  return H.map(v=>(v>>>0).toString(16).padStart(8,'0')).join('');
+}
+const canonHuella=n=>String(n==null?'':n).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()
+  .replace(/[^A-Z ]/g,' ').split(/\s+/).filter(Boolean).sort().join(' ');
+const huellaNombre=n=>sha256hex(SAL_ANALISTAS+'|'+canonHuella(n)).slice(0,24);
+const RUTA_POR_HUELLA=new Map();
+Object.keys(HUELLAS_RUTAS||{}).forEach(k=>(HUELLAS_RUTAS[k]||[]).forEach(h=>RUTA_POR_HUELLA.set(h,k)));
+const HAY_ANALISTAS=RUTA_POR_HUELLA.size>0;
+const CACHE_HUELLA=new Map();
+function esAnalista(raw){ const r=txt(raw); if(!r) return '';
+  if(!CACHE_HUELLA.has(r)) CACHE_HUELLA.set(r,RUTA_POR_HUELLA.get(huellaNombre(r))||'');
+  return CACHE_HUELLA.get(r); }
+function respAnalista(d){
+  if(!d) return '';
+  if(esAnalista(d.respSac)) return d.respSac;
+  if(esAnalista(d.gestor)) return d.gestor;
+  return '';
+}
+function rutasDesdeInformes(out){
+  if(!HAY_ANALISTAS) return false;
+  const det={}, vistos=new Set();
+  Object.keys(HUELLAS_RUTAS).forEach(k=>det[k]=[]);
+  const toma=nm=>{ const r=txt(nm); if(!r) return; const k=esAnalista(r); if(!k) return;
+    const h=huellaNombre(r); if(vistos.has(h)) return; vistos.add(h); det[k].push(r); };
+  out.forEach(d=>toma(d.respSac));
+  out.forEach(d=>toma(d.gestor));
+  let cambio=false;
+  Object.keys(det).forEach(k=>{ const L=det[k].sort((a,b)=>a.localeCompare(b,'es'));
+    if(L.length && JSON.stringify(L)!==JSON.stringify(RUTAS[k]||[])){ RUTAS[k]=L; cambio=true; } });
+  if(cambio){ lsSet(LS_RUTAS,RUTAS); reconstruirEquipo(); ROL=RUTAS[RUTA]||[]; }
+  return cambio;
 }
 const CACHE_EQ={}, ALIAS={};
 function equipoDe(raw){
@@ -541,6 +588,7 @@ function unificar(){
     });
   });
 
+  try{ rutasDesdeInformes(out); }catch(e){ reportaError('Analistas PQRS',e); }
   INDICE={};
   out.forEach(d=>{
     d.respEq = equipoDe(d.respSac) || equipoDe(d.gestor);
@@ -1017,6 +1065,7 @@ const conNotas=()=>$('fNotas').value==='notas';
 let DIA_PREV=null;
 function modoMulti(){ return DIA_SEL===null && (filtroActivo() || conNotas()); }
 let ORDEN_RAD='asc';
+let PLAZO_FOCO=null;
 function cmpRad(a,b){ const x=soloNum(a), y=soloNum(b);
   if(!x||!y) return (x?0:1)-(y?0:1)||String(a).localeCompare(String(b));
   return x.length-y.length || (x<y?-1:x>y?1:0); }
@@ -1142,8 +1191,13 @@ function pintaRadicados(){
       }
     };
     inp.onchange=commit;
-    inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); inp.blur(); } };
+    inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); PLAZO_FOCO=inp.dataset.plazo; inp.blur(); } };
   });
+  if(PLAZO_FOCO!==null){
+    const k=PLAZO_FOCO; PLAZO_FOCO=null;
+    const el=tb.querySelector('.inpPlazo[data-plazo="'+k+'"]');
+    if(el){ el.focus(); el.select(); }
+  }
   tb.querySelectorAll('.chkEvLbl').forEach(c=>c.onclick=e=>e.stopPropagation());
   tb.querySelectorAll('[data-evr]').forEach(ch=>ch.onchange=()=>{
     pedirEvacuar([regs[+ch.dataset.evr]],'el radicado',()=>{ ch.checked=false; }); });
@@ -1790,7 +1844,7 @@ function relacionarDup(d,o,kd,ko){
 let DUP_IDX=null;
 function indiceDup(){
   if(DUP_IDX) return DUP_IDX;
-  const R=ALLRAD.filter(d=>!d.relleno && d.respEq);
+  const R=ALLRAD.filter(d=>!d.relleno && (HAY_ANALISTAS?!!respAnalista(d):!!d.respEq));
   const ix=new Map(), keys=new Map(), put=(z,d)=>{ if(!ix.has(z)) ix.set(z,[]); ix.get(z).push(d); };
   R.forEach(d=>{ const k=clavesDup(d); keys.set(d,k);
     k.ids.forEach(v=>put('i:'+v,d)); k.pars.forEach(v=>put('p:'+v,d)); k.ctas.forEach(v=>put('c:'+v,d)); });
@@ -1850,7 +1904,9 @@ function pintaBusq(u){
 function filaDup(d,extra){
   return '<td class="rad">'+esc(d.radicado)+'</td><td>'+dFmt(d.fSol)+'</td><td>'+esc((d.cuentas||[]).join(', ')||'—')+'</td>'+
     '<td>'+(d.nProc?d.procesos.map(p=>'<span class="procHL">'+esc(p.numero)+'</span>').join(' '):'<span class="sp">Sin proceso</span>')+'</td>'+
-    '<td>'+esc(d.respEq||'—')+extra+'</td><td><div class="cont">'+esc(d.contenido||'—')+'</div></td>';
+    '<td>'+esc(respAnalista(d)||d.respEq||d.respSac||d.gestor||'—')+extra+
+      (d.gestor&&canonHuella(d.gestor)!==canonHuella(respAnalista(d)||d.respEq||d.respSac)?'<div class="sp">Gestor Mercurio: '+esc(d.gestor)+'</div>':'')+
+      '</td><td><div class="cont">'+esc(d.contenido||'—')+'</div></td>';
 }
 function grupoDup(x,u){
   const dup=x.rel.some(r=>r.F.size);
@@ -2046,6 +2102,7 @@ function pintaVen(u){
 
 function usuarioActivo(){ return equipoDe(USUARIO_FIJO||valorResp()||NOMBRE_FIRMANTE||'')||''; }
 function esUsuarioPlazoEspecial(){
+  if(NOMBRE_FIRMANTE===FIRMANTE_HABILITA_RESPONSABLE) return true;
   const u=canonNombre(usuarioActivo()); if(!u) return false;
   return [].concat(RUTAS.es||[],RUTAS.so||[]).some(n=>canonNombre(n)===u);
 }
@@ -2594,8 +2651,10 @@ function mantenimiento(manual){
   pasa(MARCAS,k=>rad.has(k),RETENER.marcaColor,'marcas',(k,e)=>!!e.nota);
   pasa(EXP,k=>proc.has(k),RETENER.expediente,'exp',(k,e)=>!!e.n||!!e.ev);
   Object.keys(AJUSTES).forEach(k=>{ if(!rad.has(k) && edadDias(AJUSTES[k])>RETENER.ajuste){ delete AJUSTES[k]; r.aju++; } });
-  Object.keys(PLAZOS).forEach(k=>{ if(!rad.has(k)){ delete PLAZOS[k]; r.pla++; } });
-  guardaPlazos();
+  if(manual){
+    Object.keys(PLAZOS).forEach(k=>{ if(!rad.has(k)){ delete PLAZOS[k]; r.pla++; } });
+    guardaPlazos();
+  }
   [CAL].concat(Object.values(CAL.u||{})).forEach(b=>{ if(!b||!b.notas) return;
     Object.keys(b.notas).forEach(k=>{ if(edadDias(k)>RETENER.cal){ delete b.notas[k]; r.cal++; } }); });
   guardaEvac(); guardaMarcas(); lsSet(LS_EXP,EXP); guardaAjustes(); guardaCons(); guardaCal();

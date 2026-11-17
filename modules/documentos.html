@@ -24,12 +24,12 @@ window.addEventListener('error',r,true);setTimeout(r,10000);})();
       </div>
     </div>
     <div class="searchbar header-search" role="search">
-      <button class="filter-toggle" id="filterToggle" type="button" title="Abrir la búsqueda general">
+      <button class="filter-toggle" id="filterToggle" type="button" title="Abrir la búsqueda general" aria-label="Abrir la búsqueda general" aria-expanded="false" aria-controls="searchDropdown">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3Z"/></svg>Filtro general
       </button>
       <div class="search-field">
         <svg class="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" id="searchInput" placeholder="Buscar por Radicado, Cuenta, Proceso, Solicitante…" autocomplete="off">
+        <input type="text" id="searchInput" placeholder="Buscar por Radicado, Cuenta, Proceso, Solicitante…" autocomplete="off" aria-label="Buscar por radicado, cuenta, proceso o solicitante">
         <div class="search-dropdown" id="searchDropdown">
           <div class="search-dropdown-head"><span>Registros disponibles (<b id="recordCount">0</b>)</span><span class="hint">Usa ↑ ↓ y Enter para elegir</span></div>
           <div class="search-dropdown-list" id="recordList"></div>
