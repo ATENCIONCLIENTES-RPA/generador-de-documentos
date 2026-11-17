@@ -6,6 +6,7 @@ import './cuadro.base.css';
 import './cuadro.redesign.css';
 import '../shared/module-bridge';
 import { GuidedTour } from '../../components/guided-tour/guided-tour';
+import { SAL_ANALISTAS, HUELLAS_RUTAS } from './analistas.huellas';
 
 (function(){
   const SUN='<circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>';
@@ -190,6 +191,8 @@ function sanearMapa(o,fn){ const r={}; if(!_esObj(o)) return r;
   Object.keys(o).forEach(k=>{ try{ const v=fn(o[k],k); if(v!==undefined) r[k]=v; }catch(e){} }); return r; }
 const SANEA={
   ajustes:o=>sanearMapa(o,v=>_fecha(v)||undefined),
+  plazos:o=>sanearMapa(o,v=>{ const n=parseInt(_str(v),10);
+    return Number.isFinite(n)&&n>=1&&n<=60?n:undefined; }),
   marcas:o=>sanearMapa(o,v=>{ if(!_esObj(v)) return undefined; const r=Object.assign({},v);
     if('nota' in r){ r.nota=_str(r.nota); if(!r.nota) delete r.nota; }
     if('color' in r){ r.color=_color(r.color); if(!r.color) delete r.color; }
@@ -223,6 +226,14 @@ let AJUSTES={};
 try{ AJUSTES=JSON.parse(appDataGet(LS)||'{}'); }catch(e){ AJUSTES={}; }
 AJUSTES=SANEA.ajustes(AJUSTES);
 const guardaAjustes=()=>{ try{ appDataSet(LS,JSON.stringify(AJUSTES)); }catch(e){ reportaError('No se pudo guardar ('+LS+'): almacenamiento lleno',e); } };
+
+const LS_PLAZOS='essa_plazos';
+let PLAZOS={};
+try{ PLAZOS=JSON.parse(appDataGet(LS_PLAZOS)||'{}'); }catch(e){ PLAZOS={}; }
+PLAZOS=SANEA.plazos(PLAZOS);
+const guardaPlazos=()=>{ try{ appDataSet(LS_PLAZOS,JSON.stringify(PLAZOS)); }
+  catch(e){ reportaError('No se pudo guardar ('+LS_PLAZOS+'): almacenamiento lleno',e); } };
+const diasRad=d=>PLAZOS[d.llave||d.radicado]||CFG.diasHabiles;
 
 let CRUDO={sac:[],mer:[]}, DATOS=[], INDICE={}, nRelleno=0, nCancel=0, nRuta=0;
 
@@ -278,6 +289,52 @@ function puntaje(v,c){
     if(!ok) return 0;
   }
   return full>=2 ? full : 0;
+}
+function sha256hex(str){
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const b=new TextEncoder().encode(str), l=b.length, n=((l+9+63)>>6)<<6, m=new Uint8Array(n);
+  m.set(b); m[l]=0x80; const dv=new DataView(m.buffer); dv.setUint32(n-4,l*8);
+  let H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const W=new Uint32Array(64), r=(x,y)=>(x>>>y)|(x<<(32-y));
+  for(let o=0;o<n;o+=64){
+    for(let i=0;i<16;i++) W[i]=dv.getUint32(o+i*4);
+    for(let i=16;i<64;i++){ const s0=r(W[i-15],7)^r(W[i-15],18)^(W[i-15]>>>3), s1=r(W[i-2],17)^r(W[i-2],19)^(W[i-2]>>>10); W[i]=(W[i-16]+s0+W[i-7]+s1)|0; }
+    let a=H[0],bb=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+    for(let i=0;i<64;i++){ const t1=(h+(r(e,6)^r(e,11)^r(e,25))+((e&f)^(~e&g))+K[i]+W[i])|0, t2=((r(a,2)^r(a,13)^r(a,22))+((a&bb)^(a&c)^(bb&c)))|0;
+      h=g; g=f; f=e; e=(d+t1)|0; d=c; c=bb; bb=a; a=(t1+t2)|0; }
+    H=[(H[0]+a)|0,(H[1]+bb)|0,(H[2]+c)|0,(H[3]+d)|0,(H[4]+e)|0,(H[5]+f)|0,(H[6]+g)|0,(H[7]+h)|0];
+  }
+  return H.map(v=>(v>>>0).toString(16).padStart(8,'0')).join('');
+}
+const canonHuella=n=>String(n==null?'':n).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()
+  .replace(/[^A-Z ]/g,' ').split(/\s+/).filter(Boolean).sort().join(' ');
+const huellaNombre=n=>sha256hex(SAL_ANALISTAS+'|'+canonHuella(n)).slice(0,24);
+const RUTA_POR_HUELLA=new Map();
+Object.keys(HUELLAS_RUTAS||{}).forEach(k=>(HUELLAS_RUTAS[k]||[]).forEach(h=>RUTA_POR_HUELLA.set(h,k)));
+const HAY_ANALISTAS=RUTA_POR_HUELLA.size>0;
+const CACHE_HUELLA=new Map();
+function esAnalista(raw){ const r=txt(raw); if(!r) return '';
+  if(!CACHE_HUELLA.has(r)) CACHE_HUELLA.set(r,RUTA_POR_HUELLA.get(huellaNombre(r))||'');
+  return CACHE_HUELLA.get(r); }
+function respAnalista(d){
+  if(!d) return '';
+  if(esAnalista(d.respSac)) return d.respSac;
+  if(esAnalista(d.gestor)) return d.gestor;
+  return '';
+}
+function rutasDesdeInformes(out){
+  if(!HAY_ANALISTAS) return false;
+  const det={}, vistos=new Set();
+  Object.keys(HUELLAS_RUTAS).forEach(k=>det[k]=[]);
+  const toma=nm=>{ const r=txt(nm); if(!r) return; const k=esAnalista(r); if(!k) return;
+    const h=huellaNombre(r); if(vistos.has(h)) return; vistos.add(h); det[k].push(r); };
+  out.forEach(d=>toma(d.respSac));
+  out.forEach(d=>toma(d.gestor));
+  let cambio=false;
+  Object.keys(det).forEach(k=>{ const L=det[k].sort((a,b)=>a.localeCompare(b,'es'));
+    if(L.length && JSON.stringify(L)!==JSON.stringify(RUTAS[k]||[])){ RUTAS[k]=L; cambio=true; } });
+  if(cambio){ lsSet(LS_RUTAS,RUTAS); reconstruirEquipo(); ROL=RUTAS[RUTA]||[]; }
+  return cambio;
 }
 const CACHE_EQ={}, ALIAS={};
 function equipoDe(raw){
@@ -552,6 +609,7 @@ function unificar(){
     });
   });
 
+  try{ rutasDesdeInformes(out); }catch(e){ reportaError('Analistas PQRS',e); }
   INDICE={};
   out.forEach(d=>{
     d.respEq = equipoDe(d.respSac) || equipoDe(d.gestor);
@@ -560,6 +618,8 @@ function unificar(){
     d.esCorreo = esCorreo(d.medio);
     d.ajuste = (d.esCorreo && AJUSTES[d.llave||d.radicado]) ? parseFecha(AJUSTES[d.llave||d.radicado]) : null;
     d.fEfe = d.ajuste || d.fSol;
+    d.plazo = diasRad(d);
+    d.fVto = d.fEfe ? venceEn(d.fEfe,d.plazo) : (d.fVto||null);
     const fh = d.fEfe ? aDiaHabil(d.fEfe) : null;
     d.dia = fh ? (MAPA_DIA[clave(fh)] ?? null) : null;
     d.enVentana = d.dia !== null && d.dia <= CFG.diasHabiles;
@@ -821,6 +881,7 @@ const M2P={
   undo:'<path d="M9 14 4.5 9.5 9 5"/><path d="M4.5 9.5H15a5 5 0 0 1 0 10h-3"/>',
   back:'<path d="M19 12H5"/><path d="m11 6-6 6 6 6"/>',
   check:'<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  x:'<path d="M6 6l12 12M18 6 6 18"/>',
   user:'<circle cx="12" cy="8" r="4"/><path d="M4.5 20c.6-3.6 3.6-5.5 7.5-5.5s6.9 1.9 7.5 5.5"/>',
   receipt:'<path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z"/><path d="M9 8.5h6M9 12h6"/>',
   calendar:'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/>',
@@ -948,6 +1009,9 @@ function render(){
   pintaVencidas(V);
 
   const cont={}, contV={};
+  // Inicializa todos los días: sin esto, un día sin registros queda `undefined`
+  // y la gráfica calcula NaN al proyectar sus puntos.
+  ESCALERA.forEach(s=>{ cont[s.dia]=0; contV[s.dia]=0; });
   for(let i=0;i<f.length;i++){ const d=f[i].dia; cont[d]=(cont[d]||0)+1; }
   for(let i=0;i<V.length;i++){ const d=V[i].dia; contV[d]=(contV[d]||0)+1; }
   const vals=ESCALERA.map(s=>cont[s.dia]), mx=Math.max(...vals,0);
@@ -1015,6 +1079,7 @@ function render(){
 
   const fc0=$('fColor').value, fn0=conNotas();
   const cumple=x=>(!fn0||!!marcaDe(x).nota)&&(!fc0||(fc0==='__sin'?!marcaDe(x).color:marcaDe(x).color===fc0));
+  /* el proceso 3904 ya sale de filtrar()/vencidas(): f y V llegan listos a este bloque */
   const diasFiltro=new Set((fc0||fn0)?f.concat(V).filter(cumple).map(x=>x.dia):[]);
   const clsF=d=>diasFiltro.has(d)?' diaFiltro':'';
   const tonoDia=f=>{ const v=fechaVence(f); if(!v) return ' tSin'; const dd=difDias(v,HOY);
@@ -1049,23 +1114,26 @@ function render(){
   } finally { _renderCtx=prevCtx; }
 }
 
-function selDia(d){ DIA_PREV=null; if(conNotas()){ $('fNotas').value=''; pintaFiltro(); } DIA_SEL=d; RAD_SEL=null; $('detalle').classList.remove('on'); render(); }
+function selDia(d){ DIA_PREV=null; if(conNotas()){ $('fNotas').value=''; pintaFiltro(); } DIA_SEL=d; RAD_SEL=null; cerrarDetalle(); render(); }
 
 function filtroActivo(){ const q=sinTilde($('q').value); return !!$('fTram').value || (!!q && q!=='general'); }
 const conNotas=()=>$('fNotas').value==='notas';
 let DIA_PREV=null;
 function modoMulti(){ return DIA_SEL===null && (filtroActivo() || conNotas()); }
 let ORDEN_RAD='asc';
+let PLAZO_FOCO=null;
 function cmpRad(a,b){ const x=soloNum(a), y=soloNum(b);
   if(!x||!y) return (x?0:1)-(y?0:1)||String(a).localeCompare(String(b));
   return x.length-y.length || (x<y?-1:x>y?1:0); }
 function pintaRadicados(){
   ocultaDupTip();
   const multi=modoMulti();
+  const conPlazo=esUsuarioPlazoEspecial();
   if(DIA_SEL===null && !multi){
     $('radTit').textContent='Radicados del día'; $('radSub').textContent='Selecciona un día en la tabla o en la gráfica.'; $('radSub').style.display='';
-    $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th>Radicado</th><th>Número de proceso</th><th style="width:290px"></th></tr>';
-    $('tRad').querySelector('tbody').innerHTML='<tr><td colspan="4" class="vacio">Sin día seleccionado.</td></tr>'; return; }
+    $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th>Radicado</th><th class="thDup" style="width:104px">Duplicados</th><th>Detalles</th>'+
+      (conPlazo?'<th class="thVto">Vencimiento</th>':'')+'<th style="width:290px"></th></tr>';
+    $('tRad').querySelector('tbody').innerHTML='<tr><td colspan="'+(5+(conPlazo?1:0))+'" class="vacio">Sin día seleccionado.</td></tr>'; return; }
   const s=multi?null:ESCALERA_EXT.find(x=>x.dia===DIA_SEL);
   const esVenc=!multi && DIA_SEL>CFG.diasHabiles;
   const fc=$('fColor').value;
@@ -1087,14 +1155,15 @@ function pintaRadicados(){
   regs.sort((a,b)=>cmpRad(a.radicado,b.radicado)*(ORDEN_RAD==='desc'?-1:1));
   $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th class="thOrden" id="thRadOrden" title="Ordenar por radicado">Radicado <span class="flechaOrd">'+
     (ORDEN_RAD==='desc'?'▼':'▲')+'</span></th>'+(multi?'<th>Día</th>':'')+
-    '<th>Número de proceso</th><th style="width:260px"></th></tr>';
+    '<th class="thDup" style="width:104px">Duplicados</th>'+
+    '<th style="width:110px">Detalles</th>'+
+    (conPlazo?'<th class="thVto">Vencimiento</th>':'')+
+    '<th style="width:260px"></th></tr>';
   const thO=document.getElementById('thRadOrden');
   if(thO) thO.onclick=()=>{ ORDEN_RAD=ORDEN_RAD==='desc'?'asc':'desc'; pintaRadicados(); };
-  const nCols=multi?5:4;
+  const nCols=5+(multi?1:0)+(conPlazo?1:0);
 
   $('tRad').querySelector('tbody').innerHTML = regs.length ? regs.map((x,i)=>{
-    const proc = x.nProc===0 ? '<span class="sp">Sin proceso creado en SAC</span>'
-                             : esc(x.procesos.map(p=>p.numero).join(', '));
     const mk=marcaDe(x), col=mk.color||'', nota=mk.nota||'';
     const dup=detectaDuplicados(x);
     const dupBtn=!dup.length?'':(()=>{
@@ -1109,11 +1178,17 @@ function pintaRadicados(){
       (col?' style="--mk:'+col+';--mkbg:'+rgba(col,.13)+';--mkbg2:'+rgba(col,.22)+'"':'')+'>'+
       '<td><span class="dot'+(col?'':' vacio')+'" data-act="col" data-i="'+i+'"'+
         (col?' style="background:'+col+';border-color:'+col+'"':'')+' title="Marcar con color"></span></td>'+
-      '<td class="clicRad" data-i="'+i+'">'+radTxtHtml(x)+dupBtn+
+      '<td class="clicRad" data-i="'+i+'">'+radTxtHtml(x)+
         (x.ajuste?' <span class="badge b-a sinDot" title="Fecha ajustada">'+m2i('calendar')+'</span>':'')+
         (nota?'<div class="notaPrev">'+esc(nota)+'</div>':'')+'</td>'+
       (multi?'<td class="clicRad'+(x.dia>CFG.diasHabiles?' vtoPas':'')+'" data-i="'+i+'">Día '+(x.dia??'—')+'</td>':'')+
-      '<td class="clicRad" data-i="'+i+'">'+proc+'</td>'+
+      '<td class="dupCell">'+(dupBtn||'<span class="sp" title="Sin duplicados en Mercurio">—</span>')+'</td>'+
+      '<td class="detCell"><button type="button" class="btnFila btnVer" data-act="ver" data-i="'+i+'"'+
+        ' aria-label="Ver detalle del radicado '+esc(x.radicado)+'">Ver</button></td>'+
+      (conPlazo?'<td class="vtoCell">'+(x.fVto?dFmt(x.fVto):'—')+
+        '<input type="number" class="inpPlazo" data-plazo="'+i+'" value="'+(x.plazo??CFG.diasHabiles)+'"'+
+        ' min="1" max="60" step="1" title="Días hábiles de respuesta para este radicado"'+
+        ' aria-label="Días hábiles de respuesta para el radicado '+esc(x.radicado)+'">'+'</td>':'')+
       '<td class="acc">'+
         '<button class="btnFila btnGen" data-act="gen" data-i="'+i+'"'+
           (tieneProcesoSAC(x)?' title="Generar la respuesta de este radicado (Módulo 3)"'
@@ -1132,7 +1207,14 @@ function pintaRadicados(){
     if(enControl(e.target)) return;
     tb.querySelectorAll('tr').forEach(t=>t.classList.remove('sel'));
     tr.classList.add('sel');
-    verDetalle(regs[+tr.dataset.i]);
+    RAD_SEL=regs[+tr.dataset.i].radicado;
+  });
+  tb.querySelectorAll('[data-act="ver"]').forEach(el=>el.onclick=e=>{
+    e.stopPropagation();
+    const tr=el.closest('tr');
+    tb.querySelectorAll('tr').forEach(t=>t.classList.remove('sel'));
+    if(tr) tr.classList.add('sel');
+    verDetalle(regs[+el.dataset.i], el);
   });
   tb.querySelectorAll('[data-act="gen"]:not([aria-disabled="true"])').forEach(el=>el.onclick=e=>{
     e.stopPropagation();
@@ -1152,6 +1234,26 @@ function pintaRadicados(){
     el.closest('tr').classList.add('sel');
     abreDupRapido(regs[+el.dataset.i]);
   });
+  tb.querySelectorAll('.inpPlazo').forEach(inp=>{
+    const commit=()=>{
+      const d=regs[+inp.dataset.plazo]; if(!d) return;
+      const n=parseInt(inp.value,10);
+      if(!Number.isFinite(n)||n<1||n>60){ inp.value=String(d.plazo); return; }
+      const k=claveR(d);
+      if(n===CFG.diasHabiles) delete PLAZOS[k]; else PLAZOS[k]=n;
+      guardaPlazos(); unificar(); render();
+      if($('detModal').classList.contains('on') && RAD_SEL===d.radicado){
+        const nd=DATOS.find(x=>(x.llave||x.radicado)===k); if(nd) verDetalle(nd);
+      }
+    };
+    inp.onchange=commit;
+    inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); PLAZO_FOCO=inp.dataset.plazo; inp.blur(); } };
+  });
+  if(PLAZO_FOCO!==null){
+    const k=PLAZO_FOCO; PLAZO_FOCO=null;
+    const el=tb.querySelector('.inpPlazo[data-plazo="'+k+'"]');
+    if(el){ el.focus(); el.select(); }
+  }
   tb.querySelectorAll('.chkEvLbl').forEach(c=>c.onclick=e=>e.stopPropagation());
   tb.querySelectorAll('[data-evr]').forEach(ch=>ch.onchange=()=>{
     pedirEvacuar([regs[+ch.dataset.evr]],'el radicado',()=>{ ch.checked=false; }); });
@@ -1239,12 +1341,18 @@ function pintaFiltro(){
 const NOMBRE_COLOR={'#d93025':'Rojo','#f29d38':'Naranja','#f7c600':'Amarillo',
   '#2e9e5b':'Verde','#1565d8':'Azul','#7b61d8':'Morado','#61708a':'Gris'};
 
-function verDetalle(d){
+let DET_OPENER=null;
+function cerrarDetalle(){
+  const modal=$('detModal'), card=$('detalle');
+  if(modal) modal.classList.remove('on');
+  if(card) card.classList.remove('on');
+  if(DET_OPENER&&document.contains(DET_OPENER)) DET_OPENER.focus({preventScroll:true});
+  DET_OPENER=null;
+}
+function verDetalle(d, opener){
+  const yaAbierto=$('detModal').classList.contains('on');
   RAD_SEL=d.radicado;
   const bc={'Vencido':'b-r','Crítico':'b-n','Próximo':'b-a','En plazo':'b-v','Sin fecha':'b-g'};
-  const conRev=d.procesos.filter(p=>p.respRevision||p.numRevision);
-  const revTxt = d.nProc===0 ? 'No aplica (sin proceso en SAC)'
-    : conRev.length ? ('Sí · '+conRev.length+' de '+d.nProc+' proceso(s)') : 'No tiene revisión asignada';
 
   const k=d.llave||d.radicado;
 
@@ -1270,15 +1378,10 @@ function verDetalle(d){
     fila('D\u00eda','D\u00eda '+(d.dia??'\u2014'),'t1')+
     fila('F. radicaci\u00f3n',dFmt(d.fSol)+(d.ajuste?' <span class="badge b-a">\u2192 '+dFmt(d.ajuste)+'</span>':''))+
     fila('F. vencimiento',dFmt(d.fVto)+' <span class="badge '+bc[d.estadoV]+'">'+d.estadoV+'</span>','t1')+
-    fila('Vence (15 d\u00edas h\u00e1b.)',celdaVence(d.fEfe),'t1')+
     fila('N\u00famero de cuenta',(d.cuenta?esc(d.cuenta):'\u2014')+
       (d.nCuentas>1?' <span class="badge b-b">'+d.nCuentas+' cuentas</span>':''))+
-    fila('Procesos en SAC',d.nProc?nfmt(d.nProc):'<span class="sp">Sin proceso creado en SAC</span>','t3')+
-    fila('\u00bfRevisi\u00f3n asignada?',esc(revTxt),'t3')+
     fila('Responsable',esc(d.responsable))+
     fila('Solicitante',esc(d.solicitante||'\u2014'))+
-    fila('Origen',esc(d.fuente),'t3')+
-    fila('Tr\u00e1mite',esc(d.tramites.join(' \u00b7 ')),'f-wide')+
     '</div>';
 
   const conObs=d.procesos.filter(p=>p.obsRevision);
@@ -1292,11 +1395,14 @@ function verDetalle(d){
 
   const tablaProc = d.nProc
     ? '<div class="procWrap"><table class="tablaProc"><thead><tr><th>Proceso</th><th>Tr\u00e1mite</th>'+
-      '<th>Cuenta</th><th>\u00daltima acci\u00f3n</th><th>Resp. revisi\u00f3n</th><th>Estado</th></tr></thead><tbody>'+
+      '<th>Cuenta</th><th>Resp. revisi\u00f3n</th><th>Acciones</th></tr></thead><tbody>'+
       d.procesos.map(p=>'<tr><td class="rad">'+esc(p.numero)+'</td><td>'+esc(p.tramite)+'</td>'+
-        '<td>'+esc(p.cuenta||'\u2014')+'</td><td>'+esc(p.ultimaAccion||'\u2014')+'</td>'+
+        '<td>'+esc(p.cuenta||'\u2014')+'</td>'+
         '<td>'+(p.respRevision?'<b>'+esc(p.respRevision)+'</b>':'<span class="sp">Sin asignar</span>')+'</td>'+
-        '<td>'+esc(p.estadoRevision||'\u2014')+'</td></tr>').join('')+'</tbody></table></div>'
+        '<td class="procAcc">'+
+          '<button type="button" class="procBtn procBtnOk" title="No Cancelar proceso" aria-label="No Cancelar proceso">'+m2i('check')+'<span>No cancelar</span></button>'+
+          '<button type="button" class="procBtn procBtnNo" title="Cancelar proceso" aria-label="Cancelar proceso">'+m2i('x')+'<span>Cancelar</span></button>'+
+        '</td></tr>').join('')+'</tbody></table></div>'
     : '<div class="ficha"><div class="f"><span class="sp">Sin proceso creado en SAC.</span></div></div>';
 
   html+='<div class="detCols">'+
@@ -1307,10 +1413,12 @@ function verDetalle(d){
       (conObs.length?'<span class="hCnt">'+conObs.length+'</span>':'')+'</h4>'+obs+'</div>'+
     '</div>';
 
+  if(!yaAbierto) DET_OPENER=opener||document.activeElement;
   $('detTit').innerHTML='Detalle del radicado '+radLinkHtml(d);
   $('detSub').textContent=d.tramites.join(' · ');
   $('detBody').innerHTML=html;
   $('detalle').classList.add('on');
+  $('detModal').classList.add('on');
   enlazaRadicado($('detalle'),d);
   const bCta=document.getElementById('btnCta'); if(bCta) bCta.onclick=()=>abrirCuenta(d);
 
@@ -1326,7 +1434,15 @@ function verDetalle(d){
       const nd=DATOS.find(x=>(x.llave||x.radicado)===k); if(nd){ if(nd.dia) DIA_SEL=nd.dia; render(); verDetalle(nd); }
     };
   }
+  const close=document.getElementById('detCerrar');
+  if(close) close.focus({preventScroll:true});
 }
+
+$('detCerrar').onclick=cerrarDetalle;
+$('detModal').onclick=e=>{ if(e.target===$('detModal')) cerrarDetalle(); };
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&$('detModal').classList.contains('on')) cerrarDetalle();
+});
 
 let DET=[];
 function abrir(titulo,sub,regs){
@@ -1563,7 +1679,7 @@ function pedirEvacuar(regs,que,alCancelar){
     const hoy=clave(HOY);
     regs.forEach(r=>{ EVAC[claveR(r)]={f:hoy,r:r.radicado,u:r.responsable}; });
     guardaEvac(); histEvacuar(regs);
-    if(regs.some(r=>r.radicado===RAD_SEL)) $('detalle').classList.remove('on');
+    if(regs.some(r=>r.radicado===RAD_SEL)) cerrarDetalle();
     refrescaEvac();
   };
   abreConf('no');
@@ -1633,7 +1749,6 @@ function ordenable(tabla,mem){
 
 const RUTAS_NOM={pq:'Peticiones',es:'Ruta especializada',cd:'Cambio de datos básicos',rc:'Reclamos',rs:'Recursos',sp:'SSPD',so:'Somos'};
 const SUB_PQ=['pq','es','cd'];
-const PLAZO_ES=10;
 const RUTAS_DEF={pq:[],rc:[],rs:[],sp:[],so:[],es:[],cd:[]};
 const LS_RUTAS='essa_rutas';
 let RUTA='pq';
@@ -1787,11 +1902,10 @@ function relacionarDup(d,o,kd,ko){
     if(cerca && kd.sol && kd.sol===ko.sol) F.add('Mismo solicitante y cuenta'); });
   return {F,W};
 }
-const usuariosRutas=()=>{ const s=new Set(Object.values(RUTAS).flat()); if(s.size===0&&NOMBRE_FIRMANTE) s.add(NOMBRE_FIRMANTE); return s; };
 let DUP_IDX=null;
 function indiceDup(){
   if(DUP_IDX) return DUP_IDX;
-  const U=usuariosRutas(), R=ALLRAD.filter(d=>!d.relleno && d.respEq && U.has(d.respEq));
+  const R=ALLRAD.filter(d=>!d.relleno && (HAY_ANALISTAS?!!respAnalista(d):!!d.respEq));
   const ix=new Map(), keys=new Map(), put=(z,d)=>{ if(!ix.has(z)) ix.set(z,[]); ix.get(z).push(d); };
   R.forEach(d=>{ const k=clavesDup(d); keys.set(d,k);
     k.ids.forEach(v=>put('i:'+v,d)); k.pars.forEach(v=>put('p:'+v,d)); k.ctas.forEach(v=>put('c:'+v,d)); });
@@ -1851,7 +1965,9 @@ function pintaBusq(u){
 function filaDup(d,extra){
   return '<td class="rad">'+esc(d.radicado)+'</td><td>'+dFmt(d.fSol)+'</td><td>'+esc((d.cuentas||[]).join(', ')||'—')+'</td>'+
     '<td>'+(d.nProc?d.procesos.map(p=>'<span class="procHL">'+esc(p.numero)+'</span>').join(' '):'<span class="sp">Sin proceso</span>')+'</td>'+
-    '<td>'+esc(d.respEq||'—')+extra+'</td><td><div class="cont">'+esc(d.contenido||'—')+'</div></td>';
+    '<td>'+esc(respAnalista(d)||d.respEq||d.respSac||d.gestor||'—')+extra+
+      (d.gestor&&canonHuella(d.gestor)!==canonHuella(respAnalista(d)||d.respEq||d.respSac)?'<div class="sp">Gestor Mercurio: '+esc(d.gestor)+'</div>':'')+
+      '</td><td><div class="cont">'+esc(d.contenido||'—')+'</div></td>';
 }
 function grupoDup(x,u){
   const dup=x.rel.some(r=>r.F.size);
@@ -2030,25 +2146,31 @@ function habilesEntre(a,b){ let n=0,s=a<=b?1:-1,x=new Date(a); while(clave(x)!==
 function pintaVen(u){
   const th=$('tRec').querySelector('thead'), tb=$('tRec').querySelector('tbody');
   const L=DATOS.filter(d=>d.respEq===u && d.dia!==null && !evacuado(d))
-    .map(d=>{ const v=venceEn(d.fEfe,PLAZO_ES); return {d,v,r:v?habilesEntre(HOY,v):null}; })
+    .map(d=>{ const n=diasRad(d), v=venceEn(d.fEfe,n); return {d,v,r:v?habilesEntre(HOY,v):null}; })
     .sort((a,b)=>(a.r??99)-(b.r??99));
   const nv=L.filter(x=>x.r!==null&&x.r<0).length, nh=L.filter(x=>x.r===0).length;
-  th.innerHTML='<tr><th>Radicado</th><th>Cuenta</th><th>Proceso(s)</th><th>F. recibo</th><th>Día</th><th>Vence (10 días háb.)</th><th>Días háb. restantes</th><th>Estado</th></tr>';
+  th.innerHTML='<tr><th>Radicado</th><th>Cuenta</th><th>Proceso(s)</th><th>F. recibo</th><th>Día</th><th>Vence</th><th>Días háb. restantes</th><th>Estado</th></tr>';
   tb.innerHTML=L.length?L.map(x=>{ const est=x.r<0?'<span class="badge b-r">Vencido</span>':x.r===0?'<span class="badge b-n">Vence hoy</span>':x.r<=2?'<span class="badge b-a">Próximo</span>':'<span class="badge b-v">En plazo</span>';
     return '<tr><td class="rad">'+esc(x.d.radicado)+'</td><td>'+esc(x.d.cuenta||'—')+'</td>'+
       '<td>'+(x.d.nProc?x.d.procesos.map(p=>'<span class="procHL">'+esc(p.numero)+'</span>').join(' '):'<span class="sp">Sin proceso</span>')+'</td>'+
       '<td>'+dFmt(x.d.fEfe)+'</td><td>Día '+x.d.dia+'</td><td><b>'+dFmt(x.v)+'</b></td><td class="num">'+(x.r??'—')+'</td><td>'+est+'</td></tr>'; }).join('')
     :'<tr><td colspan="8" class="vacio">Sin radicados para este usuario.</td></tr>';
-  $('recInfo').innerHTML='Plazo de respuesta de la ruta especializada: <b>'+PLAZO_ES+' días hábiles</b> · '+L.length+' radicado(s) · '+
-    '<span class="estSin">'+nv+' vencido(s)</span> · <span class="estAlg">'+nh+' vence(n) hoy</span>';
+  $('recInfo').innerHTML='Plazo de respuesta: <b>'+CFG.diasHabiles+' días hábiles</b> por defecto'+
+    ' · '+L.length+' radicado(s) · <span class="estSin">'+nv+' vencido(s)</span> · '+
+    '<span class="estAlg">'+nh+' vence(n) hoy</span>';
   ordenable($('tRec'));
 }
 
 function usuarioActivo(){ return equipoDe(USUARIO_FIJO||valorResp()||NOMBRE_FIRMANTE||'')||''; }
+function esUsuarioPlazoEspecial(){
+  if(NOMBRE_FIRMANTE===FIRMANTE_HABILITA_RESPONSABLE) return true;
+  const u=canonNombre(usuarioActivo()); if(!u) return false;
+  return [].concat(RUTAS.es||[],RUTAS.so||[]).some(n=>canonNombre(n)===u);
+}
 function rutasVisibles(){
   const claves=Object.keys(RUTAS);
   const u=canonNombre(usuarioActivo());
-  if(NOMBRE_FIRMANTE===FIRMANTE_HABILITA_RESPONSABLE || !!u) return claves;
+  if(NOMBRE_FIRMANTE===FIRMANTE_HABILITA_RESPONSABLE) return claves;
   const mias=u?claves.filter(k=>(RUTAS[k]||[]).some(n=>canonNombre(n)===u)):[];
   return mias.length?mias:claves;
 }
@@ -2243,69 +2365,139 @@ function abrirHoy(){
 $('hoyX').onclick=()=>$('mHoy').classList.remove('on');
 $('mHoy').onclick=e=>{ if(e.target===$('mHoy')) $('mHoy').classList.remove('on'); };
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('mRec').classList.remove('on'); $('mHoy').classList.remove('on'); } });
-let REV_AUTO=true;
+/* ================= SEGUIMIENTO DE REVISIONES (día 13 a 15) ================= */
+/* Un proceso requiere seguimiento cuando: está en día 13-15 (misma lógica de d.dia que
+   el resto del módulo), tiene USUARIO_RESPONSABLE_REVISION asignado y no tiene
+   OBSERVACION_REVISION (txt() ya normaliza null/undefined/''/espacios a '').
+   Además pertenece al usuario ACTIVO (Módulo 1): es el DUEÑO del radicado
+   (creador del proceso, NOMBRE_USUARIO_INICIAL_PROCESO o gestor de Mercurio), resuelto con
+   el mismo resolutor difuso del módulo. Sin usuario identificado la vista queda libre.
+   p.respRevision se conserva como el «Responsable» que se MUESTRA (no es el filtro).
+   Las notas del radicado se muestran cuando existen, pero no son requisito.
+   Los evacuados (gestionados) quedan fuera. */
+let REV_AUTO=true;   /* se desactiva al cerrar manualmente: no vuelve a autoabrirse en la sesión */
+/* Emite el conteo al shell (encabezado global): el botón «Revisiones» vive en index.html. */
 function notificaPadreRev(n){
-  try{ if(window.parent&&window.parent!==window) window.parent.dispatchEvent(new CustomEvent('ad-rev-count',{detail:{n:n}})); }catch(e){ }
+  try{ if(window.parent&&window.parent!==window) window.parent.dispatchEvent(new CustomEvent('ad-rev-count',{detail:{n:n}})); }catch(e){ /* sin shell */ }
+}
+/* Pertenencia al usuario ACTIVO (Módulo 1): mismo resolutor difuso que el resto del módulo.
+   Sin usuario identificado la vista queda libre, igual que antes. */
+function delUsuarioActivo(d){
+  const u=canonNombre(usuarioActivo());
+  return !u || usuariosRegistro(d).some(n=>canonResuelto(n)===u);
 }
 function procsRevision(){
   if(_renderCtx && _renderCtx.rev) return _renderCtx.rev;
-  const u=canonNombre(usuarioActivo()), libre=!u;
   const out=[];
   DATOS.forEach(d=>{
     if(evacuado(d)) return;
     if(!(d.dia>=13 && d.dia<=15)) return;
-    if(!libre && !usuariosRegistro(d).some(n=>canonResuelto(n)===u)) return;
+    if(!delUsuarioActivo(d)) return;
     d.procesos.forEach(p=>{ if(p.respRevision && !p.obsRevision) out.push({d,p}); });
   });
   if(_renderCtx) _renderCtx.rev=out;
   return out;
 }
+/* Valor de un campo del proceso: nunca undefined/null → «—». */
 const revCampo=v=>{ const t=txt(v); return t?esc(t):'<span class="sp">—</span>'; };
+/* ---------- alertas ----------
+   Una alerta se da por atendida con «Evacuar alerta» (ALERTA_EV) sin borrar el radicado
+   ni su nota. Los códigos de estado se conservan; solo se traducen al mostrarlos. */
 const esAlertaEv=(k,nota)=>{ const e=ALERTA_EV[k]; return !!e && (nota==null || e.t===nota); };
 const alertasRevision=()=>procsRevision().filter(x=>!esAlertaEv('r:'+x.p.numero));
+/* Notas de «Radicados del día»: misma regla de días que las revisiones (13 a 15) y
+   calculadas directamente sobre DATOS. No usan filtrar()/vencidas(), así que los filtros
+   de «PQRS por día de vencimiento», «Radicados del día», trámite, búsqueda o responsable
+   no hacen desaparecer las alertas. */
 function alertasNota(){
-  const out=[], vistos=new Set();
-  filtrar().concat(vencidas()).forEach(d=>{
-    const k=claveR(d); if(vistos.has(k)) return; vistos.add(k);
-    const nota=marcaDe(d).nota||''; if(!nota||esAlertaEv('n:'+k,nota)) return;
+  const out=[];
+  DATOS.forEach(d=>{
+    if(evacuado(d)) return;
+    if(!(d.dia>=13 && d.dia<=15)) return;
+    if(excluidoBloqueDias(d)) return;
+    if(!delUsuarioActivo(d)) return;
+    const k=claveR(d), nota=marcaDe(d).nota||'';
+    if(!nota || esAlertaEv('n:'+k,nota)) return;
     out.push(d);
   });
   return out.sort((a,b)=>(b.dia??0)-(a.dia??0)||cmpRad(a.radicado,b.radicado));
 }
+/* ---------- filtro por responsable de revisión y exportación ---------- */
+let REV_RESP='';   /* código mostrado en USUARIO_RESPONSABLE_REVISION (MBUELVAS, ELEALP…) */
+const revRespDe=d=>[...new Set(d.procesos.map(p=>p.respRevision).filter(Boolean))];
+function revRespuestas(rev,notas){
+  const c=new Map();
+  rev.forEach(x=>{ const r=x.p.respRevision; if(r) c.set(r,(c.get(r)||0)+1); });
+  notas.forEach(d=>revRespDe(d).forEach(r=>c.set(r,(c.get(r)||0)+1)));
+  return [...c.entries()].sort((a,b)=>a[0].localeCompare(b[0],'es'));
+}
+const revAlertas=(rev,notas)=>!REV_RESP?[rev,notas]
+  :[rev.filter(x=>x.p.respRevision===REV_RESP), notas.filter(d=>revRespDe(d).includes(REV_RESP))];
+/* Orden único de las alertas (lista visible y Excel): radicado ascendente con cmpRad,
+   sin mezclar tipos. A igual radicado va primero la revisión (por número de proceso)
+   y después la nota. */
+function alertasOrdenadas(rev,notas){
+  const out:any[]=[];
+  rev.forEach(x=>out.push({rad:x.d.radicado,pri:0,num:x.p.numero,rev:x}));
+  notas.forEach(d=>out.push({rad:d.radicado,pri:1,num:'',nota:d}));
+  return out.sort((a,b)=>cmpRad(a.rad,b.rad)||a.pri-b.pri
+    ||(a.pri===0?cmpRad(a.num,b.num):0));
+}
+/* Reconstruye el selector solo si cambió la lista o los conteos, para no cerrar el
+   desplegable mientras el usuario lo está usando en un repintado de fondo. */
+function pintaRevBarra(rev,notas){
+  const sel=$('revResp'); if(!sel) return;
+  const entradas=revRespuestas(rev,notas);
+  if(REV_RESP && !entradas.some(([r])=>r===REV_RESP)) REV_RESP='';
+  const firma=entradas.map(([r,n])=>r+'|'+n).join('\u0001');
+  if(sel.dataset.firma!==firma){
+    sel.innerHTML='<option value="">— Todos —</option>'+
+      entradas.map(([r,n])=>'<option value="'+esc(r)+'">'+esc(r)+' · '+n+'</option>').join('');
+    sel.dataset.firma=firma;
+  }
+  sel.value=REV_RESP;
+}
 const ESTADO_REV_NOM={P:'Pendiente',F:'Finalizado',T:'Trámite',A:'Activo'};
 const estadoRevNom=v=>{ const t=txt(v); return ESTADO_REV_NOM[t.toUpperCase()]||t; };
-function pintaRevLista(){
-  const rev=alertasRevision(), notas=alertasNota(), filas=[];
-  rev.forEach(x=>{
-    const nota=marcaDe(x.d).nota||'';
-    filas.push('<div class="revItem" data-alerta="r:'+esc(x.p.numero)+'">'+
-      '<div class="revTope"><span class="revEst">PENDIENTE DE REVISIÓN</span>'+
-        '<span class="revRad">Radicado <b>'+revCampo(x.d.radicado)+'</b></span>'+
-        '<span>Proceso <b>'+revCampo(x.p.numero)+'</b></span>'+
-        '<span class="revDia">Día '+revCampo(x.d.dia)+'</span></div>'+
-      '<div class="revGrid">'+
-        '<div class="revF"><span class="revL">Cuenta</span><span class="revV">'+revCampo(x.d.cuenta)+'</span></div>'+
-        '<div class="revF"><span class="revL">Tipo de proceso</span><span class="revV">'+revCampo(x.p.tramite)+'</span></div>'+
-        '<div class="revF"><span class="revL">Responsable</span><span class="revV">'+revCampo(x.p.respRevision)+'</span></div>'+
-        '<div class="revF"><span class="revL">Estado</span><span class="revV">'+revCampo(estadoRevNom(x.p.estadoRevision))+'</span></div>'+
-      '</div>'+
-      '<div class="revF revObs"><span class="revL">OBSERVACION_PROCESO</span><span class="revV">'+revCampo(x.p.obsProc)+'</span></div>'+
-      (nota?'<div class="revNotas"><span class="revL">Nota del radicado</span><span class="revV">'+esc(nota)+'</span></div>':'')+
-      '<div class="revAcc"><button class="btnFila btnEvacAlerta" type="button" data-alev="r:'+esc(x.p.numero)+'">'+m2i('undo')+'Evacuar alerta</button></div>'+
-      '</div>');
-  });
-  notas.forEach(d=>{
-    const k=claveR(d), nota=marcaDe(d).nota||'';
+function pintaRevLista(rev=alertasRevision(),notas=alertasNota()){
+  pintaRevBarra(rev,notas);
+  const [revVis,notasVis]=revAlertas(rev,notas), filas=[];
+  alertasOrdenadas(revVis,notasVis).forEach(a=>{
+    if(a.rev){
+      const x=a.rev, nota=marcaDe(x.d).nota||'';
+      filas.push('<div class="revItem" data-alerta="r:'+esc(x.p.numero)+'">'+
+        '<div class="revTope"><span class="revEst">PENDIENTE DE REVISIÓN</span>'+
+          '<span class="revRad">Radicado <b>'+revCampo(x.d.radicado)+'</b></span>'+
+          '<span>Proceso <b>'+revCampo(x.p.numero)+'</b></span>'+
+          '<span class="revDia">Día '+revCampo(x.d.dia)+'</span></div>'+
+        '<div class="revGrid">'+
+          '<div class="revF"><span class="revL">Cuenta</span><span class="revV">'+revCampo(x.d.cuenta)+'</span></div>'+
+          '<div class="revF"><span class="revL">Tipo de proceso</span><span class="revV">'+revCampo(x.p.tramite)+'</span></div>'+
+          '<div class="revF"><span class="revL">Responsable</span><span class="revV">'+revCampo(x.p.respRevision)+'</span></div>'+
+          '<div class="revF"><span class="revL">Estado</span><span class="revV">'+revCampo(estadoRevNom(x.p.estadoRevision))+'</span></div>'+
+        '</div>'+
+        '<div class="revF revObs"><span class="revL">OBSERVACION_PROCESO</span><span class="revV">'+revCampo(x.p.obsProc)+'</span></div>'+
+        (nota?'<div class="revNotas"><span class="revL">Nota del radicado</span><span class="revV">'+esc(nota)+'</span></div>':'')+
+        '<div class="revAcc"><button class="btnFila btnEvacAlerta" type="button" data-alev="r:'+esc(x.p.numero)+'">'+m2i('undo')+'Evacuar alerta</button></div>'+
+        '</div>');
+      return;
+    }
+    const d=a.nota, k=claveR(d), nota=marcaDe(d).nota||'', rr=revRespDe(d);
     filas.push('<div class="revItem revNota" data-alerta="n:'+esc(k)+'">'+
       '<div class="revTope"><span class="revEst revEstNota">ALERTA · RADICADOS DEL DÍA</span>'+
         '<span class="revRad">Radicado <b>'+revCampo(d.radicado)+'</b></span>'+
         '<span>Cuenta <b>'+revCampo(d.cuenta)+'</b></span>'+
         '<span class="revDia">Día '+revCampo(d.dia)+'</span></div>'+
       '<div class="revF revNotaTxt"><span class="revL">Nota registrada</span><span class="revV">'+esc(nota)+'</span></div>'+
+      (rr.length?'<div class="revF revRespNota"><span class="revL">Responsable de revisión</span><span class="revV">'+esc(rr.join(' · '))+'</span></div>':'')+
       '<div class="revAcc"><button class="btnFila btnEvacAlerta" type="button" data-alev="n:'+esc(k)+'">'+m2i('undo')+'Evacuar alerta</button></div>'+
       '</div>');
   });
-  $('revLista').innerHTML=filas.length?filas.join(''):'<div class="vacio">No hay alertas pendientes.</div>';
+  const total=rev.length+notas.length, vis=revVis.length+notasVis.length;
+  const cnt=$('revBarN');
+  if(cnt) cnt.textContent=REV_RESP?vis+' de '+total+(total===1?' alerta':' alertas'):total+(total===1?' alerta':' alertas');
+  $('revLista').innerHTML=filas.length?filas.join('')
+    :'<div class="vacio">'+(REV_RESP?'No hay alertas de este responsable.':'No hay alertas pendientes.')+'</div>';
   $('revLista').querySelectorAll('[data-alev]').forEach(b=>b.onclick=()=>{
     const k=b.dataset.alev;
     if(k.indexOf('n:')===0){ const ck=k.slice(2), d=DATOS.find(x=>claveR(x)===ck);
@@ -2315,21 +2507,52 @@ function pintaRevLista(){
   });
 }
 function pintaRev(){
-  const nr=alertasRevision().length, nn=alertasNota().length, n=nr+nn, badge=$('revBadge');
+  const rev=alertasRevision(), notas=alertasNota(), nr=rev.length, nn=notas.length, n=nr+nn, badge=$('revBadge');
+  if(REV_RESP && !revRespuestas(rev,notas).some(([r])=>r===REV_RESP)) REV_RESP='';
+  const [revVis,notasVis]=revAlertas(rev,notas), f=revVis.length+notasVis.length;
   badge.textContent=String(n); badge.hidden=!n;
   $('revSub').textContent=!n?'Sin alertas pendientes'
+    :REV_RESP?f+' de '+n+(n===1?' alerta':' alertas')+' · responsable '+REV_RESP
     :nr&&nn?nr+(nr===1?' revisión pendiente':' revisiones pendientes')+' · '+nn+(nn===1?' nota pendiente':' notas pendientes')
     :nr?nr+(nr===1?' proceso requiere seguimiento':' procesos requieren seguimiento')
     :nn+(nn===1?' nota de «Radicados del día» requiere atención':' notas de «Radicados del día» requieren atención');
-  if($('mRev').classList.contains('on')) pintaRevLista();
-  notificaPadreRev(n);
+  if($('mRev').classList.contains('on')) pintaRevLista(rev,notas);   /* el modal abierto siempre refleja el estado real */
+  notificaPadreRev(n);                                      /* el botón global del shell refleja el mismo conteo */
 }
-function cerrarRev(){ $('mRev').classList.remove('on'); REV_AUTO=false; }
+/* Exporta exactamente las alertas visibles (tras el filtro de responsable). */
+function exportarAlertasRev(){
+  const [rev,notas]=revAlertas(alertasRevision(),alertasNota());
+  if(!rev.length&&!notas.length) return alert('No hay alertas para exportar.');
+  const h=['Tipo de alerta','Radicado','Cuenta','Día','Proceso(s)','Tipo de proceso','Responsable de revisión','Estado de revisión','Observación del proceso','Nota del radicado','Origen'];
+  const l=[];
+  alertasOrdenadas(rev,notas).forEach(a=>{
+    if(a.rev){
+      const x=a.rev;
+      l.push(['Revisión pendiente',txt(x.d.radicado),txt(x.d.cuenta),x.d.dia??'',txt(x.p.numero),
+        txt(x.p.tramite),txt(x.p.respRevision),estadoRevNom(x.p.estadoRevision),txt(x.p.obsProc),
+        txt(marcaDe(x.d).nota||''),'Seguimiento de revisiones']);
+      return;
+    }
+    const d=a.nota;
+    l.push(['Nota registrada',txt(d.radicado),txt(d.cuenta),d.dia??'',
+      d.procesos.map(p=>p.numero).filter(Boolean).join(' | '),d.tramites.join(' | '),revRespDe(d).join(' | '),'','',
+      txt(marcaDe(d).nota||''),'Radicados del día']);
+  });
+  XLSXW.descargar('alertas_revision_'+clave(HOY)+'.xlsx',[{nombre:'Alertas',filas:[h].concat(l)}]);
+}
+function cerrarRev(){ $('mRev').classList.remove('on'); REV_AUTO=false; }   /* cierre manual: sin reapertura automática */
 function abrirRev(){ pintaRevLista(); $('mRev').classList.add('on'); }
 $('btnRev').onclick=abrirRev;
+$('revResp').onchange=()=>{ REV_RESP=$('revResp').value; pintaRev(); };
+$('revExp').onclick=exportarAlertasRev;
 $('revX').onclick=cerrarRev;
 $('mRev').onclick=e=>{ if(e.target===$('mRev')) cerrarRev(); };
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('mRev').classList.contains('on')) cerrarRev(); });
+/* ---------- puente con el shell (botones globales del encabezado) ----------
+   Los botones Matrices/CIIU/Calendario/Revisiones viven en index.html (visibles desde
+   cualquier módulo). Al pulsarlos, el shell navega al Cuadro y dispara este evento en
+   este documento: se ejecuta la MISMA acción del botón local (oculto al embebido),
+   sin duplicar lógica. El conteo de revisiones viaja en sentido inverso (notificaPadreRev). */
 window.addEventListener('ad-cuadro-tool',e=>{
   const a=e&&e.detail&&e.detail.action;
   if(a==='mat') abreHerr('mat');
@@ -2480,7 +2703,7 @@ function edadDias(f){ if(!f) return 0; const p=String(f).split('-'); return difD
 function mantenimiento(manual){
   if(!CRUDO.sac.length || !CRUDO.mer.length){ if(manual) alert('Carga los dos archivos (SAC y Mercurio) antes de ejecutar el mantenimiento.'); return null; }
   const hoy=clave(HOY), rad=new Set(ALLRAD.map(claveR)), proc=new Set(ALLPROC.map(x=>x.p.numero));
-  const r={evac:0,marcas:0,exp:0,aju:0,cons:0,cal:0};
+  const r={evac:0,marcas:0,exp:0,aju:0,cons:0,cal:0,pla:0};
   const pasa=(obj,presente,dias,cont,proteger)=>{ Object.keys(obj).forEach(k=>{ const e=obj[k];
     if(e===null||typeof e!=='object'){ if(!presente(k)){ delete obj[k]; r[cont]++; } return; }
     if(presente(k)){ e.vis=hoy; return; }
@@ -2491,6 +2714,10 @@ function mantenimiento(manual){
   pasa(MARCAS,k=>rad.has(k),RETENER.marcaColor,'marcas',(k,e)=>!!e.nota);
   pasa(EXP,k=>proc.has(k),RETENER.expediente,'exp',(k,e)=>!!e.n||!!e.ev);
   Object.keys(AJUSTES).forEach(k=>{ if(!rad.has(k) && edadDias(AJUSTES[k])>RETENER.ajuste){ delete AJUSTES[k]; r.aju++; } });
+  if(manual){
+    Object.keys(PLAZOS).forEach(k=>{ if(!rad.has(k)){ delete PLAZOS[k]; r.pla++; } });
+    guardaPlazos();
+  }
   [CAL].concat(Object.values(CAL.u||{})).forEach(b=>{ if(!b||!b.notas) return;
     Object.keys(b.notas).forEach(k=>{ if(edadDias(k)>RETENER.cal){ delete b.notas[k]; r.cal++; } }); });
   guardaEvac(); guardaMarcas(); lsSet(LS_EXP,EXP); guardaAjustes(); guardaCons(); guardaCal();

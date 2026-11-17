@@ -206,19 +206,26 @@ window.addEventListener('error',r,true);setTimeout(r,10000);})();
           </div>
         </div></div>
         <div class="scroll"><table id="tRad"><thead><tr>
-          <th style="width:26px"></th><th>Radicado</th><th>Número de proceso</th><th style="width:290px"></th>
-        </tr></thead><tbody><tr><td colspan="4" class="vacio">Sin día seleccionado.</td></tr></tbody></table></div>
+          <th style="width:26px"></th><th>Radicado</th><th class="thDup" style="width:104px">Duplicados</th><th>Detalles</th><th style="width:290px"></th>
+        </tr></thead><tbody><tr><td colspan="5" class="vacio">Sin día seleccionado.</td></tr></tbody></table></div>
       </div>
     </div>
   </section>
 
-  <div class="card" id="detalle" style="margin-top:16px">
-    <div class="m2Head"><span class="m2Ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><circle cx="11" cy="14" r="2.3"/><path d="m12.8 15.8 2 2"/></svg></span><div class="m2HeadTxt"><h2 id="detTit">Detalle del radicado</h2>
-    <p class="sub" id="detSub"></p></div></div>
-    <div id="detBody"></div>
-  </div>
-
 </main>
+
+<div class="modal detModal" id="detModal" role="dialog" aria-modal="true" aria-labelledby="detTit">
+  <div class="mbox detBox">
+    <div class="card" id="detalle">
+      <div class="m2Head">
+        <span class="m2Ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><circle cx="11" cy="14" r="2.3"/><path d="m12.8 15.8 2 2"/></svg></span>
+        <div class="m2HeadTxt"><h2 id="detTit">Detalle del radicado</h2><p class="sub" id="detSub"></p></div>
+        <button class="cerrar detCerrar" id="detCerrar" type="button" aria-label="Cerrar detalle">&times;</button>
+      </div>
+      <div id="detBody"></div>
+    </div>
+  </div>
+</div>
 
 <div class="modal" id="modal" role="dialog" aria-modal="true">
   <div class="mbox">
@@ -311,7 +318,7 @@ window.addEventListener('error',r,true);setTimeout(r,10000);})();
           </div>
         </div>
         </div>
-        <div class="subtab rtViews" role="group" aria-label="Qué quieres revisar"><button class="on" data-s="dup" type="button" aria-pressed="true"><span class="m2i" data-m2i="copy" aria-hidden="true"></span>Duplicados</button><button data-s="rea" type="button" aria-pressed="false"><span class="m2i" data-m2i="shuffle" aria-hidden="true"></span>Reasignar</button><button data-s="exp" id="subExp" type="button" aria-pressed="false"><span class="m2i" data-m2i="folder" aria-hidden="true"></span>Expedientes</button><button data-s="ven" id="subVen" type="button" aria-pressed="false"><span class="m2i" data-m2i="clock" aria-hidden="true"></span>Vencimientos 10 días</button></div>
+        <div class="subtab rtViews" role="group" aria-label="Qué quieres revisar"><button class="on" data-s="dup" type="button" aria-pressed="true"><span class="m2i" data-m2i="copy" aria-hidden="true"></span>Duplicados</button><button data-s="rea" type="button" aria-pressed="false"><span class="m2i" data-m2i="shuffle" aria-hidden="true"></span>Reasignar</button><button data-s="exp" id="subExp" type="button" aria-pressed="false"><span class="m2i" data-m2i="folder" aria-hidden="true"></span>Expedientes</button><button data-s="ven" id="subVen" type="button" aria-pressed="false"><span class="m2i" data-m2i="clock" aria-hidden="true"></span>Vencimientos</button></div>
         <div class="rolBox" id="rolBox">
           <div class="rtBoxH"><span class="rtBoxIc" aria-hidden="true"></span><div id="rolBoxTit">Usuarios de la ruta (se guarda en este equipo):</div></div>
           <div id="rolChips"></div>
@@ -375,10 +382,15 @@ window.addEventListener('error',r,true);setTimeout(r,10000);})();
 <div class="modal" id="mRev" role="dialog" aria-modal="true" aria-labelledby="revTit">
   <div class="mbox" style="max-width:980px">
     <div class="mhead">
-      <div><div class="mhTit"><span class="mhIco" data-m2i="bell" aria-hidden="true"></span><div><h3 id="revTit">Seguimiento de revisiones</h3><p id="revSub"></p></div></div></div>
+      <div><div class="mhTit"><span class="mhIco" data-m2i="bell" aria-hidden="true"></span><div><h3 id="revTit">Próximos a vencer sin insumo, en días 13, 14 y 15</h3><p id="revSub"></p></div></div></div>
       <button class="cerrar" id="revX" type="button" aria-label="Cerrar">&times;</button></div>
     <div class="mbody" style="padding-top:14px">
-      <div class="revIntro">Alertas pendientes: procesos en día 13 a 15 del usuario activo con responsable de revisión asignado y sin observación de revisión, y radicados de «Radicados del día» con una nota registrada. Usa «Evacuar alerta» para darla por atendida; el radicado y su nota se conservan.</div>
+      <div class="revBar">
+        <div class="revBarCampo"><label class="lf" for="revResp">Responsable de revisión</label>
+          <select id="revResp"><option value="">— Todos —</option></select></div>
+        <button class="btn sec" id="revExp" type="button"><span class="m2i" data-m2i="download" aria-hidden="true"></span>Exportar Excel</button>
+        <span class="revBarN" id="revBarN"></span>
+      </div>
       <div class="recScroll" id="revLista"></div>
     </div>
   </div>
