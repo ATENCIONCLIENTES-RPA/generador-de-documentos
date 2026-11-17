@@ -162,7 +162,19 @@ const canonNombre = s => {
   if (_canonCache.size < 2000) _canonCache.set(str, res);
   return res;
 };
-const limpiaUsuario = s => txt(s).replace(/^.*\\/,'').trim();
+const extraeUsuarioRevision = (r: any): string => {
+  if (r == null) return '';
+  const val = typeof r === 'object'
+    ? (r.USUARIO_RESPONSABLE_REVISION
+        ?? r['Usuario Responsable Revision']
+        ?? r['USUARIO RESPONSABLE REVISION']
+        ?? r['Usuario responsable revisión']
+        ?? r['Responsable Revision']
+        ?? '')
+    : r;
+  return txt(val);
+};
+const limpiaUsuario = (s: any) => extraeUsuarioRevision(s);
 
 function parseFecha(v){
   if(v==null||v==='') return null;
@@ -558,7 +570,7 @@ function unificar(){
       tramite: (cod&&desc)?(cod+' - '+desc):(desc||txt(r.DESCRIPCION_TIPO_PROCESO)||'Sin clasificar'),
       ultimaAccion: txt(r.ULTIMA_ACCION_TRAMITE),
       accionFinalizada: txt(r.ULTIMA_ACCION_FINALIZADA),
-      respRevision: limpiaUsuario(r.USUARIO_RESPONSABLE_REVISION),
+      respRevision: extraeUsuarioRevision(r),
       obsRevision: txt(r.OBSERVACION_REVISION),
       estadoRevision: txt(r.ESTADO_REVISION),
       numRevision: num(r.NUMERO_REVISION),
@@ -2386,6 +2398,9 @@ function delUsuarioActivo(d){
   const u=canonNombre(usuarioActivo());
   return !u || usuariosRegistro(d).some(n=>canonResuelto(n)===u);
 }
+const esProcesoRevision = (p: any): boolean =>
+  !!(p && (p.respRevision || p.numRevision || p.estadoRevision || p.fRevision || p.fProgRevision));
+
 function procsRevision(){
   if(_renderCtx && _renderCtx.rev) return _renderCtx.rev;
   const out=[];
@@ -2393,7 +2408,7 @@ function procsRevision(){
     if(evacuado(d)) return;
     if(!(d.dia>=13 && d.dia<=15)) return;
     if(!delUsuarioActivo(d)) return;
-    d.procesos.forEach(p=>{ if(p.respRevision && !p.obsRevision) out.push({d,p}); });
+    d.procesos.forEach(p=>{ if(esProcesoRevision(p) && !p.obsRevision) out.push({d,p}); });
   });
   if(_renderCtx) _renderCtx.rev=out;
   return out;
@@ -2423,16 +2438,30 @@ function alertasNota(){
   return out.sort((a,b)=>(b.dia??0)-(a.dia??0)||cmpRad(a.radicado,b.radicado));
 }
 /* ---------- filtro por responsable de revisión y exportación ---------- */
-let REV_RESP='';   /* código mostrado en USUARIO_RESPONSABLE_REVISION (MBUELVAS, ELEALP…) */
+const SIN_RESP_LABEL = 'Sin responsable asignado';
+let REV_RESP='';   /* identificador dinámico de USUARIO_RESPONSABLE_REVISION obtenido de SAC */
 const revRespDe=d=>[...new Set(d.procesos.map(p=>p.respRevision).filter(Boolean))];
 function revRespuestas(rev,notas){
   const c=new Map();
-  rev.forEach(x=>{ const r=x.p.respRevision; if(r) c.set(r,(c.get(r)||0)+1); });
-  notas.forEach(d=>revRespDe(d).forEach(r=>c.set(r,(c.get(r)||0)+1)));
-  return [...c.entries()].sort((a,b)=>a[0].localeCompare(b[0],'es'));
+  rev.forEach(x=>{ const r=x.p.respRevision||SIN_RESP_LABEL; c.set(r,(c.get(r)||0)+1); });
+  notas.forEach(d=>{
+    const rs=revRespDe(d);
+    if(rs.length) rs.forEach(r=>c.set(r,(c.get(r)||0)+1));
+    else c.set(SIN_RESP_LABEL,(c.get(SIN_RESP_LABEL)||0)+1);
+  });
+  return [...c.entries()].sort((a,b)=>{
+    if(a[0]===SIN_RESP_LABEL) return 1;
+    if(b[0]===SIN_RESP_LABEL) return -1;
+    return a[0].localeCompare(b[0],'es');
+  });
 }
-const revAlertas=(rev,notas)=>!REV_RESP?[rev,notas]
-  :[rev.filter(x=>x.p.respRevision===REV_RESP), notas.filter(d=>revRespDe(d).includes(REV_RESP))];
+const revAlertas=(rev,notas)=>{
+  if(!REV_RESP) return [rev,notas];
+  if(REV_RESP===SIN_RESP_LABEL){
+    return [rev.filter(x=>!x.p.respRevision), notas.filter(d=>!revRespDe(d).length)];
+  }
+  return [rev.filter(x=>x.p.respRevision===REV_RESP), notas.filter(d=>revRespDe(d).includes(REV_RESP))];
+};
 /* Orden único de las alertas (lista visible y Excel): radicado ascendente con cmpRad,
    sin mezclar tipos. A igual radicado va primero la revisión (por número de proceso)
    y después la nota. */
