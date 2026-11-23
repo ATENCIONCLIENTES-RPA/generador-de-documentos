@@ -6,7 +6,7 @@ import './cuadro.base.css';
 import './cuadro.redesign.css';
 import '../shared/module-bridge';
 import { GuidedTour } from '../../components/guided-tour/guided-tour';
-import { SAL_ANALISTAS, HUELLAS_RUTAS } from './analistas.huellas';
+import { SAL_ANALISTAS, HUELLAS_RUTAS, HUELLAS_SUBRUTAS } from './analistas.huellas';
 
 (function(){
   const SUN='<circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>';
@@ -199,12 +199,20 @@ const _str=v=>(v==null||typeof v==='object')?'':String(v);
 const _strs=v=>(Array.isArray(v)?v:(v==null||v===''?[]:[v])).filter(x=>x!=null&&typeof x!=='object').map(String).filter(s=>s!=='');
 const _fecha=v=>/^\d{4}-\d{2}-\d{2}$/.test(_str(v))?_str(v):'';
 const _color=v=>/^#[0-9a-f]{6}$/i.test(_str(v))?_str(v):'';
+/* Únicos plazos que puede elegir el usuario autorizado. */
+const PLAZOS_VALIDOS=[1,2,3,4,5,10,15];
+const plazoValido=n=>PLAZOS_VALIDOS.includes(n);
 function sanearMapa(o,fn){ const r={}; if(!_esObj(o)) return r;
   Object.keys(o).forEach(k=>{ try{ const v=fn(o[k],k); if(v!==undefined) r[k]=v; }catch(e){} }); return r; }
 const SANEA={
   ajustes:o=>sanearMapa(o,v=>_fecha(v)||undefined),
   plazos:o=>sanearMapa(o,v=>{ const n=parseInt(_str(v),10);
-    return Number.isFinite(n)&&n>=1&&n<=60?n:undefined; }),
+    return plazoValido(n)?n:undefined; }),
+  procCancel:o=>sanearMapa(o,v=>{ if(!_esObj(v)) return undefined;
+    const e=_str(v.e); if(e!=='c'&&e!=='n') return undefined;
+    const r={e}; const f=_fecha(v.f); if(f) r.f=f;
+    const u=_str(v.u); if(u) r.u=u; const fv=_fecha(v.v); if(fv) r.v=fv;
+    if('j' in v) r.j=_str(v.j).slice(0,500); return r; }),
   marcas:o=>sanearMapa(o,v=>{ if(!_esObj(v)) return undefined; const r=Object.assign({},v);
     if('nota' in r){ r.nota=_str(r.nota); if(!r.nota) delete r.nota; }
     if('color' in r){ r.color=_color(r.color); if(!r.color) delete r.color; }
@@ -246,6 +254,17 @@ PLAZOS=SANEA.plazos(PLAZOS);
 const guardaPlazos=()=>{ try{ appDataSet(LS_PLAZOS,JSON.stringify(PLAZOS)); }
   catch(e){ reportaError('No se pudo guardar ('+LS_PLAZOS+'): almacenamiento lleno',e); } };
 const diasRad=d=>PLAZOS[d.llave||d.radicado]||CFG.diasHabiles;
+
+/* Decisión de cancelación POR PROCESO. Se guarda con el número de proceso como
+   clave para que cada uno se gestione de forma independiente, aunque el radicado
+   tenga varios. e:'c' = cancelar, e:'n' = no cancelar. */
+const LS_PCANCEL='essa_proc_cancel';
+let PROC_CANCEL={};
+try{ PROC_CANCEL=JSON.parse(appDataGet(LS_PCANCEL)||'{}'); }catch(e){ PROC_CANCEL={}; }
+PROC_CANCEL=SANEA.procCancel(PROC_CANCEL);
+const guardaProcCancel=()=>{ try{ appDataSet(LS_PCANCEL,JSON.stringify(PROC_CANCEL)); }
+  catch(e){ reportaError('No se pudo guardar ('+LS_PCANCEL+'): almacenamiento lleno',e); } };
+const procEstado=num=>{ const e=PROC_CANCEL[String(num)]; return e&&(e.e==='c'||e.e==='n')?e.e:''; };
 
 let CRUDO={sac:[],mer:[]}, DATOS=[], INDICE={}, nRelleno=0, nCancel=0, nRuta=0;
 
@@ -334,12 +353,22 @@ function respAnalista(d){
   if(esAnalista(d.gestor)) return d.gestor;
   return '';
 }
+/* v42 · Sub-rutas de Peticiones (Ruta Especializada y SOMOS): membresía por huella. */
+const SUBRUTA_POR_HUELLA=new Map();
+Object.keys(HUELLAS_SUBRUTAS||{}).forEach(k=>(HUELLAS_SUBRUTAS[k]||[]).forEach(h=>{
+  const a=SUBRUTA_POR_HUELLA.get(h)||[]; if(!a.includes(k)) a.push(k); SUBRUTA_POR_HUELLA.set(h,a); }));
+function subRutasDe(raw){ const r=txt(raw); if(!r) return [];
+  return SUBRUTA_POR_HUELLA.get(huellaNombre(r))||[]; }
 function rutasDesdeInformes(out){
   if(!HAY_ANALISTAS) return false;
-  const det={}, vistos=new Set();
+  const det={}, vistos=new Set(), vistosSub=new Set();
   Object.keys(HUELLAS_RUTAS).forEach(k=>det[k]=[]);
-  const toma=nm=>{ const r=txt(nm); if(!r) return; const k=esAnalista(r); if(!k) return;
-    const h=huellaNombre(r); if(vistos.has(h)) return; vistos.add(h); det[k].push(r); };
+  Object.keys(HUELLAS_SUBRUTAS||{}).forEach(k=>{ if(!det[k]) det[k]=[]; });
+  const toma=nm=>{ const r=txt(nm); if(!r) return;
+    const h=huellaNombre(r);
+    subRutasDe(r).forEach(k=>{ const kk=k+'|'+h; if(!vistosSub.has(kk)){ vistosSub.add(kk); det[k].push(r); } });
+    const k=esAnalista(r); if(!k) return;
+    if(vistos.has(h)) return; vistos.add(h); det[k].push(r); };
   out.forEach(d=>toma(d.respSac));
   out.forEach(d=>toma(d.gestor));
   let cambio=false;
@@ -602,6 +631,7 @@ function unificar(){
       solicitante: G.solicitante, municipio: G.municipio||'—', subestado: G.subestado,
       estadoMer: m?m.estadoMer:'', ruta: m?m.ruta:'',
       contenido: m?m.referencia:'',
+      enMercurio: !!m,
       fuente: m?'SAC + Mercurio':'Solo SAC'
     });
   });
@@ -617,6 +647,7 @@ function unificar(){
       respSac:'', gestor:m.gestor, solicitante:m.entidad, municipio:'—', subestado:m.estadoMer,
       estadoMer:m.estadoMer, ruta:m.ruta,
       contenido:m.referencia,
+      enMercurio:false,
       fuente:'Solo Mercurio'
     });
   });
@@ -633,7 +664,12 @@ function unificar(){
     d.plazo = diasRad(d);
     d.fVto = d.fEfe ? venceEn(d.fEfe,d.plazo) : (d.fVto||null);
     const fh = d.fEfe ? aDiaHabil(d.fEfe) : null;
-    d.dia = fh ? (MAPA_DIA[clave(fh)] ?? null) : null;
+    // El día del radicado se calcula siempre desde su fecha real de recibo (diaBase).
+    // Si el plazo se reduce, el caso gana urgencia y avanza de día; si se amplía,
+    // retrocede. Al derivarse de una única base no hay clasificaciones duplicadas
+    // y el resultado es idéntico tras recargar la página.
+    d.diaBase = fh ? (MAPA_DIA[clave(fh)] ?? null) : null;
+    d.dia = d.diaBase===null ? null : Math.max(1,d.diaBase+(CFG.diasHabiles-d.plazo));
     d.enVentana = d.dia !== null && d.dia <= CFG.diasHabiles;
     d.vencida = d.dia!==null && d.dia>CFG.diasHabiles && d.dia<=CFG.diasVencidas
                 && sinTilde(d.estadoMer)==='p';
@@ -924,6 +960,12 @@ function m2Curva(P){
   return d;
 }
 const VENC_PAG_TAM=7; let VENC_PAG=0;
+/* Lista plegable de días hábiles para el vencimiento de cada radicado.
+   Solo se ofrecen los siete valores autorizados y sin la letra «d». */
+function opcionesPlazo(actual){
+  const sel = plazoValido(Number(actual)) ? Number(actual) : CFG.diasHabiles;
+  return PLAZOS_VALIDOS.map(k=>'<option value="'+k+'"'+(k===sel?' selected':'')+'>'+k+'</option>').join('');
+}
 function pintaVencidas(V){
   const tot=V.length, pags=Math.max(1,Math.ceil(tot/VENC_PAG_TAM));
   if(VENC_PAG>=pags) VENC_PAG=pags-1; if(VENC_PAG<0) VENC_PAG=0;
@@ -989,6 +1031,17 @@ function escalaColores(vals){
 function render(){
   const f=filtrar(), V=vencidas();
   const prevCtx=_renderCtx; _renderCtx={f,V};
+  /* La ficha «Vencidas» solo existe si el usuario seleccionado tiene radicados
+     vencidos. Se consulta el filtro de responsable vigente (no un valor
+     guardado) para que al cambiar de usuario desaparezca o reaparezca sin
+     recargar. Los demás filtros no la ocultan. */
+  const fvVenc=filtroVals();
+  const hayVenc=!accesoBloqueado() && DATOS.some(d=>d.vencida&&!evacuado(d)&&!excluidoBloqueDias(d)
+    &&(!fvVenc.r||d.respCanon.includes(fvVenc.r)));
+  const gridCarga=document.querySelector('.gridCarga');
+  if(gridCarga) gridCarga.classList.toggle('sinVenc',!hayVenc);
+  const cardVenc=document.querySelector('.gridCarga .cardVenc');
+  if(cardVenc){ cardVenc.hidden=!hayVenc; cardVenc.setAttribute('aria-hidden',hayVenc?'false':'true'); }
   try{
   $('kpis').innerHTML=
     '<div class="kpi kpiTotal" data-k="total" role="button" tabindex="0">'+
@@ -1137,15 +1190,74 @@ let PLAZO_FOCO=null;
 function cmpRad(a,b){ const x=soloNum(a), y=soloNum(b);
   if(!x||!y) return (x?0:1)-(y?0:1)||String(a).localeCompare(String(b));
   return x.length-y.length || (x<y?-1:x>y?1:0); }
+
+/* Cada proceso se muestra como botón independiente con su tipo entre paréntesis.
+   La decisión (cancelar / no cancelar) se toma por proceso y queda guardada. */
+function procChipHtml(p, fs){
+  const est=procEstado(p.numero), tipo=txt(p.codTram);
+  const txtEst=est==='c'?'Marcado para cancelar':est==='n'?'Marcado para no cancelar':'Gestionar cancelación del proceso';
+  return '<button type="button" class="procChip'+(est==='c'?' pcCancel':est==='n'?' pcNoCancel':'')+'"'+
+    ' data-proc="'+esc(p.numero)+'" title="'+esc(txtEst)+'"'+
+    ' style="font-size:'+fs+'px"'+
+    ' aria-label="'+esc(txtEst)+': '+esc(p.numero)+(tipo?' tipo '+esc(tipo):'')+'">'+
+    '<span class="pcNum">'+esc(p.numero)+(tipo?'<span class="pcTipo"> ('+esc(tipo)+')</span>':'')+'</span></button>';
+}
+/* Tamaño proporcional al texto más largo del radicado: si «número (tipo)» no
+   cabe en la columna, la fuente baja lo justo para mantenerlo en una línea. */
+function tallaProc(x){
+  const max=Math.max(0,...(x.procesos||[]).map(p=>String(p.numero||'').length+(p.codTram?String(p.codTram).length+3:0)));
+  if(!max) return 11.5;
+  return Math.round(Math.min(11.5,Math.max(8.8,132/(max*0.6)))*10)/10;
+}
+function abreProcMenu(ancla,d,numero){
+  document.querySelectorAll('.procMenu').forEach(x=>x.remove());
+  const p=(d&&d.procesos||[]).find(x=>String(x.numero)===String(numero));
+  if(!p) return;
+  const est=procEstado(p.numero), tipo=txt(p.codTram);
+  const menu=document.createElement('div');
+  menu.className='procMenu'; menu.setAttribute('role','menu');
+  menu.innerHTML='<div class="pmHead"><span>Proceso</span><b>'+esc(p.numero)+'</b>'+
+      (tipo?'<span class="pmTipo">Tipo '+esc(tipo)+'</span>':'')+'</div>'+
+    '<button type="button" role="menuitem" class="pmOpt pmNo" data-pe="c">'+m2i('x')+'<span>Cancelar proceso</span></button>'+
+    '<button type="button" role="menuitem" class="pmOpt pmOk" data-pe="n">'+m2i('check')+'<span>No cancelar proceso</span></button>'+
+    (est?'<button type="button" role="menuitem" class="pmOpt pmClear" data-pe="">'+m2i('undo')+'<span>Quitar decisión</span></button>':'');
+  document.body.appendChild(menu);
+  const r=ancla.getBoundingClientRect(), vw=document.documentElement.clientWidth, vh=document.documentElement.clientHeight;
+  const mw=menu.offsetWidth, mh=menu.offsetHeight;
+  let left=Math.max(8,Math.min(r.left+window.scrollX, vw-mw-8));
+  let top=r.bottom+window.scrollY+6;
+  if(r.bottom+mh+12>vh) top=Math.max(8,r.top+window.scrollY-mh-6);
+  menu.style.left=left+'px'; menu.style.top=top+'px';
+  menu.querySelectorAll('[data-pe]').forEach(b=>b.onclick=ev=>{
+    ev.stopPropagation();
+    const v=b.dataset.pe, k=String(p.numero);
+    if(v){ const prev=PROC_CANCEL[k]||{};
+      PROC_CANCEL[k]={e:v,f:clave(HOY),u:canonNombre(usuarioActivo()),v:p.fVto?clave(p.fVto):(prev.v||'')};
+      if(v==='c' && prev.e==='c' && 'j' in prev) PROC_CANCEL[k].j=prev.j; }
+    else delete PROC_CANCEL[k];
+    guardaProcCancel(); menu.remove(); pintaBtnsCancel();
+    if($('mPcC').classList.contains('on')) pintaTablaCancel('c');
+    if($('mPcN').classList.contains('on')) pintaTablaCancel('n');
+    if($('detModal').classList.contains('on') && RAD_SEL===d.radicado){
+      const nd=DATOS.find(x=>claveR(x)===claveR(d)); if(nd) verDetalle(nd);
+    }
+    pintaRadicados();
+  });
+  setTimeout(()=>document.addEventListener('click',function cerrar(ev){
+    if(menu.contains(ev.target)) return;
+    menu.remove(); document.removeEventListener('click',cerrar);
+  }),0);
+}
 function pintaRadicados(){
   ocultaDupTip();
+  try{ pintaBtnsCancel(); }catch(e){ reportaError('Cancelar / No cancelar',e); }
   const multi=modoMulti();
   const conPlazo=esUsuarioPlazoEspecial();
   if(DIA_SEL===null && !multi){
     $('radTit').textContent='Radicados del día'; $('radSub').textContent='Selecciona un día en la tabla o en la gráfica.'; $('radSub').style.display='';
-    $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th>Radicado</th><th class="thDup" style="width:104px">Duplicados</th><th>Detalles</th>'+
-      (conPlazo?'<th class="thVto">Vencimiento</th>':'')+'<th style="width:290px"></th></tr>';
-    $('tRad').querySelector('tbody').innerHTML='<tr><td colspan="'+(5+(conPlazo?1:0))+'" class="vacio">Sin día seleccionado.</td></tr>'; return; }
+    $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th>Radicado</th><th class="thProc">Procesos</th><th class="thDup" style="width:92px">Duplicados</th><th style="width:96px">Detalles</th>'+
+      (conPlazo?'<th class="thVto">Vencimiento</th>':'')+'<th style="width:232px"></th></tr>';
+    $('tRad').querySelector('tbody').innerHTML='<tr><td colspan="'+(6+(conPlazo?1:0))+'" class="vacio">Sin día seleccionado.</td></tr>'; return; }
   const s=multi?null:ESCALERA_EXT.find(x=>x.dia===DIA_SEL);
   const esVenc=!multi && DIA_SEL>CFG.diasHabiles;
   const fc=$('fColor').value;
@@ -1166,17 +1278,19 @@ function pintaRadicados(){
   }
   regs.sort((a,b)=>cmpRad(a.radicado,b.radicado)*(ORDEN_RAD==='desc'?-1:1));
   $('tRad').querySelector('thead').innerHTML='<tr><th style="width:26px"></th><th class="thOrden" id="thRadOrden" title="Ordenar por radicado">Radicado <span class="flechaOrd">'+
-    (ORDEN_RAD==='desc'?'▼':'▲')+'</span></th>'+(multi?'<th>Día</th>':'')+
-    '<th class="thDup" style="width:104px">Duplicados</th>'+
-    '<th style="width:110px">Detalles</th>'+
+    (ORDEN_RAD==='desc'?'▼':'▲')+'</span></th><th class="thProc">Procesos</th>'+(multi?'<th style="width:70px">Día</th>':'')+
+    '<th class="thDup" style="width:92px">Duplicados</th>'+
+    '<th style="width:96px">Detalles</th>'+
     (conPlazo?'<th class="thVto">Vencimiento</th>':'')+
-    '<th style="width:260px"></th></tr>';
+    '<th style="width:232px"></th></tr>';
   const thO=document.getElementById('thRadOrden');
   if(thO) thO.onclick=()=>{ ORDEN_RAD=ORDEN_RAD==='desc'?'asc':'desc'; pintaRadicados(); };
-  const nCols=5+(multi?1:0)+(conPlazo?1:0);
+  const nCols=6+(multi?1:0)+(conPlazo?1:0);
 
   $('tRad').querySelector('tbody').innerHTML = regs.length ? regs.map((x,i)=>{
     const mk=marcaDe(x), col=mk.color||'', nota=mk.nota||'';
+    const ajustado=!!PLAZOS[claveR(x)];
+    const fsProc=x.nProc?tallaProc(x):11.5;
     const dup=detectaDuplicados(x);
     const dupBtn=!dup.length?'':(()=>{
       const nF=dup.filter(r=>r.F.size).length, pend=dup.length-nF, fuerte=nF>0;
@@ -1186,30 +1300,34 @@ function pintaRadicados(){
         pend+' por validar. Abrir el detalle">'+m2i(fuerte?'dupDocs':'warn')+
         '<b>'+dup.length+'</b></button>';
     })();
-    return '<tr class="fila'+(col?' marcada':'')+'" data-i="'+i+'"'+
+    return '<tr class="fila'+(col?' marcada':'')+(ajustado?' plazoAjustado':'')+'" data-i="'+i+'"'+
       (col?' style="--mk:'+col+';--mkbg:'+rgba(col,.13)+';--mkbg2:'+rgba(col,.22)+'"':'')+'>'+
       '<td><span class="dot'+(col?'':' vacio')+'" data-act="col" data-i="'+i+'"'+
         (col?' style="background:'+col+';border-color:'+col+'"':'')+' title="Marcar con color"></span></td>'+
       '<td class="clicRad" data-i="'+i+'">'+radTxtHtml(x)+
         (x.ajuste?' <span class="badge b-a sinDot" title="Fecha ajustada">'+m2i('calendar')+'</span>':'')+
         (nota?'<div class="notaPrev">'+esc(nota)+'</div>':'')+'</td>'+
+      '<td class="procCell">'+(x.nProc?x.procesos.map(p=>procChipHtml(p,fsProc)).join(''):'<span class="sp">Sin proceso en SAC</span>')+'</td>'+
       (multi?'<td class="clicRad'+(x.dia>CFG.diasHabiles?' vtoPas':'')+'" data-i="'+i+'">Día '+(x.dia??'—')+'</td>':'')+
       '<td class="dupCell">'+(dupBtn||'<span class="sp" title="Sin duplicados en Mercurio">—</span>')+'</td>'+
       '<td class="detCell"><button type="button" class="btnFila btnVer" data-act="ver" data-i="'+i+'"'+
         ' aria-label="Ver detalle del radicado '+esc(x.radicado)+'">Ver</button></td>'+
-      (conPlazo?'<td class="vtoCell">'+(x.fVto?dFmt(x.fVto):'—')+
-        '<input type="number" class="inpPlazo" data-plazo="'+i+'" value="'+(x.plazo??CFG.diasHabiles)+'"'+
-        ' min="1" max="60" step="1" title="Días hábiles de respuesta para este radicado"'+
-        ' aria-label="Días hábiles de respuesta para el radicado '+esc(x.radicado)+'">'+'</td>':'')+
+      (conPlazo?'<td class="vtoCell">'+
+        '<select class="selPlazo" data-plazo="'+i+'"'+
+        ' title="Días hábiles de respuesta para este radicado"'+
+        ' aria-label="Días hábiles de respuesta para el radicado '+esc(x.radicado)+'">'+
+        opcionesPlazo(x.plazo??CFG.diasHabiles)+'</select>'+'</td>':'')+
       '<td class="acc">'+
         '<button class="btnFila btnGen" data-act="gen" data-i="'+i+'"'+
           (tieneProcesoSAC(x)?' title="Generar la respuesta de este radicado (Módulo 3)"'
-                             :' aria-disabled="true" title="'+MSG_SIN_PROCESO+'"')+'>Generar Doc</button>'+
+                             :' aria-disabled="true" title="'+MSG_SIN_PROCESO+'"')+'>Generar</button>'+
 
         '<button class="btnFila btnNota'+(nota?' tiene':'')+'" data-act="nota" data-i="'+i+'" '+
           'title="'+(nota?'Editar observación':'Agregar observación')+'">'+m2i('edit')+
           (nota?'Nota':'Notas')+'</button>'+
-        '<label class="chkEvLbl" title="Evacuar del informe"><input type="checkbox" class="chkEv" data-evr="'+i+'"> Evacuar</label>'+
+        '<label class="chkEvLbl chkEvCompact" title="Evacuar del informe">'+
+          '<input type="checkbox" class="chkEv" data-evr="'+i+'" aria-label="Evacuar el radicado '+esc(x.radicado)+'">'+
+          '<span class="evIco" aria-hidden="true">'+m2i('warn')+'</span><span class="evTxt">Evacuar</span></label>'+
       '</td></tr>';
   }).join('') : '<tr><td colspan="'+nCols+'" class="vacio">Sin radicados con los filtros activos.</td></tr>';
 
@@ -1246,32 +1364,163 @@ function pintaRadicados(){
     el.closest('tr').classList.add('sel');
     abreDupRapido(regs[+el.dataset.i]);
   });
-  tb.querySelectorAll('.inpPlazo').forEach(inp=>{
+  tb.querySelectorAll('.selPlazo').forEach(sel=>{
     const commit=()=>{
-      const d=regs[+inp.dataset.plazo]; if(!d) return;
-      const n=parseInt(inp.value,10);
-      if(!Number.isFinite(n)||n<1||n>60){ inp.value=String(d.plazo); return; }
+      /* Doble verificación: aunque el control solo se pinta para los usuarios
+         autorizados, el guardado también valida el permiso. */
+      if(!esUsuarioPlazoEspecial()){ render(); return; }
+      const d=regs[+sel.dataset.plazo]; if(!d) return;
+      const n=parseInt(sel.value,10);
+      if(!plazoValido(n)){ sel.value=String(d.plazo??CFG.diasHabiles); return; }
       const k=claveR(d);
       if(n===CFG.diasHabiles) delete PLAZOS[k]; else PLAZOS[k]=n;
-      guardaPlazos(); unificar(); render();
+      guardaPlazos(); unificar(); refrescaFotosCons(); render();
+      // Repinta también las ventanas que estén abiertas para que el cambio de plazo
+      // se refleje de inmediato en consultas, reportes y detalle.
+      if($('mCons').classList.contains('on')) pintaCons();
+      if($('mConsAnt').classList.contains('on')) pintaConsAnt();
+      if($('mRec').classList.contains('on')) pintaRec();
       if($('detModal').classList.contains('on') && RAD_SEL===d.radicado){
         const nd=DATOS.find(x=>(x.llave||x.radicado)===k); if(nd) verDetalle(nd);
       }
     };
-    inp.onchange=commit;
-    inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); PLAZO_FOCO=inp.dataset.plazo; inp.blur(); } };
+    sel.onchange=commit;
   });
   if(PLAZO_FOCO!==null){
     const k=PLAZO_FOCO; PLAZO_FOCO=null;
-    const el=tb.querySelector('.inpPlazo[data-plazo="'+k+'"]');
-    if(el){ el.focus(); el.select(); }
+    const el=tb.querySelector('.selPlazo[data-plazo="'+k+'"]');
+    if(el) el.focus();
   }
+  tb.querySelectorAll('.procChip').forEach(el=>el.onclick=e=>{
+    e.stopPropagation();
+    const tr=el.closest('tr');
+    const d=tr?regs[+(tr.dataset.i)]:null;
+    if(d) abreProcMenu(el,d,el.dataset.proc);
+  });
   tb.querySelectorAll('.chkEvLbl').forEach(c=>c.onclick=e=>e.stopPropagation());
   tb.querySelectorAll('[data-evr]').forEach(ch=>ch.onchange=()=>{
-    pedirEvacuar([regs[+ch.dataset.evr]],'el radicado',()=>{ ch.checked=false; }); });
+    const lab=ch.closest('label');
+    if(lab) lab.classList.toggle('evOn',ch.checked);
+    pedirEvacuar([regs[+ch.dataset.evr]],'el radicado',()=>{ ch.checked=false; if(lab) lab.classList.remove('evOn'); }); });
 
 }
 
+/* ================= v42 · CANCELAR / NO CANCELAR PROCESOS =================
+   Listas del día con los procesos marcados desde el botón de cada proceso en
+   «Radicados del día». Solo muestran los procesos del usuario registrado y solo
+   los marcados HOY: al día siguiente aparecen vacías para registrar nuevos.
+   «Copiar tabla» y el ícono de cada fila copian solo los datos (sin títulos),
+   con formato de tabla para pegar en Excel. */
+const PC_JUST_DEF='proceso errado';
+const PC_COLS={c:['Proceso','Fecha solicitud','Fecha vencimiento','Justificación'],
+               n:['Proceso','Fecha de vencimiento','Responsable de cierre']};
+function procPorNumero(){
+  const mp=new Map(); ALLPROC.forEach(x=>{ const k=String(x.p.numero); if(k&&!mp.has(k)) mp.set(k,x); }); return mp;
+}
+function nombreRegistrado(){
+  return (NOMBRE_FIRMANTE&&NOMBRE_FIRMANTE!==FIRMANTE_HABILITA_RESPONSABLE)?NOMBRE_FIRMANTE:(usuarioActivo()||'');
+}
+function listaPc(tipo){
+  const hoy=clave(HOY), uAct=usuarioActivo(), u=canonNombre(uAct), mp=procPorNumero(), out=[];
+  Object.keys(PROC_CANCEL).forEach(k=>{
+    const e=PROC_CANCEL[k]; if(!e||e.e!==tipo||e.f!==hoy) return;
+    const x=mp.get(String(k));
+    if(u){
+      if(e.u){ if(e.u!==u) return; }
+      else if(!(x&&(x.cre===uAct||x.ges===uAct))) return;
+    }
+    const fv=x&&x.p.fVto?x.p.fVto:(e.v?parseFecha(e.v):null);
+    out.push({k, fv, j:('j' in e)?e.j:PC_JUST_DEF});
+  });
+  return out.sort((a,b)=>cmpRad(a.k,b.k));
+}
+function filaPc(tipo,x,jActual){
+  return tipo==='c'
+    ? [x.k, dFmt(HOY), x.fv?dFmt(x.fv):'', jActual!=null?jActual:x.j]
+    : [x.k, x.fv?dFmt(x.fv):'', nombreRegistrado()];
+}
+function pintaBtnsCancel(){
+  [['c','pcCnt'],['n','pcNoCnt']].forEach(([t,id])=>{
+    const el=document.getElementById(id); if(!el) return;
+    const n=listaPc(t).length; el.textContent=String(n); el.hidden=!n;
+  });
+}
+/* Copia al portapapeles como tabla (HTML + texto con tabulaciones) para pegar en Excel. */
+async function copiaTabla(filas,btn){
+  const e=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const tsv=filas.map(f=>f.map(v=>String(v==null?'':v).replace(/[\t\r\n]+/g,' ')).join('\t')).join('\r\n');
+  const html='<table border="1" style="border-collapse:collapse">'+filas.map(f=>'<tr>'+f.map(v=>
+    '<td style="mso-number-format:\\@">'+e(v)+'</td>').join('')+'</tr>').join('')+'</table>';
+  let ok=false;
+  try{
+    if(navigator.clipboard&&window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([tsv],{type:'text/plain'})})]);
+      ok=true;
+    }
+  }catch(err){ ok=false; }
+  if(!ok){
+    try{
+      const box=document.createElement('div');
+      box.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+      box.innerHTML=html; document.body.appendChild(box);
+      const r=document.createRange(); r.selectNodeContents(box);
+      const s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      ok=document.execCommand('copy'); s.removeAllRanges(); box.remove();
+    }catch(err){ ok=false; }
+  }
+  if(!ok){ try{ await navigator.clipboard.writeText(tsv); ok=true; }catch(err){} }
+  if(btn){
+    btn.classList.remove('pcOk','pcErr'); void btn.offsetWidth; btn.classList.add(ok?'pcOk':'pcErr');
+    const t=btn.querySelector('.pcCopyTxt'); if(t){ const prev=t.dataset.txt||t.textContent; t.dataset.txt=prev;
+      t.textContent=ok?'Copiado':'No se pudo copiar'; setTimeout(()=>{ t.textContent=prev; btn.classList.remove('pcOk','pcErr'); },1600); }
+    else setTimeout(()=>btn.classList.remove('pcOk','pcErr'),1400);
+  }
+  return ok;
+}
+let _tPcJ=0;
+function pintaTablaCancel(tipo){
+  const tabla=$(tipo==='c'?'tPcC':'tPcN');
+  const L=listaPc(tipo);
+  $(tipo==='c'?'pcCSub':'pcNSub').textContent=L.length+' proceso(s) · '+dFmt(HOY)+' · la lista se reinicia cada día';
+  tabla.querySelector('thead').innerHTML='<tr>'+PC_COLS[tipo].map(c=>'<th>'+esc(c)+'</th>').join('')+'<th class="pcAccTh" aria-label="Copiar fila"></th></tr>';
+  const cols=PC_COLS[tipo].length+1;
+  tabla.querySelector('tbody').innerHTML=L.length?L.map((x,i)=>{
+    const f=filaPc(tipo,x);
+    return '<tr data-i="'+i+'">'+
+      '<td><span class="procHL">'+esc(f[0])+'</span></td>'+
+      '<td>'+esc(f[1]||'—')+'</td>'+
+      (tipo==='c'
+        ? '<td>'+esc(f[2]||'—')+'</td><td class="pcJust"><input type="text" class="pcJ" data-k="'+esc(x.k)+'" value="'+esc(f[3])+'" maxlength="500" aria-label="Justificación del proceso '+esc(x.k)+'"></td>'
+        : '<td>'+esc(f[2]||'—')+'</td>')+
+      '<td class="pcAcc"><button type="button" class="pcCopyRow" data-cp="'+i+'" title="Copiar esta fila" aria-label="Copiar la fila del proceso '+esc(x.k)+'">'+m2i('copy')+'</button></td></tr>';
+  }).join(''):'<tr><td colspan="'+cols+'" class="vacio">'+(tipo==='c'
+      ?'Aún no hay procesos marcados hoy para cancelar. Márcalos desde el botón de cada proceso en «Radicados del día».'
+      :'Aún no hay procesos marcados hoy como «No cancelar». Márcalos desde el botón de cada proceso en «Radicados del día».')+'</td></tr>';
+  $(tipo==='c'?'pcCCopy':'pcNCopy').disabled=!L.length;
+  const filaActual=(i)=>{ const x=L[i]; if(tipo!=='c') return filaPc(tipo,x);
+    const inp=tabla.querySelector('.pcJ[data-k="'+CSS.escape(x.k)+'"]'); return filaPc(tipo,x,inp?inp.value:x.j); };
+  tabla.querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>copiaTabla([filaActual(+b.dataset.cp)],b));
+  tabla.querySelectorAll('.pcJ').forEach(inp=>{
+    const guarda=()=>{ const k=inp.dataset.k; if(PROC_CANCEL[k]){ PROC_CANCEL[k].j=inp.value; guardaProcCancel(); } };
+    inp.addEventListener('input',()=>{ clearTimeout(_tPcJ); _tPcJ=setTimeout(guarda,300); });
+    inp.addEventListener('change',guarda); inp.addEventListener('blur',guarda);
+  });
+  const bAll=$(tipo==='c'?'pcCCopy':'pcNCopy');
+  /* v43: copia solo los procesos (sin la fila de títulos). */
+  bAll.onclick=()=>{ if(!L.length) return; copiaTabla(L.map((_,i)=>filaActual(i)),bAll); };
+}
+function abreTablaCancel(tipo){ pintaTablaCancel(tipo); $(tipo==='c'?'mPcC':'mPcN').classList.add('on'); }
+function cierraTablaCancel(id){
+  const m=$(id); m.querySelectorAll('.pcJ').forEach(inp=>{ const k=inp.dataset.k; if(PROC_CANCEL[k]) PROC_CANCEL[k].j=inp.value; });
+  guardaProcCancel(); m.classList.remove('on');
+}
+$('btnPcCancel').onclick=()=>abreTablaCancel('c');
+$('btnPcNoCancel').onclick=()=>abreTablaCancel('n');
+$('pcCX').onclick=()=>cierraTablaCancel('mPcC');
+$('pcNX').onclick=()=>cierraTablaCancel('mPcN');
+['mPcC','mPcN'].forEach(id=>$(id).onclick=e=>{ if(e.target===$(id)) cierraTablaCancel(id); });
+document.addEventListener('keydown',e=>{ if(e.key!=='Escape') return;
+  ['mPcC','mPcN'].forEach(id=>{ if($(id).classList.contains('on')) cierraTablaCancel(id); }); });
 function paleta(ancla,d){
   document.querySelectorAll('.pal').forEach(p=>p.remove());
   const p=document.createElement('div'); p.className='pal';
@@ -1407,14 +1656,16 @@ function verDetalle(d, opener){
 
   const tablaProc = d.nProc
     ? '<div class="procWrap"><table class="tablaProc"><thead><tr><th>Proceso</th><th>Tr\u00e1mite</th>'+
-      '<th>Cuenta</th><th>Resp. revisi\u00f3n</th><th>Acciones</th></tr></thead><tbody>'+
-      d.procesos.map(p=>'<tr><td class="rad">'+esc(p.numero)+'</td><td>'+esc(p.tramite)+'</td>'+
+      '<th>Cuenta</th><th>Resp. revisi\u00f3n</th><th>Decisi\u00f3n</th></tr></thead><tbody>'+
+      d.procesos.map(p=>{
+        const est=procEstado(p.numero);
+        const dec=est==='c'?'<span class="procState psC">Cancelar</span>'
+                 :est==='n'?'<span class="procState psN">No cancelar</span>'
+                 :'<span class="sp">Sin decisi\u00f3n</span>';
+        return '<tr><td class="rad">'+esc(p.numero)+'</td><td>'+esc(p.tramite)+'</td>'+
         '<td>'+esc(p.cuenta||'\u2014')+'</td>'+
         '<td>'+(p.respRevision?'<b>'+esc(p.respRevision)+'</b>':'<span class="sp">Sin asignar</span>')+'</td>'+
-        '<td class="procAcc">'+
-          '<button type="button" class="procBtn procBtnOk" title="No Cancelar proceso" aria-label="No Cancelar proceso">'+m2i('check')+'<span>No cancelar</span></button>'+
-          '<button type="button" class="procBtn procBtnNo" title="Cancelar proceso" aria-label="Cancelar proceso">'+m2i('x')+'<span>Cancelar</span></button>'+
-        '</td></tr>').join('')+'</tbody></table></div>'
+        '<td>'+dec+'</td></tr>'; }).join('')+'</tbody></table></div>'
     : '<div class="ficha"><div class="f"><span class="sp">Sin proceso creado en SAC.</span></div></div>';
 
   html+='<div class="detCols">'+
@@ -1759,9 +2010,12 @@ function ordenable(tabla,mem){
   if(mem&&mem.i!=null) aplica(mem.i,mem.desc);
 }
 
-const RUTAS_NOM={pq:'Peticiones',es:'Ruta especializada',cd:'Cambio de datos básicos',rc:'Reclamos',rs:'Recursos',sp:'SSPD',so:'Somos'};
-const SUB_PQ=['pq','es','cd'];
-const RUTAS_DEF={pq:[],rc:[],rs:[],sp:[],so:[],es:[],cd:[]};
+/* v42 · Peticiones tiene dos sub-rutas: Ruta Especializada (es) y SOMOS (so).
+   «Cambio de datos básicos» se retiró. */
+const RUTAS_NOM={pq:'Peticiones',es:'Ruta Especializada',rc:'Reclamos',rs:'Recursos',sp:'SSPD',so:'SOMOS'};
+const SUB_PQ=['pq','es','so'];
+const SUBRUTAS_RESTRINGIDAS=['es','so'];
+const RUTAS_DEF={pq:[],rc:[],rs:[],sp:[],so:[],es:[]};
 const LS_RUTAS='essa_rutas';
 let RUTA='pq';
 const LS_ROL='essa_rol_recursos', LS_EXP='essa_expedientes', LS_HOY='essa_checklist_hoy';
@@ -1773,6 +2027,7 @@ if(!RUTAS){ RUTAS=JSON.parse(JSON.stringify(RUTAS_DEF)); const viejo=lsGet(LS_RO
 if(typeof RUTAS!=='object'||!RUTAS||Array.isArray(RUTAS)) RUTAS=JSON.parse(JSON.stringify(RUTAS_DEF));
 Object.keys(RUTAS_DEF).forEach(k=>{ if(!Array.isArray(RUTAS[k])) RUTAS[k]=RUTAS_DEF[k].slice(); });
 RUTAS=SANEA.listas(RUTAS,RUTAS_DEF);
+if('cd' in RUTAS){ delete RUTAS.cd; try{ lsSet(LS_RUTAS,RUTAS); }catch(e){} }   /* v42: sin «Cambio de datos básicos» */
 function reconstruirEquipo(){
   const vistos=new Set(), lista=[];
   Object.keys(RUTAS).forEach(k=>(Array.isArray(RUTAS[k])?RUTAS[k]:[]).forEach(n=>{
@@ -1789,10 +2044,6 @@ reconstruirEquipo();
 let ROL=RUTAS[RUTA], EXP=lsGet(LS_EXP,{}), CHK=lsGet(LS_HOY,{});
 const _obj=v=>(v&&typeof v==='object'&&!Array.isArray(v))?v:{};
 EXP=SANEA.exp(EXP); CHK=SANEA.chk(CHK);
-if(!appDataGet('essa_mig_cd_zandra')){
-  if(Array.isArray(RUTAS.cd) && !RUTAS.cd.length){ RUTAS.cd=RUTAS_DEF.cd.slice(); lsSet(LS_RUTAS,RUTAS); }
-  try{ appDataSet('essa_mig_cd_zandra','1'); }catch(e){}
-}
 const guardaRutas=()=>{ RUTAS[RUTA]=ROL; lsSet(LS_RUTAS,RUTAS); DUP_IDX=null; DUP_CACHE=new Map(); };
 let SUBREC='dup', EXP_VER_EV=false;
 
@@ -1813,8 +2064,12 @@ function pintaRol(){
   $('subVen').style.display = RUTA==='es' ? '' : 'none';
   const sub=document.getElementById('subRuta');
   if(sub){
+    const vis=rutasVisibles();
     sub.style.display = SUB_PQ.includes(RUTA) ? '' : 'none';
-    sub.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.r===RUTA));
+    sub.querySelectorAll('button').forEach(b=>{
+      b.classList.toggle('on',b.dataset.r===RUTA);
+      b.style.display = vis.includes(b.dataset.r) ? '' : 'none';
+      const n=(RUTAS[b.dataset.r]||[]).length, sm=b.querySelector('small'); if(sm) sm.textContent=n; });
   }
   rtSync();
 }
@@ -2105,7 +2360,7 @@ if(typeof TIPO!=='object'||!TIPO) TIPO={};
 Object.keys(TIPO_DEF).forEach(k=>{ if(!Array.isArray(TIPO[k])) TIPO[k]=TIPO_DEF[k].slice(); });
 TIPO=SANEA.listas(TIPO,TIPO_DEF);
 const guardaTipo=()=>lsSet(LS_TIPO,TIPO);
-function rutaDeUsuario(u){ const r=Object.keys(RUTAS).find(k=>RUTAS[k].includes(u))||''; return SUB_PQ.includes(r)?'pq':r; }
+function rutaDeUsuario(u){ const r=Object.keys(RUTAS).find(k=>k!=='es'&&RUTAS[k].includes(u))||Object.keys(RUTAS).find(k=>RUTAS[k].includes(u))||''; return r==='es'?'pq':r; }
 function clasificar(d){
   const txtD=' '+normTxt([d.contenido,(d.tramites||[]).join(' '),d.tipo].join(' '))+' ';
   const sc={}, hit={};
@@ -2174,17 +2429,48 @@ function pintaVen(u){
 }
 
 function usuarioActivo(){ return equipoDe(USUARIO_FIJO||valorResp()||NOMBRE_FIRMANTE||'')||''; }
+/* Huellas de las variantes razonables del mismo nombre: el reporte o el perfil
+   pueden traer un apellido adicional, escribir los tokens en otro orden o con
+   otra grafía. Se comparan subconjuntos de tokens contra HUELLAS_PLAZO; en el
+   código solo viven hashes, nunca nombres. */
+function huellasDeNombre(n){
+  const toks=canonHuella(n).split(' ').filter(Boolean), out=new Set();
+  const add=arr=>{ if(arr.length>=2) out.add(huellaNombre(arr.join(' '))); };
+  add(toks);
+  if(toks.length>2){
+    toks.forEach((_,i)=>add(toks.filter((__,j)=>j!==i)));
+    if(toks.length>4){
+      for(let i=0;i<toks.length;i++)for(let j=i+1;j<toks.length;j++)
+        add(toks.filter((_,k)=>k!==i&&k!==j));
+    }
+  }
+  return out;
+}
+/* v42 · Pertenencia del usuario que inició sesión a una sub-ruta restringida.
+   Se compara el firmante (y su equivalente en el equipo) por huellas, tolerando
+   variantes de grafía u orden; nunca el responsable consultado en el filtro. */
+function subRutasUsuario(){
+  const fuentes=[NOMBRE_FIRMANTE, equipoDe(NOMBRE_FIRMANTE)];
+  const out=new Set(), vistos=new Set();
+  fuentes.forEach(n=>{ const c=canonNombre(n); if(!c||vistos.has(c)) return; vistos.add(c);
+    for(const h of huellasDeNombre(n)) (SUBRUTA_POR_HUELLA.get(h)||[]).forEach(k=>out.add(k)); });
+  return out;
+}
 function esUsuarioPlazoEspecial(){
-  if(NOMBRE_FIRMANTE===FIRMANTE_HABILITA_RESPONSABLE) return true;
-  const u=canonNombre(usuarioActivo()); if(!u) return false;
-  return [].concat(RUTAS.es||[],RUTAS.so||[]).some(n=>canonNombre(n)===u);
+  /* La columna «Vencimiento» (nuevo plazo: 1, 2, 3, 4, 5, 10 o 15 días hábiles)
+     solo la ven y la usan los miembros de Ruta Especializada o SOMOS. */
+  const s=subRutasUsuario();
+  return SUBRUTAS_RESTRINGIDAS.some(k=>s.has(k));
 }
 function rutasVisibles(){
   const claves=Object.keys(RUTAS);
   const u=canonNombre(usuarioActivo());
   if(NOMBRE_FIRMANTE===FIRMANTE_HABILITA_RESPONSABLE) return claves;
-  const mias=u?claves.filter(k=>(RUTAS[k]||[]).some(n=>canonNombre(n)===u)):[];
-  return mias.length?mias:claves;
+  /* v42: Ruta Especializada y SOMOS solo para sus miembros (por huella). */
+  const sub=subRutasUsuario();
+  const permitida=k=>!SUBRUTAS_RESTRINGIDAS.includes(k)||sub.has(k);
+  const mias=u?claves.filter(k=>permitida(k)&&((RUTAS[k]||[]).some(n=>canonNombre(n)===u)||sub.has(k))):[];
+  return mias.length?mias:claves.filter(permitida);
 }
 function aplicaRutasVisibles(){
   const vis=rutasVisibles();
@@ -2204,6 +2490,14 @@ function visibilidadTipologias(){
 }
 function pintaRec(){
   const u=$('recUsr').value, th=$('tRec').querySelector('thead'), tb=$('tRec').querySelector('tbody');
+  /* v43 · Ruta Especializada y SOMOS: pestañas reservadas, sin contenido por ahora. */
+  const subVacia=SUBRUTAS_RESTRINGIDAS.includes(RUTA);
+  $('mRec').classList.toggle('subVacia',subVacia);
+  if(subVacia){
+    th.innerHTML=''; $('recInfo').textContent='';
+    tb.innerHTML='<tr><td class="vacio subVaciaMsg"><b>'+esc(RUTAS_NOM[RUTA]||'Sub-ruta')+'</b><br>Esta sub-ruta aún no tiene funciones. Próximamente se agregarán.</td></tr>';
+    return;
+  }
   visibilidadTipologias();
   $('expBar').style.display = SUBREC==='exp'?'':'none';
   if(!ALLPROC.length){ th.innerHTML=''; tb.innerHTML='<tr><td class="vacio">Carga SAC Trámite y Mercurio Trámite en Recursos.</td></tr>'; $('recInfo').textContent=''; return; }
@@ -2401,14 +2695,24 @@ function delUsuarioActivo(d){
 const esProcesoRevision = (p: any): boolean =>
   !!(p && (p.respRevision || p.numRevision || p.estadoRevision || p.fRevision || p.fProgRevision));
 
+/* Tipos de proceso que nunca deben generar alerta de revisión. */
+const TIPOS_SIN_ALERTA=new Set(['1401']);
 function procsRevision(){
   if(_renderCtx && _renderCtx.rev) return _renderCtx.rev;
   const out=[];
   DATOS.forEach(d=>{
     if(evacuado(d)) return;
+    /* Mercurio es fuente de validación obligatoria: si el radicado no existe en
+       Mercurio (o no hay Mercurio cargado) no se genera ninguna alerta, aunque el
+       proceso sí esté en SAC. */
+    if(!d.enMercurio) return;
     if(!(d.dia>=13 && d.dia<=15)) return;
     if(!delUsuarioActivo(d)) return;
-    d.procesos.forEach(p=>{ if(esProcesoRevision(p) && !p.obsRevision) out.push({d,p}); });
+    d.procesos.forEach(p=>{
+      if(!esProcesoRevision(p) || p.obsRevision) return;
+      if(TIPOS_SIN_ALERTA.has(String(p.codTram==null?'':p.codTram).trim())) return;
+      out.push({d,p});
+    });
   });
   if(_renderCtx) _renderCtx.rev=out;
   return out;
@@ -2582,11 +2886,47 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('mRev').classLis
    cualquier módulo). Al pulsarlos, el shell navega al Cuadro y dispara este evento en
    este documento: se ejecuta la MISMA acción del botón local (oculto al embebido),
    sin duplicar lógica. El conteo de revisiones viaja en sentido inverso (notificaPadreRev). */
+/* ===== v41 · Calendario v40 (módulo aparte) en ventana flotante =====
+   Abre modules/calendario.html en un iframe sobre el Cuadro de Mando.
+   Pasa el firmante (?u=) para que cada usuario tenga su propia agenda. */
+function abreCalendario(){
+  let ov=document.getElementById('calFlot');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='calFlot';
+    ov.innerHTML='<div class="calFlotBox" role="dialog" aria-modal="true" aria-label="Calendario">'+
+      '<button type="button" class="calFlotX" aria-label="Cerrar calendario" title="Cerrar (Esc)">×</button>'+
+      '<iframe title="Calendario"></iframe></div>';
+    document.body.appendChild(ov);
+    const st=document.createElement('style');
+    st.textContent=
+      '#calFlot{position:fixed;inset:0;z-index:9000;display:none;place-items:center;padding:12px;'+
+        'background:rgba(14,24,40,.42);backdrop-filter:blur(3px)}'+
+      '#calFlot.on{display:grid}'+
+      '#calFlot .calFlotBox{position:relative;width:min(1500px,97vw);height:min(920px,95vh);border-radius:16px;overflow:hidden;'+
+        'background:var(--m2-soft,#F4F7FB);box-shadow:0 30px 70px -20px rgba(10,30,60,.55)}'+
+      'html[data-theme="dark"] #calFlot .calFlotBox{background:#0E141E}'+
+      '#calFlot iframe{width:100%;height:100%;border:0;display:block}'+
+      '#calFlot .calFlotX{position:absolute;top:8px;right:10px;z-index:2;width:30px;height:30px;border-radius:50%;'+
+        'border:1px solid rgba(120,140,170,.35);background:rgba(255,255,255,.85);color:#1B2433;font-size:18px;line-height:1;cursor:pointer}'+
+      '#calFlot .calFlotX:hover{background:#C8102E;color:#fff;border-color:#C8102E}';
+    document.head.appendChild(st);
+    const cerrar=()=>ov.classList.remove('on');
+    ov.querySelector('.calFlotX').onclick=cerrar;
+    ov.addEventListener('mousedown',e=>{ if(e.target===ov) cerrar(); });
+    window.addEventListener('message',e=>{ if(e.data&&e.data.tipo==='essa-cal-cerrar') cerrar(); });
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&ov.classList.contains('on')) cerrar(); });
+  }
+  const fr=ov.querySelector('iframe');
+  const src=new URL('calendario.html?u='+encodeURIComponent(NOMBRE_FIRMANTE||''),location.href).href;
+  if(fr.src!==src) fr.src=src;
+  ov.classList.add('on');
+  setTimeout(()=>{ try{ fr.contentWindow.focus(); }catch(e){} },60);
+}
 window.addEventListener('ad-cuadro-tool',e=>{
   const a=e&&e.detail&&e.detail.action;
   if(a==='mat') abreHerr('mat');
   else if(a==='ciiu') abreHerr('ciiu');
-  else if(a==='cal'){ pintaCal(); $('mCal').classList.add('on'); }
+  else if(a==='cal') abreCalendario();   /* v41: calendario v40 en ventana flotante */
   else if(a==='rev') abrirRev();
 });
 const LS_CONS='essa_consultas';
@@ -2633,15 +2973,84 @@ function listaCons(){
     out.push({k,d:null,f:normFoto(c.f,k)}); });
   return out;
 }
+/* Orden de «Consultas» y «Consultas anteriores».
+   El primer clic ordena de forma descendente y el segundo invierte. Los radicados,
+   cuentas, procesos y días se comparan como números (no alfabéticamente), y el
+   orden se aplica a todos los registros, no solo a la página visible. */
+const ORD_CONS={col:null,desc:true};
+const ORD_CONS_ANT={col:null,desc:true};
+const CONS_COLS_ACT=[{i:1,k:'rad',t:'Radicado'},{i:2,k:'cta',t:'Cuenta'},{i:3,k:'proc',t:'Proceso(s)'},{i:4,k:'dia',t:'Día'}];
+const CONS_COLS_ANT=[{i:0,k:'rad',t:'Radicado'},{i:2,k:'cta',t:'Cuenta'},{i:3,k:'proc',t:'Proceso(s)'},{i:4,k:'dia',t:'Día'}];
+function consValor(fila,col){
+  if(col==='rad')return fila.f.r;
+  if(col==='cta')return fila.f.cta;
+  if(col==='proc')return fila.f.pr;
+  if(col==='dia')return (fila.d&&fila.d.dia!=null)?fila.d.dia:(fila.f.dia!=null?fila.f.dia:null);
+  return '';
+}
+function cmpConsId(a,b){
+  const da=String(a==null?'':a).replace(/\D/g,''), db=String(b==null?'':b).replace(/\D/g,'');
+  if(da&&db){
+    if(da.length!==db.length)return da.length-db.length;
+    return da<db?-1:da>db?1:0;
+  }
+  return String(a==null?'':a).localeCompare(String(b==null?'':b),'es',{numeric:true,sensitivity:'base'});
+}
+function cmpConsProc(a,b){
+  const A=(Array.isArray(a)?a:[]).flatMap(v=>String(v).match(/\d+/g)||[]);
+  const B=(Array.isArray(b)?b:[]).flatMap(v=>String(v).match(/\d+/g)||[]);
+  for(let i=0;i<Math.max(A.length,B.length);i++){
+    if(A[i]==null)return -1;
+    if(B[i]==null)return 1;
+    const c=cmpConsId(A[i],B[i]);if(c)return c;
+  }
+  return 0;
+}
+function ordenaConsFilas(filas,estado){
+  if(!estado.col)return filas;
+  const desc=estado.desc;
+  filas.sort((a,b)=>{
+    let c=0;
+    if(estado.col==='dia'){
+      const x=consValor(a,'dia'), y=consValor(b,'dia');
+      if(x==null&&y==null)c=0;else if(x==null)c=1;else if(y==null)c=-1;else c=Number(x)-Number(y);
+      return desc?-c:c;
+    }
+    if(estado.col==='proc'){
+      const ea=!(a.f.pr&&a.f.pr.length), eb=!(b.f.pr&&b.f.pr.length);
+      if(ea!==eb)return ea?1:-1;
+      c=cmpConsProc(a.f.pr,b.f.pr);
+      return desc?-c:c;
+    }
+    c=cmpConsId(consValor(a,estado.col),consValor(b,estado.col));
+    return desc?-c:c;
+  });
+  return filas;
+}
+function habilitaOrdenCons(tabla,estado,cols){
+  const ths=[...tabla.querySelectorAll('thead th')];
+  cols.forEach(col=>{
+    const th=ths[col.i];if(!th)return;
+    th.classList.add('thOrdenCons');
+    th.textContent=col.t+(estado.col===col.k?(estado.desc?' ▼':' ▲'):'');
+    th.title='Ordenar por '+col.t.toLowerCase();
+    th.setAttribute('aria-sort',estado.col===col.k?(estado.desc?'descending':'ascending'):'none');
+    th.onclick=()=>{
+      if(estado.col===col.k)estado.desc=!estado.desc;
+      else{estado.col=col.k;estado.desc=true;}
+      if(tabla.id==='tCons')pintaCons();else pintaConsAnt();
+    };
+  });
+}
 function pintaCons(){
-  const tb=$('tCons').querySelector('tbody'), L=listaCons();
+  const tb=$('tCons').querySelector('tbody'), L=ordenaConsFilas(listaCons(),ORD_CONS);
   $('consSub').textContent=L.length+' consulta(s) activa(s) · se guardan en este equipo';
   tb.innerHTML=L.length?L.map((x,i)=>{ const mk=MARCAS[x.k]||{}, col=mk.color||'', c=CONS[x.k]||{}, f=x.f;
     return '<tr class="'+(col?'marcada':'')+'"'+(col?' style="--mk:'+col+';--mkbg:'+rgba(col,.13)+';--mkbg2:'+rgba(col,.22)+'"':'')+'>'+
       '<td>'+(x.d?'<span class="dot'+(col?'':' vacio')+'" data-cc="'+i+'"'+(col?' style="background:'+col+';border-color:'+col+'"':'')+'></span>':'')+'</td>'+
       '<td class="rad">'+esc(f.r)+'</td><td>'+esc(f.cta||'—')+'</td>'+
       '<td>'+((f.pr||[]).length?f.pr.map(p=>'<span class="procHL">'+esc(p)+'</span>').join(' '):'<span class="sp">Sin proceso en SAC</span>')+'</td>'+
-      '<td>'+(x.d&&x.d.dia?'Día '+x.d.dia:'<span class="sp">—</span>')+'</td>'+
+      (()=>{const dia=(x.d&&x.d.dia!=null)?x.d.dia:(f.dia!=null?f.dia:null);return '<td>'+(dia!=null?'Día '+dia:'<span class="sp">—</span>')+'</td>';})()+
       '<td><div class="txtLargo">'+(f.cont?esc(f.cont):'<span class="sp">Sin contenido en Mercurio</span>')+'</div></td>'+
       '<td data-cx="'+i+'|n">'+celdaTxt(mk.nota||'',false,'Qué se debe consultar…')+'</td>'+
       '<td data-cx="'+i+'|o">'+celdaTxt(c.obs||'',false,'Respuesta u observación del profesional…')+'</td>'+
@@ -2680,6 +3089,7 @@ function pintaCons(){
       ()=>{ const k=x.k, n=(MARCAS[k]||{}).nota||'', o=(CONS[k]||{}).obs||'';
         CONS[k]=Object.assign(CONS[k]||{},{ev:clave(HOY),f:mezclaFoto((CONS[k]||{}).f,x.f),cons:n,obs:o}); guardaCons(); pintaCons(); },
       ()=>{ ch.checked=false; }); });
+  habilitaOrdenCons($('tCons'),ORD_CONS,CONS_COLS_ACT);
 }
 function confirmar(tit,html,si,no){
   $('confTit').textContent=tit; $('confTxt').innerHTML=html;
@@ -2696,12 +3106,14 @@ function pintaConsAnt(){
   const q=sinTilde($('consAntQ').value.trim());
   const todas=Object.keys(CONS).filter(k=>CONS[k]&&typeof CONS[k]==='object'&&CONS[k].ev)
     .sort((a,b)=>String(CONS[b].ev).localeCompare(String(CONS[a].ev)));
-  const ks=q?todas.filter(k=>consAntTexto(k).includes(q)):todas;
-  $('consAntSub').textContent=todas.length+' consulta(s) atendida(s) · solo lectura'+(q?' · '+ks.length+' coincidencia(s)':'');
-  tb.innerHTML=ks.length?ks.map(k=>{ const c=CONS[k], f=normFoto(c.f,k);
+  const filas=ordenaConsFilas((q?todas.filter(k=>consAntTexto(k).includes(q)):todas)
+    .map(k=>({k,c:CONS[k],f:normFoto(CONS[k].f,k),d:null})),ORD_CONS_ANT);
+  $('consAntSub').textContent=todas.length+' consulta(s) atendida(s) · solo lectura'+(q?' · '+filas.length+' coincidencia(s)':'');
+  tb.innerHTML=filas.length?filas.map(({k,c,f})=>{
     const d=DATOS.find(x=>claveR(x)===k), fr=f.fr||(d&&d.fSol?clave(d.fSol):''), cons=c.cons||(MARCAS[k]||{}).nota||'';
     return '<tr><td class="rad">'+esc(f.r)+'</td><td>'+(fr?fr.split('-').reverse().join('/'):'—')+'</td><td>'+esc(f.cta||'—')+'</td>'+
       '<td>'+((f.pr||[]).length?f.pr.map(p=>'<span class="procHL">'+esc(p)+'</span>').join(' '):'<span class="sp">Sin proceso</span>')+'</td>'+
+      '<td>'+(f.dia!=null?'Día '+f.dia:'<span class="sp">—</span>')+'</td>'+
       '<td><div class="txtLargo">'+(f.cont?esc(f.cont):'<span class="sp">—</span>')+'</div></td>'+
       '<td><div class="roTxt">'+esc(cons||'—')+'</div></td>'+
       '<td><div class="roTxt">'+esc(c.obs||'—')+'</div></td>'+
@@ -2709,7 +3121,7 @@ function pintaConsAnt(){
       '<td class="accAnt"><button class="btnFila" data-back="'+esc(k)+'" type="button">'+m2i('undo')+'Reactivar consulta</button>'+
         '<button class="btnElim" data-del="'+esc(k)+'" title="Advertencia: la consulta se eliminará completamente y ya no la volverás a ver.">'+
         '<span class="icoAdv">'+M2I(M2P.warn)+'</span> Eliminar</button></td></tr>'; }).join('')
-    :'<tr><td colspan="9" class="vacio">'+(q?'No hay consultas anteriores que coincidan con la búsqueda.':'No hay consultas anteriores.')+'</td></tr>';
+    :'<tr><td colspan="10" class="vacio">'+(q?'No hay consultas anteriores que coincidan con la búsqueda.':'No hay consultas anteriores.')+'</td></tr>';
   tb.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ const k=b.dataset.del, f=(CONS[k]||{}).f||{};
     confirmar('Eliminar consulta','<span class="icoAdv">'+M2I(M2P.warn)+'</span> La consulta del radicado <b>'+esc(f.r||k)+'</b> se <b>eliminará completamente</b> '+
       'de Consultas anteriores y ya no la volverás a ver. Esta acción no se puede deshacer.',
@@ -2717,6 +3129,7 @@ function pintaConsAnt(){
   tb.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{ const k=b.dataset.back, c=CONS[k];
     if(c.cons && !(MARCAS[k]||{}).nota){ MARCAS[k]=MARCAS[k]||{}; MARCAS[k].nota=c.cons; guardaMarcas(); }
     delete c.ev; delete c.cons; c.act=1; guardaCons(); pintaConsAnt(); render(); });
+  habilitaOrdenCons($('tConsAnt'),ORD_CONS_ANT,CONS_COLS_ANT);
 }
 $('consAntQ').addEventListener('input',pintaConsAnt);
 $('consAntQLimp').onclick=()=>{ $('consAntQ').value=''; pintaConsAnt(); $('consAntQ').focus(); };
@@ -2823,7 +3236,7 @@ function pintaCalPanel(fn){
   $('calPanel').querySelectorAll('[data-dn]').forEach(b=>b.onclick=()=>{ ns.splice(+b.dataset.dn,1); if(!ns.length) delete U.notas[k]; guardaCal(); pintaCal(); });
   $('calPanel').querySelectorAll('[data-dc]').forEach(b=>b.onclick=()=>{ cs.splice(+b.dataset.dc,1); if(!cs.length) delete U.cumple[md]; guardaCal(); pintaCal(); });
 }
-$('btnCal').onclick=()=>{ pintaCal(); $('mCal').classList.add('on'); };
+$('btnCal').onclick=abreCalendario;   /* v41: calendario v40 en ventana flotante */
 $('calPrev').onclick=()=>{ CAL_MES=new Date(CAL_MES.getFullYear(),CAL_MES.getMonth()-1,1); pintaCal(); };
 $('calNext').onclick=()=>{ CAL_MES=new Date(CAL_MES.getFullYear(),CAL_MES.getMonth()+1,1); pintaCal(); };
 $('calHoy').onclick=()=>{ CAL_MES=new Date(HOY.getFullYear(),HOY.getMonth(),1); CAL_SEL=new Date(HOY); pintaCal(); };
@@ -2831,11 +3244,15 @@ $('calX').onclick=()=>$('mCal').classList.remove('on');
 $('mCal').onclick=e=>{ if(e.target===$('mCal')) $('mCal').classList.remove('on'); };
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('mCal').classList.remove('on'); });
 
-const HERR={
-  mat:new URL('../consultas/matriz-arbol.html',document.baseURI).href,
-  ciiu:new URL('../consultas/ciiu.html',document.baseURI).href
-};
-function abreHerr(k){ const u=HERR[k]; if(u) window.open(u,'_blank','noopener'); }
+function abreHerr(k){
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.dispatchEvent(new CustomEvent('ad-open-consulta', { detail: { id: k } }));
+      return;
+    }
+  } catch (e) {}
+  window.dispatchEvent(new CustomEvent('ad-open-consulta', { detail: { id: k } }));
+}
 $('btnConsMat').onclick=()=>abreHerr('mat');
 $('btnConsCiiu').onclick=()=>abreHerr('ciiu');
 
@@ -2852,6 +3269,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) revisaDi
 setInterval(revisaDia,10*60*1000);
 render=seguro(render,'Cuadro principal');
 pintaRadicados=seguro(pintaRadicados,'Radicados del día');
+pintaTablaCancel=seguro(pintaTablaCancel,'Cancelar / No cancelar');
 verDetalle=seguro(verDetalle,'Detalle del radicado');
 pintaRec=seguro(pintaRec,'Rutas');
 pintaRol=seguro(pintaRol,'Usuarios de la ruta');

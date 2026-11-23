@@ -196,8 +196,23 @@ html[data-theme="dark"] .kpis .kpi.kpiHoy .notaRT{background:linear-gradient(135
 
 .gridCarga{grid-template-columns:minmax(0,1fr) clamp(340px,29vw,420px);gap:16px;align-items:stretch;margin-bottom:16px}
 @media(max-width:1150px){.gridCarga{grid-template-columns:1fr}}
+/* Sin radicados vencidos, «Mi bandeja» ocupa todo el ancho; al aparecer un
+   vencido, la ficha vuelve a su columna original. */
+.gridCarga.sinVenc{grid-template-columns:minmax(0,1fr)}
+.gridCarga>.card.cardVenc[hidden]{display:none!important}
 .gridCarga>.card{border:1px solid var(--m2-line);border-top:1px solid var(--m2-line);border-radius:var(--m2-r);
   box-shadow:var(--m2-shadow);padding:24px 26px;background:var(--m2-card);min-width:0}
+/* Acento discreto de cada ficha: velo de color en la esquina y filo superior. */
+.gridCarga>.card.cardBand{
+  background:radial-gradient(120% 58% at 100% 0,rgba(22,100,176,.09),rgba(22,100,176,0) 64%),
+    radial-gradient(90% 45% at 0 100%,rgba(43,110,150,.05),rgba(43,110,150,0) 72%),
+    var(--m2-card);
+  box-shadow:inset 0 3px 0 rgba(22,100,176,.50),var(--m2-shadow)}
+html[data-theme="dark"] .gridCarga>.card.cardBand{
+  background:radial-gradient(120% 58% at 100% 0,rgba(91,147,245,.17),rgba(91,147,245,0) 64%),
+    radial-gradient(90% 45% at 0 100%,rgba(74,160,190,.07),rgba(74,160,190,0) 72%),
+    var(--m2-card);
+  box-shadow:inset 0 3px 0 rgba(91,147,245,.62),var(--m2-shadow)}
 @media(max-width:560px){.gridCarga>.card{padding:18px 16px}}
 
 .gridCarga .m2Head{display:flex;align-items:flex-start;gap:14px;margin:0 0 18px}
@@ -304,7 +319,13 @@ html[data-theme="dark"] .graf .gLn{border-top-color:#343D50}
 @media(max-width:700px){.leyenda .grafNota{margin-left:0}}
 
 .gridCarga>.card.cardVenc{position:relative;padding:0;border-color:var(--m2-line);
-  background:radial-gradient(100% 38% at 100% 0,rgba(210,22,36,.08),rgba(210,22,36,0) 70%),var(--m2-card)}
+  background:radial-gradient(100% 38% at 100% 0,rgba(210,22,36,.09),rgba(210,22,36,0) 70%),
+    radial-gradient(80% 34% at 0 100%,rgba(210,22,36,.035),rgba(210,22,36,0) 72%),var(--m2-card);
+  box-shadow:inset 0 3px 0 rgba(210,22,36,.46),var(--m2-shadow)}
+html[data-theme="dark"] .gridCarga>.card.cardVenc{
+  background:radial-gradient(100% 38% at 100% 0,rgba(255,107,117,.15),rgba(255,107,117,0) 70%),
+    radial-gradient(80% 34% at 0 100%,rgba(255,107,117,.06),rgba(255,107,117,0) 72%),var(--m2-card);
+  box-shadow:inset 0 3px 0 rgba(255,107,117,.55),var(--m2-shadow)}
 .cardVenc .vencWrap{display:flex;flex-direction:column;padding:24px 20px 18px;min-height:0}
 @media(min-width:1151px){
   .gridCarga>.card.cardVenc{min-height:560px}
@@ -693,11 +714,13 @@ html[data-theme="dark"] #m2ui span.vtoHoy{color:#1B0A0C}
 
 #m2ui #tRad{min-width:640px}
 #m2ui #tRad td,
-#m2ui #tRad th{padding-left:12px;padding-right:12px}
+#m2ui #tRad th{padding-left:9px;padding-right:9px}
 #m2ui #tRad th:first-child,
 #m2ui #tRad td:first-child{width:44px;padding-left:16px;padding-right:0}
 #m2ui #tRad td.acc{white-space:nowrap;text-align:right}
-#m2ui #tRad td.acc>*{margin:2px 0 2px 6px;vertical-align:middle}
+#m2ui #tRad td.acc>*{margin:2px 0 2px 4px;vertical-align:middle}
+#m2ui #tRad .btnFila{height:28px;padding:0 9px;font-size:11.5px;gap:4px}
+#m2ui #tRad .chkEvLbl{height:28px;padding:0 8px;font-size:10.5px;gap:5px}
 #m2ui #tRad th.thOrden{cursor:pointer;user-select:none;transition:color .15s}
 #m2ui #tRad th.thOrden:hover{color:var(--m2-blue)}
 #m2ui #tRad .flechaOrd{font-size:9px;color:var(--m2-blue);margin-left:5px}
@@ -1238,7 +1261,19 @@ html[data-theme="dark"] #m2ui #mConf[data-tone="danger"] .pie .btn.ok{background
 #m2ui .panelPQR-grid{align-items:stretch}
 #m2ui .panelPQR-grid>.card{
   display:flex;flex-direction:column;min-width:0;min-height:0;
-  container-type:inline-size;container-name:pqr}
+  container-type:inline-size;container-name:pqr;
+  /* Acento tenue: velo azul y filo superior, sin saturar el contenido. */
+  background:radial-gradient(110% 55% at 0 0,rgba(22,100,176,.06),rgba(22,100,176,0) 62%),var(--m2-card);
+  box-shadow:inset 0 3px 0 rgba(22,100,176,.38),var(--m2-shadow)}
+#m2ui .panelPQR-grid>.card.panelPQR-col--right{
+  background:radial-gradient(110% 55% at 100% 0,rgba(31,147,80,.065),rgba(31,147,80,0) 62%),var(--m2-card);
+  box-shadow:inset 0 3px 0 rgba(31,147,80,.36),var(--m2-shadow)}
+html[data-theme="dark"] #m2ui .panelPQR-grid>.card{
+  background:radial-gradient(110% 55% at 0 0,rgba(91,147,245,.14),rgba(91,147,245,0) 62%),var(--m2-card);
+  box-shadow:inset 0 3px 0 rgba(91,147,245,.55),var(--m2-shadow)}
+html[data-theme="dark"] #m2ui .panelPQR-grid>.card.panelPQR-col--right{
+  background:radial-gradient(110% 55% at 100% 0,rgba(74,222,128,.12),rgba(74,222,128,0) 62%),var(--m2-card);
+  box-shadow:inset 0 3px 0 rgba(74,222,128,.5),var(--m2-shadow)}
 #m2ui .panelPQR-grid>.card>.m2Head{flex:none}
 #m2ui .panelPQR-grid>.card>.scroll{
   flex:0 1 auto;min-height:0;max-height:min(540px,62vh);
@@ -2076,7 +2111,92 @@ html[data-theme="dark"] #m2ui .btnGen:hover{color:#0F1C33}
 #m2ui #detModal #detalle.card{margin:0;max-height:90vh;overflow-y:auto;overscroll-behavior:contain;padding:22px 24px 24px}
 #m2ui #detModal .detCerrar{margin-left:auto;flex:none;align-self:flex-start;font-size:26px;line-height:1;padding:0 4px}
 #m2ui .btnVer{font-weight:700}
-#m2ui #tRad td.detCell{white-space:nowrap}
+#m2ui #tRad td.detCell{width:1%;white-space:nowrap}
+
+/* Botón «Ver»: acabado moderno y coherente con el tema. El ancho se ajusta al
+   propio texto (sin mínimos) para que nunca desborde la columna ni empuje la
+   tabla, incluso con nombres de usuario largos. Solo cambia la presentación. */
+#m2ui #tRad .btnVer{width:auto;min-width:0;max-width:100%;box-sizing:border-box;
+  height:32px;padding:0 11px;font-size:12px;line-height:1;border-radius:10px;white-space:nowrap;
+  background:linear-gradient(180deg,var(--u-surface),var(--m2-blue-t));
+  border:1px solid var(--m2-blue-l);color:var(--m2-blue);font-weight:800;letter-spacing:.01em;
+  box-shadow:0 1px 2px rgba(16,24,40,.06),0 4px 10px -8px rgba(16,24,40,.30);
+  transition:background .16s ease,color .16s ease,border-color .16s ease,transform .16s var(--u-ease),box-shadow .16s ease}
+#m2ui #tRad .btnVer:hover{background:var(--m2-blue);border-color:var(--m2-blue);color:#fff;
+  transform:translateY(-1px);box-shadow:0 8px 16px -10px rgba(16,24,40,.45)}
+#m2ui #tRad .btnVer:focus-visible{outline:none;box-shadow:var(--u-ring)}
+html[data-theme="dark"] #m2ui #tRad .btnVer{background:linear-gradient(180deg,var(--m2-blue-t),var(--m2-card))}
+@container pqr (max-width:660px){
+  #m2ui #tRad .btnVer{height:30px;padding:0 9px;font-size:11.5px}
+}
+
+/* Columna de procesos del radicado: cada proceso es un botón con su tipo.
+   Cada uno ocupa su propia línea y «número (tipo)» nunca se parte. */
+#m2ui #tRad th.thProc{width:170px;white-space:nowrap}
+#m2ui #tRad td.procCell{white-space:normal;line-height:1.35;max-width:220px}
+#m2ui #tRad td.procCell .sp{font-size:11px;font-style:italic;color:var(--m2-mut)}
+#m2ui .procChip{display:flex;width:max-content;max-width:100%;align-items:center;gap:4px;
+  margin:0 0 3px;padding:3px 9px;
+  border-radius:8px;border:1px solid var(--m2-blue-l);background:var(--m2-blue-t);color:var(--m2-blue);
+  font-family:inherit;font-size:11.5px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.25;
+  white-space:nowrap;cursor:pointer;
+  transition:background .15s,border-color .15s,color .15s,transform .15s var(--u-ease),box-shadow .15s}
+#m2ui .procChip:last-child{margin-bottom:0}
+#m2ui .procChip .pcNum{white-space:nowrap}
+#m2ui .procChip .pcTipo{font-weight:600;opacity:.82}
+#m2ui .procChip:hover{background:var(--m2-blue);border-color:var(--m2-blue);color:#fff;transform:translateY(-1px);
+  box-shadow:0 4px 10px -4px rgba(16,24,40,.35)}
+#m2ui .procChip:focus-visible{outline:none;box-shadow:var(--u-ring);border-color:var(--m2-blue)}
+#m2ui .procChip.pcCancel{background:var(--m2-red-t);border-color:var(--m2-red-l);color:var(--m2-red)}
+#m2ui .procChip.pcNoCancel{background:var(--u-green-t);border-color:var(--u-green-l);color:var(--u-green)}
+#m2ui .procChip.pcCancel:hover{background:var(--m2-red);border-color:var(--m2-red);color:#fff}
+#m2ui .procChip.pcNoCancel:hover{background:var(--u-green);border-color:var(--u-green);color:#fff}
+#m2ui .procChip.pcCancel::after,
+#m2ui .procChip.pcNoCancel::after{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;margin-left:3px;flex:none}
+html[data-theme="dark"] #m2ui .procChip.pcCancel:hover,
+html[data-theme="dark"] #m2ui .procChip.pcNoCancel:hover{color:#0F1C33}
+
+/* Menú de decisión de cada proceso (independiente por proceso). */
+#m2ui .procMenu{position:absolute;z-index:90;min-width:216px;max-width:calc(100vw - 20px);padding:6px;
+  border:1px solid var(--m2-line);border-radius:14px;background:var(--u-surface);box-shadow:var(--u-sh2);
+  font-family:inherit;animation:pmIn .14s ease}
+#m2ui .procMenu .pmHead{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px;padding:6px 9px 8px;
+  border-bottom:1px solid var(--m2-line);margin-bottom:5px;font-size:11px;color:var(--m2-mut)}
+#m2ui .procMenu .pmHead b{font-size:12.5px;color:var(--m2-ink);font-variant-numeric:tabular-nums}
+#m2ui .procMenu .pmTipo{font-size:10.5px;color:var(--m2-mut);border:1px solid var(--m2-line);border-radius:6px;padding:0 6px}
+#m2ui .procMenu .pmOpt{display:flex;align-items:center;gap:9px;width:100%;padding:9px 10px;border:0;border-radius:9px;
+  background:transparent;color:var(--u-ink2);font-family:inherit;font-size:12.5px;font-weight:600;text-align:left;cursor:pointer}
+#m2ui .procMenu .pmOpt svg{width:15px;height:15px;flex:none}
+#m2ui .procMenu .pmOpt:hover{background:var(--m2-blue-t);color:var(--m2-blue)}
+#m2ui .procMenu .pmNo:hover{background:var(--m2-red-t);color:var(--m2-red)}
+#m2ui .procMenu .pmOk:hover{background:var(--u-green-t);color:var(--u-green)}
+#m2ui .procMenu .pmClear{color:var(--m2-mut);font-weight:600}
+#m2ui .procMenu .pmClear:hover{background:var(--m2-soft);color:var(--m2-ink)}
+@keyframes pmIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
+
+/* Estado de cancelación mostrado en el detalle (solo lectura). */
+#m2ui .procState{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;
+  font-size:10.5px;font-weight:800;letter-spacing:.01em;border:1px solid transparent}
+#m2ui .procState.psC{color:var(--m2-red);background:var(--m2-red-t);border-color:var(--m2-red-l)}
+#m2ui .procState.psN{color:var(--u-green);background:var(--u-green-t);border-color:var(--u-green-l)}
+
+/* «Evacuar» compacto: advertencia arriba y texto pequeño debajo. */
+#m2ui #tRad .chkEvCompact{flex-direction:column;gap:1px;height:auto;min-height:36px;padding:4px 9px;
+  line-height:1;justify-content:center;position:relative}
+#m2ui #tRad .chkEvCompact .chkEv{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
+#m2ui #tRad .chkEvCompact .evIco{display:inline-flex;align-items:center;justify-content:center;color:var(--u-amber)}
+#m2ui #tRad .chkEvCompact .evIco svg{width:16px;height:16px}
+#m2ui #tRad .chkEvCompact .evTxt{font-size:9px;font-weight:800;letter-spacing:.02em;color:var(--m2-mut)}
+#m2ui #tRad .chkEvCompact:hover{background:var(--u-amber-t);border-color:var(--u-amber-l)}
+#m2ui #tRad .chkEvCompact.evOn{background:var(--u-green-t);border-color:var(--u-green-l)}
+#m2ui #tRad .chkEvCompact.evOn .evIco{color:var(--u-green)}
+#m2ui #tRad .chkEvCompact.evOn .evTxt{color:var(--u-green)}
+#m2ui #tRad .chkEvCompact:has(.chkEv:checked){background:var(--u-green-t);border-color:var(--u-green-l)}
+#m2ui #tRad .chkEvCompact:has(.chkEv:checked) .evIco{color:var(--u-green)}
+
+/* Encabezados ordenables de Consultas y Consultas anteriores */
+#m2ui .thOrdenCons{cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s}
+#m2ui .thOrdenCons:hover{color:var(--m2-blue)}
 
 /* Columna de duplicados */
 #m2ui #tRad th.thDup{white-space:nowrap}
@@ -2084,12 +2204,31 @@ html[data-theme="dark"] #m2ui .btnGen:hover{color:#0F1C33}
 #m2ui #tRad td.dupCell .dupRad{margin-left:0}
 #m2ui #tRad td.dupCell .sp{font-size:13px;font-style:normal;color:var(--m2-mut,#78879A)}
 
-/* Columna de vencimiento por radicado */
-#m2ui #tRad th.thVto{width:150px;white-space:nowrap}
-#m2ui #tRad td.vtoCell{white-space:nowrap;font-variant-numeric:tabular-nums}
-#m2ui #tRad .inpPlazo{width:56px;margin-left:8px;padding:4px 6px;border:1px solid var(--m2-line);
-  border-radius:7px;background:var(--u-surface);color:var(--m2-ink);font-size:12px;text-align:right;font-family:inherit}
-#m2ui #tRad .inpPlazo:focus{outline:none;border-color:var(--m2-blue);box-shadow:0 0 0 3px var(--m2-blue-t)}
+/* Columna de vencimiento por radicado: lista plegable compacta, con borde azul
+   y flecha propia, integrada al tema del módulo. */
+#m2ui #tRad th.thVto{width:78px;white-space:nowrap}
+#m2ui #tRad td.vtoCell{white-space:nowrap;text-align:center;font-variant-numeric:tabular-nums}
+#m2ui #tRad .selPlazo{
+  display:block;width:56px;height:32px;margin:0 auto;padding:0 17px 0 6px;
+  -webkit-appearance:none;appearance:none;
+  border:1.5px solid var(--m2-blue);border-radius:9px;
+  background-color:var(--u-surface);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234F86C7' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 4px center;background-size:9px;
+  color:var(--m2-ink);font-family:inherit;font-size:12.5px;font-weight:700;
+  line-height:1;text-align:center;text-align-last:center;cursor:pointer;
+  transition:border-color .15s ease,box-shadow .15s ease,background-color .15s ease}
+#m2ui #tRad .selPlazo:hover{border-color:var(--m2-blue);background-color:var(--m2-blue-t);
+  box-shadow:0 2px 8px -4px rgba(22,100,176,.45)}
+#m2ui #tRad .selPlazo:focus-visible,#m2ui #tRad .selPlazo:focus{
+  outline:none;border-color:var(--m2-blue);box-shadow:0 0 0 3px var(--m2-blue-t);background-color:var(--u-surface)}
+#m2ui #tRad .selPlazo option{background:var(--u-surface);color:var(--m2-ink);font-weight:600}
+@container pqr (max-width:660px){
+  #m2ui #tRad th.thVto{width:70px}
+}
+@container pqr (max-width:520px){
+  #m2ui #tRad .selPlazo{width:52px;height:30px;font-size:12.5px;padding-right:15px}
+}
 
 /* Acciones visuales por proceso */
 #m2ui .procAcc{white-space:nowrap;text-align:right}
@@ -2105,3 +2244,97 @@ html[data-theme="dark"] #m2ui .btnGen:hover{color:#0F1C33}
 html[data-theme="dark"] #m2ui .procBtnOk:hover,
 html[data-theme="dark"] #m2ui .procBtnNo:hover{color:#0F1C33}
 
+/* Vencimiento recalculado manualmente: la fila queda en verde para poder
+   localizar el radicado después (también tras recargar, porque deriva de PLAZOS). */
+#m2ui #tRad tbody tr.plazoAjustado td{background:var(--u-green-t)}
+#m2ui #tRad tbody tr.plazoAjustado:hover td{background:var(--u-green-l)}
+#m2ui #tRad tbody tr.plazoAjustado.sel td{background:var(--u-green-l)}
+#m2ui #tRad tbody tr.plazoAjustado td:first-child{box-shadow:inset 4px 0 0 var(--u-green)}
+#m2ui #tRad tbody tr.plazoAjustado td.vtoCell{color:var(--u-green);font-weight:800}
+#m2ui #tRad tbody tr.plazoAjustado .selPlazo{border-color:var(--u-green);color:var(--u-green);font-weight:800;
+  background-color:var(--u-green-t)}
+/* ==================== AJUSTE v43 — BARRA DE «RADICADOS DEL DÍA», CANCELAR / NO CANCELAR Y SUB-RUTAS ==================== */
+/* La barra (Filtrar · Cancelar/No Cancelar · Evacuados · Consultas) ocupa el mismo
+   ancho que la tabla de radicados y reparte sus elementos en toda la ficha. */
+#m2ui .panelPQR-col--right .m2Head{flex-wrap:wrap}
+#m2ui .panelPQR .panelPQR-col--right .m2Head>.radBar,
+#m2ui .panelPQR-col--right .m2Head>.radBar{flex:1 1 100%;width:100%;max-width:none;min-width:0;box-sizing:border-box;
+  flex-wrap:nowrap;justify-content:space-between;align-items:center;gap:14px}
+#m2ui .panelPQR-col--right .radFiltros{flex:1 1 220px;min-width:0;max-width:380px}
+#m2ui .panelPQR-col--right .radFiltros .campo{flex:1 1 auto;min-width:0}
+#m2ui .panelPQR-col--right .radFiltros select{width:100%;min-width:0}
+#m2ui .panelPQR-col--right .radAcc{flex:0 1 auto;flex-wrap:nowrap;justify-content:flex-end;align-items:center;gap:14px}
+/* «Evacuados» más angosto. */
+#m2ui .radAcc .lnkEv{padding:0 9px;gap:5px;font-size:12px;white-space:nowrap}
+#m2ui .radAcc .lnkEv::before{width:13px;height:13px}
+/* Columna con los dos botones apilados, antes de «Evacuados». */
+#m2ui .pcStack{display:flex;flex-direction:column;justify-content:center;gap:4px;align-self:center}
+#m2ui .btnPc{
+  position:relative;overflow:hidden;isolation:isolate;
+  display:inline-flex;align-items:center;gap:6px;height:24px;min-width:114px;padding:0 9px 0 3px;
+  border:1px solid var(--pcBd);border-radius:9px;cursor:pointer;color:var(--pcTx);font:inherit;font-size:11px;font-weight:700;letter-spacing:.01em;
+  line-height:1;white-space:nowrap;-webkit-tap-highlight-color:transparent;background:var(--pcBg);
+  box-shadow:0 1px 0 rgba(255,255,255,.55) inset,0 3px 8px -4px var(--pcSh);
+  transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s,background-color .3s}
+#m2ui .btnPc::before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(90px 40px at 100% 0%,rgba(255,255,255,.45),transparent 70%)}
+#m2ui .btnPc::after{content:"";position:absolute;left:50%;bottom:0;width:18px;height:2.5px;border-radius:3px 3px 0 0;
+  background:var(--pcA);transform:translateX(-50%);transition:width .3s}
+#m2ui .btnPc:hover,#m2ui .btnPc:focus-visible{transform:translateY(-2px);box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 8px 14px -7px var(--pcSh2)}
+#m2ui .btnPc:hover::after{width:62%}
+#m2ui .btnPc:active{transform:translateY(-1px) scale(.985)}
+#m2ui .btnPc:focus-visible{outline:none;box-shadow:0 0 0 2px var(--m2-card,#fff),0 0 0 4px var(--pcA)}
+#m2ui .btnPc .pcIco{flex:none;display:grid;place-items:center;width:18px;height:18px;border-radius:6px;
+  background:var(--pcA);color:#fff;box-shadow:0 3px 6px -3px var(--pcSh2);transition:transform .3s}
+#m2ui .btnPc .pcIco svg{width:11px;height:11px}
+#m2ui .btnPc:hover .pcIco{transform:scale(1.1) rotate(-4deg)}
+#m2ui .btnPc .pcTxt{flex:1;text-align:left}
+#m2ui .btnPc .pcCnt{min-width:17px;height:15px;padding:0 5px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;line-height:15px;
+  font-size:10px;font-weight:800;font-variant-numeric:tabular-nums;color:#fff;background:var(--pcA)}
+#m2ui .btnPc .pcCnt[hidden]{display:none}
+/* Tonos tenues (verde y rojo suaves), acordes al módulo. */
+#m2ui .btnPcOk{--pcA:#3FA56E;--pcBg:linear-gradient(150deg,#EAF7EF 0%,#D3EFDF 100%);--pcBd:#B5E0C6;--pcTx:#1E6B43;
+  --pcSh:rgba(31,147,80,.22);--pcSh2:rgba(31,147,80,.38)}
+#m2ui .btnPcNo{--pcA:#D9616C;--pcBg:linear-gradient(150deg,#FCEEF0 0%,#F7DADE 100%);--pcBd:#EFC0C6;--pcTx:#9C2733;
+  --pcSh:rgba(176,32,48,.20);--pcSh2:rgba(176,32,48,.36)}
+html[data-theme="dark"] #m2ui .btnPcOk{--pcBg:linear-gradient(150deg,rgba(63,165,110,.20) 0%,rgba(63,165,110,.30) 100%);--pcBd:rgba(63,165,110,.45);--pcTx:#A6E3C0}
+html[data-theme="dark"] #m2ui .btnPcNo{--pcBg:linear-gradient(150deg,rgba(217,97,108,.20) 0%,rgba(217,97,108,.30) 100%);--pcBd:rgba(217,97,108,.45);--pcTx:#F5B7BD}
+html[data-theme="dark"] #m2ui .btnPc::before{background:radial-gradient(90px 40px at 100% 0%,rgba(255,255,255,.08),transparent 70%)}
+@media (prefers-reduced-motion:reduce){#m2ui .btnPc,#m2ui .btnPc::after,#m2ui .btnPc .pcIco{transition:none!important}}
+/* Pantallas angostas: la barra vuelve a acomodarse en varias líneas. */
+@media (max-width:1100px){
+  #m2ui .panelPQR-col--right .m2Head>.radBar{flex-wrap:wrap}
+  #m2ui .panelPQR-col--right .radFiltros{max-width:none}
+  #m2ui .panelPQR-col--right .radAcc{flex-wrap:wrap;justify-content:flex-start}
+}
+/* Ventanas de las tablas: compactas. */
+#m2ui .pcModal .mbox{max-width:760px}
+#m2ui #mPcN .mbox{max-width:680px}
+#m2ui .pcModal .mbody{padding-top:14px}
+#m2ui .pcModal .recScroll{max-height:min(56vh,520px)}
+#m2ui .pcModal .mhIco.pcIcoNo{color:#C0404C;background:rgba(217,97,108,.12);border-color:rgba(217,97,108,.30)}
+#m2ui .pcModal .mhIco.pcIcoOk{color:#2E8A5A;background:rgba(63,165,110,.12);border-color:rgba(63,165,110,.30)}
+#m2ui .pcModal .mhIco svg{width:20px;height:20px}
+#m2ui .pcTabla th,#m2ui .pcTabla td{padding:9px 12px;font-size:12.5px;white-space:nowrap}
+#m2ui .pcTabla td.pcJust{white-space:normal;min-width:220px;width:46%}
+#m2ui .pcTabla .pcJ{width:100%;height:32px;font-size:12.5px;border-radius:9px}
+#m2ui .pcTabla th.pcAccTh,#m2ui .pcTabla td.pcAcc{width:1%;text-align:right;padding-left:4px}
+#m2ui .pcCopyRow{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;cursor:pointer;
+  border:1px solid var(--m2-line);background:var(--u-surface);color:var(--m2-mut);
+  transition:background-color .16s,border-color .16s,color .16s,transform .16s var(--u-ease)}
+#m2ui .pcCopyRow .m2i svg{width:15px;height:15px}
+#m2ui .pcCopyRow:hover{background:var(--m2-blue-t);border-color:var(--m2-blue-l);color:var(--m2-blue);transform:translateY(-1px)}
+#m2ui .pcCopyRow:focus-visible{outline:none;box-shadow:var(--u-ring)}
+#m2ui .pcCopyRow.pcOk,#m2ui .pcCopyAll.pcOk{background:var(--u-green-t);border-color:var(--u-green-l);color:var(--u-green)}
+#m2ui .pcCopyRow.pcErr,#m2ui .pcCopyAll.pcErr{background:var(--m2-red-t);border-color:var(--m2-red-l);color:var(--m2-red)}
+#m2ui .pcNota{margin:10px 2px 0;font-size:11.5px;color:var(--m2-mut)}
+/* Sub-rutas de Peticiones. Ruta Especializada y SOMOS: sin contenido por ahora. */
+#m2ui #mRec .rtBand .subRuta{margin-left:6px}
+#m2ui #mRec.subVacia .rtViews,
+#m2ui #mRec.subVacia #dupBar,
+#m2ui #mRec.subVacia #expBar,
+#m2ui #mRec.subVacia #reaBar,
+#m2ui #mRec.subVacia .rtActs,
+#m2ui #mRec.subVacia .rolBox,
+#m2ui #mRec.subVacia #recInfo{display:none!important}
+#m2ui #mRec.subVacia .subVaciaMsg{padding:40px 16px;line-height:1.7;color:var(--m2-mut)}
+#m2ui #mRec.subVacia .subVaciaMsg b{font-size:15px;color:var(--m2-tx,inherit)}

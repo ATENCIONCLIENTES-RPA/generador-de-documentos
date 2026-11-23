@@ -5,6 +5,7 @@ import '../../components/guided-tour/guided-tour.css';
 import './documentos.css';
 import '../shared/module-bridge';
 import { GuidedTour } from '../../components/guided-tour/guided-tour';
+import { mejorarTextoLocal } from './corrector';
 
 const SVG = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const DOC = SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>');
@@ -13,7 +14,7 @@ let registros=[];
 let sacEstado='empty',sacError='';
 const MAX_RECORD_RESULTS=200;
 const recordList=document.getElementById('recordList');
-const searchInput=document.getElementById('searchInput'),dd=document.getElementById('searchDropdown');
+const searchInput=document.getElementById('searchInput'),dd=document.getElementById('searchDropdown'),btnCambiar=document.getElementById('btnCambiar');
 const escRec=t=>String(t==null?'':t).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 const NORM_CACHE=new Map();
 const normKey=k=>{const s=String(k||'');let v=NORM_CACHE.get(s);if(v===undefined){v=s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'');if(NORM_CACHE.size>4000)NORM_CACHE.clear();NORM_CACHE.set(s,v);}return v;};
@@ -105,7 +106,8 @@ searchInput.addEventListener('focus',openDD);
 let _renderRecDeb=0;
 searchInput.addEventListener('input',()=>{clearTimeout(_renderRecDeb);_renderRecDeb=setTimeout(renderRecords,120);});
 document.getElementById('filterToggle').addEventListener('click',()=>{openDD();searchInput.focus();});
-document.addEventListener('click',e=>{if(!e.target.closest('.search-field,.filter-toggle'))closeDD();});
+if(btnCambiar)btnCambiar.addEventListener('click',()=>{openDD();searchInput.focus();searchInput.select();});
+document.addEventListener('click',e=>{if(!e.target.closest('.search-field,.filter-toggle,.btn-cambiar'))closeDD();});
 recordList.addEventListener('click',e=>{const it=e.target.closest('.record-item');if(!it)return;const r=registros[Number(it.dataset.i)];if(!r)return;closeDD();});
 let ai=-1;
 searchInput.addEventListener('keydown',e=>{const items=[...recordList.querySelectorAll('.record-item')];if(e.key==='ArrowDown'){e.preventDefault();ai=Math.min(ai+1,items.length-1);}else if(e.key==='ArrowUp'){e.preventDefault();ai=Math.max(ai-1,0);}else if(e.key==='Enter'){e.preventDefault();items[ai]&&items[ai].click();return;}else return;items.forEach(i=>i.classList.remove('active'));items[ai]&&items[ai].classList.add('active');items[ai]&&items[ai].scrollIntoView({block:'nearest'});});
@@ -160,10 +162,62 @@ document.getElementById('descBody').innerHTML=descs.map(d=>`
       <div class="desc-titles"><label for="${d.id}">${d.title}</label><span class="desc-hint">${d.hint}</span></div>
       <span class="desc-step">${d.n}</span>
     </div>
-    <textarea id="${d.id}" placeholder="${d.ph}"></textarea>
-    <div class="desc-foot"><button class="btn-mejorar">${STAR}Mejorar texto</button></div>
+    <textarea id="${d.id}" placeholder="${d.ph}" spellcheck="true"></textarea>
+    <div class="desc-foot"><button class="btn-undo" type="button" hidden>Deshacer</button><button class="btn-mejorar" type="button">${STAR}Mejorar texto</button></div>
   </div>`).join('');
-document.querySelectorAll('.btn-mejorar').forEach(m=>{m.addEventListener('click',()=>{m.classList.add('spin');setTimeout(()=>m.classList.remove('spin'),800);});});
+
+/* Mejora local de redacción: no usa servicios externos.
+   El motor vive en corrector.ts: ortografía, tildes, gramática, concordancia,
+   puntuación y mayúsculas. Protege cifras, radicados, correos, enlaces,
+   marcadores [TOKEN] y siglas con números para no alterar datos ni referencias
+   legales. El usuario ve la propuesta y puede deshacerla. */
+const DESC_UNDO=new WeakMap();
+function tiSyncUndo(ta){
+  const b=ta&&ta.closest('.desc-block')&&ta.closest('.desc-block').querySelector('.btn-undo');
+  if(b)b.hidden=!((DESC_UNDO.get(ta)||[]).length);
+}
+function tiAplicar(ta,valor){
+  const pila=DESC_UNDO.get(ta)||[];pila.push(ta.value);if(pila.length>12)pila.shift();DESC_UNDO.set(ta,pila);
+  ta.value=valor;ta.dataset.tiApplying='1';
+  ta.dispatchEvent(new Event('input',{bubbles:true}));
+  delete ta.dataset.tiApplying;
+  tiSyncUndo(ta);
+}
+function tiDeshacer(ta){
+  const pila=DESC_UNDO.get(ta)||[];
+  if(!pila.length)return;
+  ta.value=pila.pop();if(!pila.length)DESC_UNDO.delete(ta);
+  ta.dataset.tiApplying='1';
+  ta.dispatchEvent(new Event('input',{bubbles:true}));
+  delete ta.dataset.tiApplying;
+  tiSyncUndo(ta);
+  ta.focus();
+}
+/* El botón corrige directamente sobre el texto del cajón: no abre ventanas ni
+   campos adicionales. Si algo no debe tocarse (cifras, radicados, correos,
+   marcadores) queda protegido por el corrector. El resultado es reversible con
+   «Deshacer». */
+function tiAviso(ta,texto){
+  const foot=ta&&ta.closest('.desc-block')&&ta.closest('.desc-block').querySelector('.desc-foot');
+  if(!foot)return;
+  let av=foot.querySelector('.ti-aviso');
+  if(!av){av=document.createElement('span');av.className='ti-aviso';av.setAttribute('role','status');foot.appendChild(av);}
+  av.textContent=texto;av.hidden=false;
+  clearTimeout(av._t);av._t=setTimeout(()=>{av.hidden=true;},3200);
+}
+function tiCorregir(ta){
+  const r=mejorarTextoLocal(ta.value);
+  if(!r.cambiado){tiAviso(ta,'Sin cambios: el texto ya está claro');ta.focus();return;}
+  tiAplicar(ta,r.texto);
+  tiAviso(ta,'Texto mejorado');
+  ta.focus();
+}
+document.querySelectorAll('.desc-block').forEach(block=>{
+  const ta=block.querySelector('textarea'),btn=block.querySelector('.btn-mejorar'),undo=block.querySelector('.btn-undo');
+  if(btn&&ta)btn.addEventListener('click',()=>tiCorregir(ta));
+  if(undo&&ta)undo.addEventListener('click',()=>tiDeshacer(ta));
+  if(ta)ta.addEventListener('input',()=>{if(!ta.dataset.tiApplying){DESC_UNDO.delete(ta);tiSyncUndo(ta);}});
+});
 
 const ICN = GuidedTour.ICN;
 const tourSteps = [
@@ -522,6 +576,12 @@ function formatoTitulo(v){
   function setState(r){
     hasRecord=!!r;currentRecord=r||null;window.__AD_ACTIVE_RECORD=currentRecord;
     window.dispatchEvent(new CustomEvent('ad-record-change',{detail:currentRecord}));
+    if(btnCambiar){
+      btnCambiar.textContent=hasRecord?'Cambiar':'Buscar';
+      btnCambiar.classList.toggle('has-record',hasRecord);
+      btnCambiar.setAttribute('aria-label',hasRecord?'Cambiar el registro seleccionado':'Buscar registro');
+      btnCambiar.title=hasRecord?'Cambiar el registro seleccionado':'Abrir la búsqueda general';
+    }
     if(!hasRecord){syncGuide();return;}
     const d=recordDisplay(r);
     const subj=document.querySelector('.paper-subject'),asunto=['Asunto: Respuesta al radicado número '+(d.rad||''),d.cuenta?'Cuenta '+d.cuenta:'',d.proceso?'ID Proceso No. '+d.proceso:''].filter(Boolean);if(subj)subj.textContent=asunto.join(' · ');

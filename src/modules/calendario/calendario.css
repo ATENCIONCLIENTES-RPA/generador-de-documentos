@@ -1,0 +1,603 @@
+/* Calendario v40 · Asistente Documental ESSA — estilos trasladados sin cambios desde calendario.html */
+/* ==========================================================================
+   v37 · Calendario premium — Asistente Documental ESSA
+   Alcance: todo queda bajo #m2ui #mCal para no afectar otros módulos.
+   Usa las variables del módulo (--m2-*) cuando existen, con respaldo propio.
+   Se conservan los IDs del calendario anterior:
+   #calPrev #calNext #calHoy #calMes #calGrid #calPanel #calTxt
+   y las clases de día .calD .otro .sab .dom .fes .hoy .sel
+   ========================================================================== */
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,sans-serif;
+  background:radial-gradient(1200px 600px at 10% -10%,#E6EEFA 0%,transparent 60%),
+             radial-gradient(900px 500px at 110% 110%,#FBE9EC 0%,transparent 55%),#EEF2F7;
+  min-height:100vh;color:#1B2433}
+html[data-theme="dark"] body{background:radial-gradient(1200px 600px at 10% -10%,#16233A 0%,transparent 60%),
+  radial-gradient(900px 500px at 110% 110%,#2A1820 0%,transparent 55%),#0E141E;color:#E6EDF6}
+
+#m2ui #mCal{
+  --c-blue:var(--m2-blue,#1E5BB8); --c-blue2:#2F6FD1; --c-blue-t:var(--m2-blue-t,#EAF1FC); --c-blue-l:#C8DAF4;
+  --c-red:#C8102E; --c-red2:#E2343F; --c-red-t:#FDEEF0; --c-red-l:#F3C1C8;
+  --c-vio:#5B3FA3; --c-vio-t:#F0ECF9;
+  --c-ros:#A8326B; --c-ros-t:#FBEDF3;
+  --c-card:var(--m2-card,#FFFFFF); --c-glass:rgba(255,255,255,.78); --c-soft:var(--m2-soft,#F5F7FB);
+  --c-line:var(--m2-line,#E3E8F0); --c-line2:#D6DEEA;
+  --c-tx:#1B2433; --c-tx2:#5C6B80; --c-tx3:#97A3B6;
+  --c-sab:#F2F5FA; --c-dom:#FDF5F6;
+  --g-brand:linear-gradient(90deg,#1E56B3 0%,#5B3FA3 55%,#C8102E 100%);
+  --g-red:linear-gradient(135deg,#E3262F 0%,#B30E27 100%);
+  --g-blue:linear-gradient(135deg,#3B79D8 0%,#1A4FA8 100%);
+  --sh-1:0 1px 2px rgba(16,40,80,.06),0 4px 14px -6px rgba(16,40,80,.14);
+  --sh-2:0 2px 4px rgba(16,40,80,.05),0 18px 40px -18px rgba(16,40,80,.28);
+  --r-lg:22px; --r-md:14px; --r-sm:10px;
+  max-width:1480px;margin:0 auto;padding:22px clamp(12px,2vw,28px) 40px;color:var(--c-tx)}
+html[data-theme="dark"] #m2ui #mCal{
+  --c-blue:#6FA4F2; --c-blue2:#8AB6F5; --c-blue-t:#18294A; --c-blue-l:#2A4673;
+  --c-red:#FF6B76; --c-red2:#FF8A93; --c-red-t:#3A1B22; --c-red-l:#6A2C36;
+  --c-vio:#B59CF0; --c-vio-t:#2A2244; --c-ros:#F08DB7; --c-ros-t:#3A1E2E;
+  --c-card:#172131; --c-glass:rgba(23,33,49,.82); --c-soft:#121A27; --c-line:#26344A; --c-line2:#304058;
+  --c-tx:#E6EDF6; --c-tx2:#A3B1C6; --c-tx3:#6C7A90; --c-sab:#152033; --c-dom:#22161D;
+  --g-brand:linear-gradient(90deg,#7FB0F7 0%,#B59CF0 55%,#FF7C86 100%);
+  --sh-1:0 1px 2px rgba(0,0,0,.3),0 6px 16px -8px rgba(0,0,0,.5);
+  --sh-2:0 2px 4px rgba(0,0,0,.3),0 20px 44px -20px rgba(0,0,0,.7)}
+
+#mCal button{font:inherit;cursor:pointer;color:inherit}
+#mCal [hidden]{display:none!important}
+#mCal svg{width:16px;height:16px;flex:none}
+#mCal .ico{display:inline-grid;place-items:center}
+#mCal :focus-visible{outline:2px solid var(--c-blue);outline-offset:2px;border-radius:8px}
+
+/* ---------- Encabezado (estilo tarjeta héroe) ---------- */
+#mCal .calHero{position:relative;display:flex;align-items:center;gap:24px;padding:22px 26px;margin-bottom:18px;
+  background:linear-gradient(120deg,var(--c-card) 0%,var(--c-card) 55%,var(--c-red-t) 120%);
+  border:1px solid var(--c-line);border-radius:var(--r-lg);box-shadow:var(--sh-2);overflow:hidden}
+#mCal .calHero::before{content:"";position:absolute;width:340px;height:340px;left:-120px;top:-180px;border-radius:50%;
+  background:radial-gradient(circle,var(--c-blue-t) 0%,transparent 70%);pointer-events:none}
+#mCal .heroIcon{position:relative;width:74px;height:74px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(circle at 35% 30%,var(--c-card),var(--c-blue-t));box-shadow:inset 0 0 0 1px var(--c-line),var(--sh-1)}
+#mCal .heroIcon .doc{width:40px;height:44px;border-radius:9px;background:var(--c-card);border:2px solid var(--c-blue);
+  display:grid;place-items:center;color:var(--c-blue);font-weight:800;font-size:15px;line-height:1}
+#mCal .heroIcon .doc small{display:block;font-size:8px;letter-spacing:.8px;color:var(--c-red);font-weight:800}
+#mCal .heroIcon .bdg{position:absolute;right:-4px;bottom:2px;width:26px;height:26px;border-radius:8px;background:var(--g-red);
+  color:#fff;display:grid;place-items:center;box-shadow:0 6px 12px -6px #B30E27}
+#mCal .heroIcon .bdg svg{width:14px;height:14px}
+#mCal .heroTxt{position:relative;flex:1;min-width:0}
+#mCal .pill{display:inline-flex;align-items:center;gap:7px;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:700;
+  letter-spacing:.9px;text-transform:uppercase;color:var(--c-blue);background:var(--c-blue-t);border:1px solid var(--c-blue-l)}
+#mCal .pill i{width:7px;height:7px;border-radius:50%;background:var(--c-blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--c-blue) 25%,transparent)}
+#mCal .heroTxt h1{margin:8px 0 4px;font-size:clamp(20px,2.2vw,27px);font-weight:700;letter-spacing:-.4px}
+#mCal .grad{background:var(--g-brand);-webkit-background-clip:text;background-clip:text;color:transparent}
+#mCal .heroTxt p{margin:0;color:var(--c-tx2);font-size:13.5px}
+#mCal .heroStats{position:relative;display:flex;gap:10px}
+#mCal .stat{min-width:104px;padding:10px 14px;border-radius:var(--r-md);background:var(--c-glass);border:1px solid var(--c-line);
+  backdrop-filter:blur(8px)}
+#mCal .stat b{display:block;font-size:22px;font-weight:800;letter-spacing:-.5px}
+#mCal .stat span{font-size:11.5px;color:var(--c-tx2);font-weight:600}
+#mCal .stat.r b{color:var(--c-red)} #mCal .stat.b b{color:var(--c-blue)} #mCal .stat.v b{color:var(--c-vio)}
+#mCal .heroAct{position:relative;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+#mCal .kbd{font-size:11px;color:var(--c-tx3)}
+#mCal kbd{font:600 10.5px/1 inherit;padding:3px 6px;border-radius:5px;border:1px solid var(--c-line2);background:var(--c-card);
+  color:var(--c-tx2);box-shadow:0 1px 0 var(--c-line2)}
+
+/* ---------- Botones ---------- */
+#mCal .btnP{display:inline-flex;align-items:center;gap:10px;border:0;border-radius:999px;padding:5px 18px 5px 5px;
+  background:var(--g-red);color:#fff;font-weight:700;font-size:14px;box-shadow:0 10px 22px -12px #B30E27;
+  transition:transform .18s ease,box-shadow .18s ease}
+#mCal .btnP .ico{width:30px;height:30px;border-radius:50%;background:#fff;color:#C8102E}
+#mCal .btnP:hover{transform:translateY(-1px);box-shadow:0 14px 26px -12px #B30E27}
+#mCal .btnP:active{transform:translateY(0) scale(.98)}
+#mCal .btnS{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--c-line);border-radius:999px;padding:7px 14px;
+  background:var(--c-card);font-weight:600;font-size:13px;color:var(--c-blue);transition:background .15s,border-color .15s}
+#mCal .btnS:hover{background:var(--c-blue-t);border-color:var(--c-blue-l)}
+#mCal .btnG{border:0;background:none;color:var(--c-blue);font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px}
+#mCal .btnG:hover{background:var(--c-blue-t)}
+#mCal .icoBtn{width:34px;height:34px;border-radius:50%;display:inline-grid;place-items:center;border:1px solid var(--c-line);
+  background:var(--c-card);color:var(--c-tx2);transition:all .15s}
+#mCal .icoBtn:hover{color:var(--c-blue);background:var(--c-blue-t);border-color:var(--c-blue-l)}
+#mCal .icoBtn.del:hover{color:var(--c-red);background:var(--c-red-t);border-color:var(--c-red-l)}
+
+/* ---------- Distribución ---------- */
+#mCal .calShell{display:grid;grid-template-columns:268px minmax(0,1fr) 330px;grid-template-areas:"side main panel";gap:18px;align-items:start}
+#mCal .calSide{grid-area:side;display:flex;flex-direction:column;gap:16px}
+#mCal .calMain{grid-area:main}
+#mCal #calPanel{grid-area:panel}
+#mCal .card{background:var(--c-card);border:1px solid var(--c-line);border-radius:var(--r-lg);box-shadow:var(--sh-1)}
+#mCal .cardH{display:flex;align-items:center;gap:10px;padding:14px 16px 10px}
+#mCal .cardH .num{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:700;
+  color:var(--c-blue);background:var(--c-blue-t);border:1px solid var(--c-blue-l)}
+#mCal .cardH .tIco{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--c-blue);background:var(--c-blue-t)}
+#mCal .cardH h3{margin:0;font-size:14px;font-weight:700}
+#mCal .cardH small{color:var(--c-tx3);font-size:11.5px;margin-left:auto;white-space:nowrap}
+
+/* ---------- Barra del calendario principal ---------- */
+#mCal .calBar{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--c-line);flex-wrap:wrap}
+#mCal #calPrev,#mCal #calNext{width:36px;height:36px;border-radius:50%;display:inline-grid;place-items:center;
+  background:var(--c-card);border:1px solid var(--c-line);color:var(--c-blue);transition:transform .15s,background .15s}
+#mCal #calPrev:hover,#mCal #calNext:hover{background:var(--c-blue-t);transform:translateY(-1px)}
+#mCal #calMes{font-size:20px;font-weight:700;letter-spacing:-.3px;min-width:0}
+#mCal #calMes span{color:var(--c-tx3);font-weight:500}
+#mCal #calHoy{border-radius:999px;padding:7px 16px;font-weight:700;font-size:13px;border:1px solid var(--c-red-l);
+  background:var(--c-red-t);color:var(--c-red);transition:all .15s}
+#mCal #calHoy:hover{background:var(--c-red);color:#fff;border-color:var(--c-red)}
+#mCal .sp{flex:1}
+#mCal .seg{display:inline-flex;padding:3px;border-radius:999px;background:var(--c-soft);border:1px solid var(--c-line);position:relative}
+#mCal .seg button{border:0;background:none;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:600;color:var(--c-tx2);position:relative;z-index:1;transition:color .2s}
+#mCal .seg button[aria-pressed="true"]{color:#fff}
+#mCal .seg .thumb{position:absolute;top:3px;bottom:3px;border-radius:999px;background:var(--g-blue);box-shadow:0 6px 12px -8px #1A4FA8;
+  transition:left .28s cubic-bezier(.4,.0,.2,1),width .28s cubic-bezier(.4,.0,.2,1)}
+
+/* ---------- Vista mensual ---------- */
+#mCal .calBody{padding:12px 14px 16px;overflow:hidden}
+#mCal #calGrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+#mCal #calGrid.anim-n{animation:calInR .32s ease both} #mCal #calGrid.anim-p{animation:calInL .32s ease both}
+#mCal #calGrid.anim-f{animation:calFade .25s ease both}
+@keyframes calInR{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+@keyframes calInL{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}
+@keyframes calFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#mCal .calH{text-align:center;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--c-tx3);padding:4px 0 6px}
+#mCal .calH.dom{color:var(--c-red)}
+#mCal .calD{position:relative;min-height:104px;padding:7px 7px 6px;border-radius:var(--r-md);background:var(--c-card);
+  border:1px solid transparent;display:flex;flex-direction:column;gap:3px;overflow:hidden;cursor:pointer;text-align:left;
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease}
+#mCal .calD:not(.otro){box-shadow:inset 0 0 0 1px var(--c-line)}
+#mCal .calD:hover{transform:translateY(-2px);box-shadow:inset 0 0 0 1px var(--c-blue-l),0 10px 20px -14px rgba(30,91,184,.6)}
+#mCal .calD .top{display:flex;align-items:center;gap:6px}
+#mCal .calD .n{min-width:28px;height:28px;padding:0 6px;border-radius:999px;display:inline-grid;place-items:center;font-size:13.5px;font-weight:700;color:var(--c-tx)}
+#mCal .calD .cnt{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--c-tx3)}
+#mCal .calD.sab{background:var(--c-sab)}
+#mCal .calD.dom{background:var(--c-dom)}
+#mCal .calD.dom .n{color:var(--c-red)}
+#mCal .calD.otro{background:transparent;border:1px dashed var(--c-line);opacity:.5}
+#mCal .calD.otro:hover{opacity:.85}
+#mCal .calD.fes{background:linear-gradient(180deg,var(--c-red-t),var(--c-card) 70%)}
+#mCal .calD.fes .n{color:var(--c-red)}
+#mCal .calD .fesN{font-size:10.5px;font-weight:700;line-height:1.25;color:var(--c-red);display:flex;gap:4px;align-items:flex-start;min-width:0}
+#mCal .calD .fesN span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+#mCal .calD .fesN svg{width:11px;height:11px;margin-top:1px}
+#mCal .calD.hoy .n{background:var(--g-red);color:#fff;box-shadow:0 6px 12px -6px #B30E27}
+#mCal .calD.hoy::after{content:"Hoy";position:absolute;top:10px;right:8px;font-size:9.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--c-red)}
+#mCal .calD.hoy .cnt{display:none}
+#mCal .calD.sel{box-shadow:inset 0 0 0 2px var(--c-blue),0 12px 22px -14px rgba(30,91,184,.7)}
+#mCal .calD.sel:not(.hoy) .n{background:var(--c-blue-t);color:var(--c-blue)}
+#mCal .it{display:flex;align-items:center;gap:5px;font-size:11px;line-height:1.3;font-weight:600;padding:3px 7px;border-radius:7px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--t-bg);color:var(--t-fg);border-left:3px solid var(--t-fg)}
+#mCal .it time{font-weight:800;opacity:.8}
+#mCal .it span{overflow:hidden;text-overflow:ellipsis}
+#mCal .more{font-size:10.5px;font-weight:700;color:var(--c-tx2);padding:0 4px}
+#mCal .dots{display:none;gap:3px;justify-content:center;margin-top:auto}
+#mCal .dots i{width:5px;height:5px;border-radius:50%;background:var(--t-fg)}
+
+/* Tipos de evento (paleta de la marca) */
+#mCal .t-nota{--t-fg:var(--c-blue);--t-bg:var(--c-blue-t)}
+#mCal .t-reunion{--t-fg:var(--c-vio);--t-bg:var(--c-vio-t)}
+#mCal .t-vence{--t-fg:var(--c-red);--t-bg:var(--c-red-t)}
+#mCal .t-cumple{--t-fg:var(--c-ros);--t-bg:var(--c-ros-t)}
+
+/* ---------- Vista semanal ---------- */
+#mCal .wk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+#mCal .wkC{border-radius:var(--r-md);background:var(--c-soft);border:1px solid var(--c-line);min-height:420px;display:flex;flex-direction:column;cursor:pointer;transition:border-color .15s}
+#mCal .wkC:hover{border-color:var(--c-blue-l)}
+#mCal .wkC.sel{border-color:var(--c-blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--c-blue) 18%,transparent)}
+#mCal .wkC.fes{background:linear-gradient(180deg,var(--c-red-t),var(--c-soft) 40%)}
+#mCal .wkH{padding:10px;text-align:center;border-bottom:1px solid var(--c-line)}
+#mCal .wkH small{display:block;font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--c-tx3)}
+#mCal .wkH b{display:inline-grid;place-items:center;width:34px;height:34px;margin-top:4px;border-radius:50%;font-size:16px}
+#mCal .wkC.hoy .wkH b{background:var(--g-red);color:#fff}
+#mCal .wkC.dom .wkH small{color:var(--c-red)}
+#mCal .wkH em{display:block;font-style:normal;font-size:10px;font-weight:700;color:var(--c-red);margin-top:3px}
+#mCal .wkB{padding:8px;display:flex;flex-direction:column;gap:6px;flex:1}
+#mCal .ev{padding:7px 8px;border-radius:10px;background:var(--c-card);border:1px solid var(--c-line);border-left:3px solid var(--t-fg);
+  font-size:12px;cursor:pointer;transition:transform .15s,box-shadow .15s}
+#mCal .ev:hover{transform:translateY(-1px);box-shadow:var(--sh-1)}
+#mCal .ev time{display:block;font-size:10.5px;font-weight:700;color:var(--t-fg)}
+#mCal .ev b{display:block;font-weight:600;line-height:1.3;overflow-wrap:break-word;hyphens:auto;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+#mCal .libre{margin:auto;color:var(--c-tx3);font-size:11.5px;display:flex;flex-direction:column;align-items:center;gap:4px;opacity:.75}
+
+/* ---------- Vista diaria ---------- */
+#mCal .dy{display:grid;grid-template-columns:58px 1fr;border:1px solid var(--c-line);border-radius:var(--r-md);overflow:hidden;background:var(--c-card)}
+#mCal .dyAll{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;background:var(--c-soft);border-bottom:1px solid var(--c-line);min-height:46px}
+#mCal .dyAll > small{font-size:10.5px;font-weight:700;color:var(--c-tx3);text-transform:uppercase;letter-spacing:.8px;width:46px}
+#mCal .dyAll .it{cursor:pointer}
+#mCal .dyHrs{display:flex;flex-direction:column}
+#mCal .dyHrs div{height:56px;font-size:10.5px;color:var(--c-tx3);text-align:right;padding:4px 8px 0 0;font-weight:600}
+#mCal .dyCol{position:relative;border-left:1px solid var(--c-line)}
+#mCal .dySlot{height:56px;border-bottom:1px dashed var(--c-line);cursor:pointer;transition:background .12s}
+#mCal .dySlot:hover{background:var(--c-blue-t)}
+#mCal .dyEv{position:absolute;left:8px;right:8px;border-radius:10px;padding:6px 10px;background:var(--t-bg);border-left:3px solid var(--t-fg);
+  color:var(--c-tx);font-size:12px;overflow:hidden;cursor:pointer;box-shadow:var(--sh-1)}
+#mCal .dyEv time{font-weight:700;color:var(--t-fg);font-size:11px}
+#mCal .now{position:absolute;left:0;right:0;height:2px;background:var(--c-red);z-index:2;pointer-events:none}
+#mCal .now::before{content:"";position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--c-red)}
+
+/* ---------- Leyenda bajo el calendario ---------- */
+#mCal .legend{display:flex;gap:6px;flex-wrap:wrap;padding:0 16px 16px}
+#mCal .chipF{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:600;
+  border:1px solid var(--c-line);background:var(--c-card);color:var(--c-tx2);transition:all .15s}
+#mCal .chipF i{width:8px;height:8px;border-radius:50%;background:var(--t-fg)}
+#mCal .chipF b{font-size:11px;color:var(--c-tx3)}
+#mCal .chipF[aria-pressed="false"]{opacity:.45;text-decoration:line-through}
+#mCal .chipF:hover{border-color:var(--t-fg)}
+
+/* ---------- Mini calendario ---------- */
+#mCal .mini{padding:0 14px 14px}
+#mCal .miniH{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-weight:700;font-size:13px;text-transform:capitalize}
+#mCal .miniH button{width:26px;height:26px;border-radius:50%;border:0;background:none;color:var(--c-tx2)}
+#mCal .miniH button:hover{background:var(--c-blue-t);color:var(--c-blue)}
+#mCal .miniG{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+#mCal .miniG small{font-size:10px;font-weight:700;color:var(--c-tx3);padding:3px 0}
+#mCal .miniG button{position:relative;height:30px;border:0;border-radius:9px;background:none;font-size:12px;font-weight:600;color:var(--c-tx)}
+#mCal .miniG button:hover{background:var(--c-blue-t)}
+#mCal .miniG button.o{color:var(--c-tx3)}
+#mCal .miniG button.f{color:var(--c-red)}
+#mCal .miniG button.e::after{content:"";position:absolute;left:50%;bottom:3px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--c-blue)}
+#mCal .miniG button.s{background:var(--c-blue-t);color:var(--c-blue);box-shadow:inset 0 0 0 1.5px var(--c-blue)}
+#mCal .miniG button.h{background:var(--g-red);color:#fff}
+#mCal .miniG button.h::after{background:#fff}
+
+/* ---------- Próximos ---------- */
+#mCal .up{list-style:none;margin:0;padding:0 10px 12px;display:flex;flex-direction:column;gap:4px}
+#mCal .up li{display:flex;gap:10px;align-items:center;padding:8px;border-radius:12px;cursor:pointer;transition:background .15s}
+#mCal .up li:hover{background:var(--c-soft)}
+#mCal .upD{width:42px;flex:none;text-align:center;border-radius:10px;padding:4px 0;background:var(--t-bg);color:var(--t-fg)}
+#mCal .upD b{display:block;font-size:16px;line-height:1.1}
+#mCal .upD small{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+#mCal .upT{min-width:0;flex:1}
+#mCal .upT b{display:block;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mCal .upT span{font-size:11px;color:var(--c-tx3)}
+#mCal .rel{font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--c-soft);color:var(--c-tx2);border:1px solid var(--c-line);white-space:nowrap}
+#mCal .rel.hot{background:var(--c-red-t);color:var(--c-red);border-color:var(--c-red-l)}
+#mCal .vacio{padding:18px 16px 20px;text-align:center;color:var(--c-tx3);font-size:12.5px}
+#mCal .vacio .vI{width:42px;height:42px;margin:0 auto 8px;border-radius:12px;display:grid;place-items:center;background:var(--c-blue-t);color:var(--c-blue)}
+
+/* ---------- Panel del día (#calPanel) ---------- */
+#mCal #calPanel{position:sticky;top:16px;overflow:hidden}
+#mCal .pHead{position:relative;padding:18px 18px 16px;background:linear-gradient(135deg,var(--c-blue-t) 0%,var(--c-card) 60%,var(--c-red-t) 130%);border-bottom:1px solid var(--c-line)}
+#mCal .calDueno{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--c-tx2);font-weight:600;margin-bottom:12px}
+#mCal .calDueno svg{width:13px;height:13px;color:var(--c-blue)}
+#mCal .pDate{display:flex;align-items:center;gap:14px}
+#mCal .pNum{font-size:46px;font-weight:800;line-height:.9;letter-spacing:-2px}
+#mCal .pDate h5{margin:0;font-size:15px;font-weight:700;text-transform:capitalize}
+#mCal .pDate p{margin:2px 0 0;font-size:12px;color:var(--c-tx2)}
+#mCal .tag{display:inline-flex;align-items:center;gap:5px;margin-top:12px;border-radius:999px;padding:4px 12px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+#mCal .tagHab{background:#E6F4EC;color:#1E7B46;border:1px solid #BFE3CD}
+html[data-theme="dark"] #mCal .tagHab{background:#173226;color:#7FD3A2;border-color:#24503A}
+#mCal .tagSab{background:var(--c-blue-t);color:var(--c-blue);border:1px solid var(--c-blue-l)}
+#mCal .tagDom,#mCal .tagFes{background:var(--c-red-t);color:var(--c-red);border:1px solid var(--c-red-l)}
+#mCal .pBody{padding:14px 16px 16px}
+#mCal .pSub{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--c-tx3);margin:2px 0 8px}
+#mCal .pList{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:8px}
+#mCal .pList li{display:flex;gap:10px;align-items:flex-start;padding:10px 10px 10px 12px;border-radius:12px;background:var(--c-soft);
+  border:1px solid var(--c-line);position:relative;animation:calFade .25s ease both}
+#mCal .pList li::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--t-fg)}
+#mCal .pList .eI{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--t-bg);color:var(--t-fg);flex:none}
+#mCal .pList .eT{flex:1;min-width:0;cursor:pointer}
+#mCal .pList .eT b{display:block;font-size:13px;font-weight:600;word-break:break-word}
+#mCal .pList .eT span{font-size:11.5px;color:var(--c-tx2)}
+#mCal .pList .eT p{margin:4px 0 0;font-size:12px;color:var(--c-tx2);white-space:pre-wrap;word-break:break-word}
+#mCal .pList .eA{display:flex;gap:2px;opacity:.55;transition:opacity .15s}
+#mCal .pList li:hover .eA,#mCal .pList li:focus-within .eA{opacity:1}
+#mCal .pList .eA .icoBtn{width:28px;height:28px;border:0;background:none}
+#mCal .pList .eA svg{width:14px;height:14px}
+#mCal .quick{border:1px solid var(--c-line);border-radius:14px;background:var(--c-card);padding:10px;transition:border-color .15s,box-shadow .15s}
+#mCal .quick:focus-within{border-color:var(--c-blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--c-blue) 18%,transparent)}
+#mCal #calTxt{width:100%;min-height:58px;border:0;outline:0;resize:vertical;font:inherit;font-size:13px;background:transparent;color:var(--c-tx)}
+#mCal #calTxt::placeholder{color:var(--c-tx3)}
+#mCal .qTypes{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}
+#mCal .qT{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--c-line);background:var(--c-soft);border-radius:999px;padding:4px 10px;font-size:11.5px;font-weight:600;color:var(--c-tx2)}
+#mCal .qT svg{width:12px;height:12px}
+#mCal .qT[aria-pressed="true"]{background:var(--t-bg);color:var(--t-fg);border-color:var(--t-fg)}
+#mCal .qAct{display:flex;align-items:center;gap:6px}
+#mCal .qAct .btnP{padding:4px 14px 4px 4px;font-size:13px}
+#mCal .qAct .btnP .ico{width:26px;height:26px}
+
+/* ---------- Modal ---------- */
+#mCal .ov{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(14,24,40,.38);backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity .2s}
+#mCal .ov.on{opacity:1;pointer-events:auto}
+#mCal .modal{width:min(520px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--c-card);border:1px solid var(--c-line);border-radius:22px;box-shadow:0 30px 60px -20px rgba(10,30,60,.45);
+  transform:translateY(12px) scale(.98);transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+#mCal .ov.on .modal{transform:none}
+#mCal .mH{display:flex;align-items:center;gap:12px;padding:18px 20px 12px}
+#mCal .mH .tIco{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--g-blue);color:#fff}
+#mCal .mH h4{margin:0;font-size:17px;font-weight:700}
+#mCal .mH p{margin:2px 0 0;font-size:12px;color:var(--c-tx2)}
+#mCal .mH .icoBtn{margin-left:auto}
+#mCal .mB{padding:4px 20px 8px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#mCal .fld{display:flex;flex-direction:column;gap:5px}
+#mCal .fld.full{grid-column:1/-1}
+#mCal .fld label,#mCal .fld .lb{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--c-tx2)}
+#mCal .fld label svg{width:12px;height:12px;color:var(--c-blue)}
+#mCal .inp{width:100%;font:inherit;font-size:13.5px;padding:10px 12px;border-radius:11px;border:1px solid var(--c-blue-l);background:var(--c-blue-t);color:var(--c-tx);outline:0;transition:all .15s}
+#mCal .inp:focus{background:var(--c-card);border-color:var(--c-blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--c-blue) 18%,transparent)}
+#mCal .inp.err{border-color:var(--c-red);background:var(--c-red-t)}
+#mCal textarea.inp{min-height:76px;resize:vertical}
+#mCal .tSel{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+#mCal .tSel button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 4px;border-radius:12px;border:1px solid var(--c-line);background:var(--c-soft);font-size:11.5px;font-weight:600;color:var(--c-tx2);transition:all .15s}
+#mCal .tSel button[aria-pressed="true"]{background:var(--t-bg);color:var(--t-fg);border-color:var(--t-fg);box-shadow:0 6px 14px -10px var(--t-fg)}
+#mCal .sw{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--c-tx);cursor:pointer;user-select:none}
+#mCal .sw input{appearance:none;width:36px;height:20px;border-radius:999px;background:var(--c-line2);position:relative;cursor:pointer;transition:background .2s;margin:0}
+#mCal .sw input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s}
+#mCal .sw input:checked{background:var(--c-blue)} #mCal .sw input:checked::after{left:18px}
+#mCal .hrs{display:grid;grid-template-columns:1fr 1fr;gap:12px;grid-column:1/-1;transition:opacity .2s}
+#mCal .hrs.off{opacity:.4;pointer-events:none}
+#mCal .mErr{grid-column:1/-1;font-size:12px;color:var(--c-red);font-weight:600;min-height:16px}
+#mCal .mF{display:flex;align-items:center;gap:8px;padding:12px 20px 18px;border-top:1px dashed var(--c-line)}
+#mCal .mF .btnDel{border:0;background:none;color:var(--c-red);font-weight:600;font-size:13px;display:inline-flex;gap:6px;align-items:center;padding:7px 10px;border-radius:9px}
+#mCal .mF .btnDel:hover{background:var(--c-red-t)}
+
+/* ---------- Toast ---------- */
+#mCal .toast{position:fixed;left:50%;bottom:22px;z-index:60;transform:translate(-50%,24px);opacity:0;display:flex;align-items:center;gap:12px;
+  padding:10px 12px 10px 16px;border-radius:14px;background:#1B2433;color:#fff;font-size:13px;box-shadow:0 16px 30px -12px rgba(0,0,0,.5);transition:all .25s;pointer-events:none}
+#mCal .toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#mCal .toast button{border:0;background:rgba(255,255,255,.12);color:#fff;font-weight:700;font-size:12px;padding:6px 10px;border-radius:9px}
+#mCal .toast button:hover{background:rgba(255,255,255,.22)}
+html[data-theme="dark"] #mCal .toast{background:#E6EDF6;color:#1B2433}
+html[data-theme="dark"] #mCal .toast button{background:rgba(27,36,51,.1);color:#1B2433}
+#mCal .fab{display:none}
+
+/* ---------- Responsivo ---------- */
+@media (max-width:1280px){
+  #mCal .calShell{grid-template-columns:minmax(0,1fr) 320px;grid-template-areas:"main panel" "side side"}
+  #mCal .calSide{display:grid;grid-template-columns:1fr 1fr;align-items:start}
+  #mCal .heroStats .stat:nth-child(3){display:none}
+}
+@media (max-width:1024px){
+  #mCal .calShell{grid-template-columns:1fr;grid-template-areas:"main" "panel" "side"}
+  #mCal #calPanel{position:static}
+  #mCal .heroStats{display:none}
+  #mCal .wk{grid-template-columns:repeat(7,minmax(96px,1fr));overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory}
+  #mCal .wkC{scroll-snap-align:start}
+}
+@media (max-width:680px){
+  #mCal{padding:12px 10px 90px}
+  #mCal .calHero{padding:16px;gap:14px;border-radius:18px}
+  #mCal .heroIcon{width:54px;height:54px} #mCal .heroIcon .doc{width:30px;height:34px;font-size:12px}
+  #mCal .heroTxt p,#mCal .heroAct{display:none}
+  #mCal .calSide{grid-template-columns:1fr}
+  #mCal .calBar{padding:12px}
+  #mCal #calMes{font-size:18px;order:-1;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+  #mCal #calHoy{margin-left:auto}
+  #mCal .seg{order:5;width:100%;justify-content:space-between}
+  #mCal .seg button{flex:1}
+  #mCal .calBody{padding:8px 8px 12px}
+  #mCal #calGrid{gap:3px}
+  #mCal .calH{font-size:10px;letter-spacing:0}
+  #mCal .calD{min-height:52px;padding:5px 2px 5px;align-items:center;border-radius:11px}
+  #mCal .calD:hover{transform:none}
+  #mCal .calD .top{justify-content:center}
+  #mCal .calD .n{min-width:26px;height:26px;font-size:12.5px}
+  #mCal .calD .it,#mCal .calD .more,#mCal .calD .fesN,#mCal .calD .cnt,#mCal .calD.hoy::after{display:none}
+  #mCal .calD .dots{display:flex}
+  #mCal .calD.fes .n{box-shadow:inset 0 -2px 0 var(--c-red);border-radius:8px}
+  #mCal .wk{grid-template-columns:1fr;overflow:visible}
+  #mCal .wkC{min-height:0;flex-direction:row}
+  #mCal .wkH{border-bottom:0;border-right:1px solid var(--c-line);width:70px;flex:none}
+  #mCal .wkB{min-height:56px}
+  #mCal .libre{flex-direction:row;margin:auto 0}
+  #mCal .legend{padding:0 10px 12px}
+  #mCal .ov{place-items:end center;padding:0}
+  #mCal .modal{border-radius:22px 22px 0 0;max-height:92vh}
+  #mCal .ov .modal{transform:translateY(40px)}
+  #mCal .mB{grid-template-columns:1fr}
+  #mCal .fab{display:grid;place-items:center;position:fixed;right:18px;bottom:18px;z-index:40;width:56px;height:56px;border-radius:50%;border:0;
+    background:var(--g-red);color:#fff;box-shadow:0 14px 26px -10px #B30E27}
+  #mCal .fab svg{width:22px;height:22px}
+}
+@media (prefers-reduced-motion:reduce){
+  #mCal *,#mCal *::before,#mCal *::after{animation:none!important;transition:none!important}
+}
+
+/* v38 · Modo compacto para ventana flotante */
+body{min-height:0;background:var(--m2-soft,#F4F7FB)}
+html[data-theme="dark"] body{background:#0E141E}
+#m2ui #mCal{max-width:none;padding:8px 10px 10px;--r-lg:14px;--r-md:10px;--r-sm:8px}
+#mCal svg{width:14px;height:14px}
+#mCal .calHero{gap:12px;padding:8px 12px;margin-bottom:8px;border-radius:var(--r-lg)}
+#mCal .calHero::before{width:180px;height:180px;left:-80px;top:-110px}
+#mCal .heroIcon{width:40px;height:40px}
+#mCal .heroIcon .doc{width:24px;height:27px;border-radius:6px;border-width:1.5px;font-size:11px}
+#mCal .heroIcon .doc small{font-size:6.5px;letter-spacing:.4px}
+#mCal .heroIcon .bdg{width:16px;height:16px;border-radius:5px;right:-3px;bottom:0}
+#mCal .heroIcon .bdg svg{width:10px;height:10px}
+#mCal .pill{padding:2px 8px;font-size:9.5px;gap:5px}
+#mCal .pill i{width:5px;height:5px}
+#mCal .heroTxt h1{margin:3px 0 0;font-size:15px;letter-spacing:-.2px}
+#mCal .heroTxt p,#mCal .kbd{display:none}
+#mCal .heroStats{gap:6px}
+#mCal .stat{min-width:0;padding:4px 10px;border-radius:9px;display:flex;align-items:baseline;gap:6px}
+#mCal .stat b{font-size:15px;display:inline}
+#mCal .stat span{font-size:10.5px}
+#mCal .heroAct{flex-direction:row;align-items:center;gap:6px}
+#mCal .btnP{gap:6px;padding:3px 12px 3px 3px;font-size:12.5px}
+#mCal .btnP .ico{width:22px;height:22px}
+#mCal .btnG{font-size:12px;padding:4px 6px}
+#mCal .btnS{padding:5px 11px;font-size:12px}
+#mCal .icoBtn{width:28px;height:28px}
+#mCal .calShell{grid-template-columns:minmax(0,1fr) 270px;grid-template-areas:"main panel" "main side";gap:8px}
+#mCal .calSide{gap:8px}
+#mCal .calSide .card:has(#mini){display:none}
+#mCal .cardH{padding:8px 10px 6px;gap:8px}
+#mCal .cardH .num{width:18px;height:18px;font-size:10px}
+#mCal .cardH h3{font-size:12.5px}
+#mCal .cardH small{font-size:10.5px}
+#mCal .calBar{gap:6px;padding:6px 10px}
+#mCal #calPrev,#mCal #calNext{width:28px;height:28px}
+#mCal #calMes{font-size:15px}
+#mCal #calHoy{padding:4px 12px;font-size:12px}
+#mCal .seg{padding:2px}
+#mCal .seg button{padding:4px 10px;font-size:11.5px}
+#mCal .seg .thumb{top:2px;bottom:2px}
+#mCal .calBody{padding:6px 8px 8px}
+#mCal #calGrid{gap:4px}
+#mCal .calH{font-size:10px;padding:2px 0 3px;letter-spacing:.6px}
+#mCal .calD{min-height:66px;padding:4px 5px;gap:2px;border-radius:9px}
+#mCal .calD:hover{transform:translateY(-1px)}
+#mCal .calD .n{min-width:22px;height:22px;padding:0 5px;font-size:12px}
+#mCal .calD .cnt{font-size:9.5px}
+#mCal .calD.hoy::after{top:6px;right:6px;font-size:8.5px}
+#mCal .calD .fesN{font-size:9.5px}
+#mCal .calD .fesN span{-webkit-line-clamp:1}
+#mCal .calD .fesN svg{width:10px;height:10px}
+#mCal .it{font-size:10px;padding:1px 5px;gap:4px;border-left-width:2px;border-radius:5px}
+#mCal .more{font-size:9.5px}
+#mCal .legend{gap:4px;padding:0 8px 8px}
+#mCal .chipF{padding:2px 9px;font-size:11px;gap:5px}
+#mCal .chipF i{width:6px;height:6px}
+#mCal .wk{gap:5px}
+#mCal .wkC{min-height:250px;border-radius:9px}
+#mCal .wkH{padding:5px}
+#mCal .wkH b{width:26px;height:26px;font-size:13px;margin-top:2px}
+#mCal .wkB{padding:5px;gap:4px}
+#mCal .ev{padding:4px 6px;font-size:11px;border-radius:7px}
+#mCal .ev time{font-size:9.5px}
+#mCal .dy{grid-template-columns:48px 1fr}
+#mCal .dyAll{padding:6px 8px;min-height:34px;gap:6px}
+#mCal .dyHrs div,#mCal .dySlot{height:40px}
+#mCal .dyHrs div{font-size:9.5px}
+#mCal .dyEv{padding:3px 7px;font-size:11px;border-radius:7px}
+#mCal .dyEv time{font-size:10px}
+#mCal .up{padding:0 6px 8px;gap:2px}
+#mCal .up li{gap:8px;padding:5px 6px;border-radius:9px}
+#mCal .upD{width:34px;padding:2px 0;border-radius:8px}
+#mCal .upD b{font-size:13px}
+#mCal .upD small{font-size:8.5px}
+#mCal .upT b{font-size:11.5px}
+#mCal .upT span{font-size:10px}
+#mCal .rel{font-size:9px;padding:1px 6px}
+#mCal .vacio{padding:10px 10px 12px;font-size:11.5px}
+#mCal .vacio .vI{width:30px;height:30px;margin-bottom:5px;border-radius:9px}
+#mCal #calPanel{top:8px}
+#mCal .pHead{padding:10px 12px 10px}
+#mCal .calDueno{font-size:10.5px;margin-bottom:6px}
+#mCal .pDate{gap:10px}
+#mCal .pNum{font-size:32px;letter-spacing:-1.5px}
+#mCal .pDate h5{font-size:13.5px}
+#mCal .pDate p{font-size:11px}
+#mCal .tag{margin-top:7px;padding:2px 9px;font-size:9.5px}
+#mCal .pBody{padding:8px 10px 10px}
+#mCal .pSub{font-size:10px;margin:0 0 5px}
+#mCal .pList{gap:5px;margin-bottom:8px;max-height:180px;overflow:auto}
+#mCal .pList li{gap:8px;padding:6px 6px 6px 9px;border-radius:9px}
+#mCal .pList li::before{top:7px;bottom:7px}
+#mCal .pList .eI{width:24px;height:24px;border-radius:7px}
+#mCal .pList .eT b{font-size:12px}
+#mCal .pList .eT span,#mCal .pList .eT p{font-size:10.5px}
+#mCal .pList .eA .icoBtn{width:24px;height:24px}
+#mCal .quick{padding:6px 8px;border-radius:10px}
+#mCal #calTxt{min-height:38px;font-size:12px}
+#mCal .qTypes{gap:4px;margin:4px 0 6px}
+#mCal .qT{padding:2px 8px;font-size:10.5px;gap:4px}
+#mCal .qAct .btnP{padding:3px 11px 3px 3px;font-size:12px}
+#mCal .qAct .btnP .ico{width:20px;height:20px}
+#mCal .modal{width:min(440px,100%);border-radius:16px}
+#mCal .mH{padding:12px 14px 8px;gap:10px}
+#mCal .mH .tIco{width:30px;height:30px;border-radius:9px}
+#mCal .mH h4{font-size:15px}
+#mCal .mB{padding:2px 14px 6px;gap:8px}
+#mCal .inp{padding:7px 10px;font-size:12.5px;border-radius:9px}
+#mCal textarea.inp{min-height:56px}
+#mCal .tSel button{padding:6px 4px;font-size:10.5px;border-radius:9px}
+#mCal .mF{padding:8px 14px 12px}
+#mCal .toast{bottom:12px;padding:7px 10px 7px 12px;font-size:12px}
+@media (max-width:900px){
+  #mCal .calShell{grid-template-columns:1fr;grid-template-areas:"main" "panel" "side"}
+  #mCal #calPanel{position:static}
+  #mCal .heroStats{display:none}
+}
+@media (max-width:680px){
+  #mCal{padding:6px 6px 70px}
+  #mCal .calHero{padding:8px 10px}
+  #mCal .calD{min-height:44px}
+  #mCal .fab{width:46px;height:46px;right:12px;bottom:12px}
+}
+
+/* v39 · Adaptable a cualquier pantalla */
+html,body{height:100%}
+#m2ui{height:100%}
+#m2ui #mCal{--fs:1;height:100vh;min-height:560px;display:flex;flex-direction:column;max-width:1800px;margin:0 auto;box-sizing:border-box}
+#mCal .calHero{flex:none}
+#mCal .calShell{flex:1;min-height:0;grid-template-columns:minmax(0,1fr) clamp(250px,19vw,380px);grid-template-rows:auto minmax(0,1fr)}
+#mCal .calMain{display:flex;flex-direction:column;min-height:0}
+#mCal .calBar,#mCal .legend{flex:none}
+#mCal .calBody{flex:1;min-height:0;overflow:auto}
+#mCal #calGrid:not([style]){height:100%;grid-auto-rows:minmax(48px,1fr);grid-template-rows:auto}
+#mCal .calD{min-height:0}
+#mCal .wk{height:100%}
+#mCal .wkC{min-height:200px}
+#mCal #calPanel{position:static;display:flex;flex-direction:column;min-height:0}
+#mCal .pBody{flex:1;min-height:0;display:flex;flex-direction:column}
+#mCal .pList{flex:0 1 auto;max-height:none;overflow:auto}
+#mCal .calSide{min-height:0;overflow:auto}
+#mCal .calShell{align-items:stretch}
+#mCal .calSide{display:flex!important;flex-direction:column}
+#mCal #calPanel{align-self:start;max-height:100%;overflow:auto}
+#mCal .calSide .card{flex:none}
+#mCal .qAct .btnG{white-space:nowrap}
+#mCal .heroTxt h1{font-size:calc(15px*var(--fs))}
+#mCal .stat b{font-size:calc(15px*var(--fs))} #mCal .stat span{font-size:calc(10.5px*var(--fs))}
+#mCal #calMes{font-size:calc(15px*var(--fs))}
+#mCal .seg button,#mCal #calHoy{font-size:calc(11.5px*var(--fs))}
+#mCal .calH{font-size:calc(10px*var(--fs))}
+#mCal .calD{padding:calc(4px*var(--fs)) calc(5px*var(--fs))}
+#mCal .calD .n{font-size:calc(12px*var(--fs));min-width:calc(22px*var(--fs));height:calc(22px*var(--fs))}
+#mCal .calD .fesN{font-size:calc(9.5px*var(--fs))}
+#mCal .it{font-size:calc(10px*var(--fs))}
+#mCal .chipF{font-size:calc(11px*var(--fs))}
+#mCal .pNum{font-size:calc(32px*var(--fs))}
+#mCal .pDate h5{font-size:calc(13.5px*var(--fs))} #mCal .pDate p,#mCal .calDueno{font-size:calc(10.5px*var(--fs))}
+#mCal .pList .eT b{font-size:calc(12px*var(--fs))} #mCal #calTxt{font-size:calc(12px*var(--fs))}
+#mCal .qT{font-size:calc(10.5px*var(--fs))}
+#mCal .cardH h3{font-size:calc(12.5px*var(--fs))} #mCal .upT b{font-size:calc(11.5px*var(--fs))}
+#mCal .ev{font-size:calc(11px*var(--fs))} #mCal .dyEv{font-size:calc(11px*var(--fs))}
+#mCal .vacio{font-size:calc(11.5px*var(--fs))} #mCal .pSub{font-size:calc(10px*var(--fs))}
+#mCal .tag{font-size:calc(9.5px*var(--fs))} #mCal .btnP{font-size:calc(12.5px*var(--fs))}
+#mCal .btnG{font-size:calc(12px*var(--fs))} #mCal .pill{font-size:calc(9.5px*var(--fs))}
+#mCal .upT span{font-size:calc(10px*var(--fs))} #mCal .calD .cnt,#mCal .more{font-size:calc(9.5px*var(--fs))}
+@media (min-width:1500px) and (min-height:800px){ #m2ui #mCal{--fs:1.12;padding:12px 16px 14px} #mCal .calShell{gap:12px} }
+@media (min-width:1850px) and (min-height:950px){ #m2ui #mCal{--fs:1.25;padding:16px 22px 18px} #mCal .calShell{gap:16px} #mCal #calGrid{gap:6px} }
+@media (min-width:2400px) and (min-height:1250px){ #m2ui #mCal{--fs:1.5} }
+@media (max-height:700px){ #mCal .calHero{padding:6px 10px;margin-bottom:6px} #mCal .heroIcon{width:34px;height:34px}
+  #mCal #calGrid:not([style]){grid-auto-rows:minmax(40px,1fr)} #mCal .calD .it:nth-of-type(n+2){display:none} }
+@media (max-width:900px){
+  #m2ui #mCal{height:auto;min-height:100vh}
+  #mCal .calShell{grid-template-columns:1fr;grid-template-rows:none;grid-template-areas:"main" "panel" "side"}
+  #mCal .calMain{min-height:min(560px,80vh)}
+}
+
+/* v40 · Sábados, domingos y festivos con color más marcado */
+#m2ui #mCal{
+  --c-sab:#DCE5F1; --c-sab-b:#B7C7DD; --c-sab-tx:#24456E;
+  --c-dom:#FBDDE1; --c-dom-b:#F0AEB8;
+  --c-fes:#F8CDD3; --c-fes-b:#E58593;
+}
+html[data-theme="dark"] #m2ui #mCal{
+  --c-sab:#1E3150; --c-sab-b:#33507A; --c-sab-tx:#B9D0F0;
+  --c-dom:#3D1D27; --c-dom-b:#6E2F3D;
+  --c-fes:#4A1E29; --c-fes-b:#8A3545;
+}
+/* Mes */
+#mCal .calD.sab{background:var(--c-sab);border-color:var(--c-sab-b)}
+#mCal .calD.sab .n{color:var(--c-sab-tx);font-weight:800}
+#mCal .calD.dom{background:var(--c-dom);border-color:var(--c-dom-b)}
+#mCal .calD.dom .n{color:var(--c-red);font-weight:800}
+#mCal .calD.fes{background:linear-gradient(180deg,var(--c-fes),var(--c-dom) 85%);border-color:var(--c-fes-b);box-shadow:inset 0 3px 0 var(--c-red)}
+#mCal .calD.fes .n{background:var(--c-red);color:#fff;border-radius:999px}
+#mCal .calD.fes .fesN{color:var(--c-red)}
+#mCal .calD.otro.sab,#mCal .calD.otro.dom,#mCal .calD.otro.fes{opacity:.55}
+/* Encabezados de columna */
+#mCal .calH:nth-child(6){color:var(--c-sab-tx);font-weight:800}
+#mCal .calH.dom{color:var(--c-red);font-weight:800}
+/* Semana */
+#mCal .wk>.wkC:nth-child(6):not(.fes){background:var(--c-sab);border-color:var(--c-sab-b)}
+#mCal .wk>.wkC:nth-child(6) .wkH small{color:var(--c-sab-tx)}
+#mCal .wkC.dom{background:var(--c-dom);border-color:var(--c-dom-b)}
+#mCal .wkC.fes{background:linear-gradient(180deg,var(--c-fes),var(--c-dom) 45%);border-color:var(--c-fes-b);box-shadow:inset 0 3px 0 var(--c-red)}
+/* Mantener resaltado de hoy / seleccionado por encima */
+#mCal .calD.hoy,#mCal .calD.sel{border-color:var(--c-blue)}
+
+/* Integración Vite · ajustes mínimos
+   - «Hoy» siempre con número blanco (si hoy caía en domingo o festivo quedaba rojo sobre rojo).
+   - Integrado en el Cuadro: espacio para el botón × de la ventana flotante. */
+#mCal .calD.hoy .n{color:#fff}
+html.ad-embedded #mCal .calHero{padding-right:52px}

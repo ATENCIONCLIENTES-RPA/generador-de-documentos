@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calendario · Asistente Documental ESSA</title>
+</head>
+<body>
+<div id="m2ui">
+<section id="mCal" aria-label="Calendario">
+
+  <header class="calHero">
+    <div class="heroIcon" aria-hidden="true">
+      <div class="doc"><div><small id="hMes">NOV</small><span id="hDia">16</span></div></div>
+      <span class="bdg" data-i="clock"></span>
+    </div>
+    <div class="heroTxt">
+      <span class="pill"><i></i><span id="hPill">Agenda personal</span></span>
+      <h1>Organiza tu <span class="grad">agenda de gestión</span></h1>
+      <p>Registra vencimientos, reuniones, notas y cumpleaños. Tus eventos se guardan en este equipo.</p>
+    </div>
+    <div class="heroStats">
+      <div class="stat b"><b id="sMes">0</b><span>Eventos del mes</span></div>
+      <div class="stat r"><b id="sSem">0</b><span>Próximos 7 días</span></div>
+      <div class="stat v"><b id="sFes">0</b><span>Festivos del mes</span></div>
+    </div>
+    <div class="heroAct">
+      <button class="btnP" id="btnNuevo"><span class="ico" data-i="plus"></span>Nuevo evento</button>
+      <span class="kbd">Atajo <kbd>N</kbd> · Hoy <kbd>T</kbd> · Mover <kbd>←</kbd><kbd>→</kbd></span>
+      <button class="btnG" id="btnTema"><span data-i="moon"></span>Modo claro / oscuro</button>
+    </div>
+  </header>
+
+  <div class="calShell">
+    <aside class="calSide">
+      <div class="card">
+        <div class="cardH"><span class="num">1</span><h3>Navegación rápida</h3></div>
+        <div class="mini" id="mini"></div>
+      </div>
+      <div class="card">
+        <div class="cardH"><span class="num">2</span><h3>Próximos eventos</h3><small id="upCount"></small></div>
+        <ul class="up" id="upList"></ul>
+      </div>
+    </aside>
+
+    <main class="calMain card">
+      <div class="calBar">
+        <button id="calPrev" aria-label="Anterior" data-i="chevL"></button>
+        <button id="calNext" aria-label="Siguiente" data-i="chevR"></button>
+        <span id="calMes" aria-live="polite"></span>
+        <button id="calHoy">Hoy</button>
+        <span class="sp"></span>
+        <div class="seg" role="group" aria-label="Vista">
+          <span class="thumb"></span>
+          <button data-v="mes" aria-pressed="true">Mes</button>
+          <button data-v="semana" aria-pressed="false">Semana</button>
+          <button data-v="dia" aria-pressed="false">Día</button>
+        </div>
+      </div>
+      <div class="calBody"><div id="calGrid"></div></div>
+      <div class="legend" id="legend"></div>
+    </main>
+
+    <aside id="calPanel" class="card" aria-live="polite"></aside>
+  </div>
+
+  <!-- Modal crear / editar -->
+  <div class="ov" id="ov" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTit">
+      <div class="mH">
+        <span class="tIco" data-i="cal"></span>
+        <div><h4 id="mTit">Nuevo evento</h4><p id="mSub">Completa los datos del evento</p></div>
+        <button class="icoBtn" id="mX" aria-label="Cerrar" data-i="x"></button>
+      </div>
+      <form class="mB" id="mForm" novalidate>
+        <div class="fld full"><label for="fTit"><span data-i="pen"></span>Título</label>
+          <input class="inp" id="fTit" maxlength="120" placeholder="Ej.: Vencimiento respuesta PQR" autocomplete="off"></div>
+        <div class="fld full"><span class="lb"><span data-i="tag"></span>Tipo</span><div class="tSel" id="fTipo"></div></div>
+        <div class="fld"><label for="fFec"><span data-i="cal"></span>Fecha</label><input class="inp" type="date" id="fFec"></div>
+        <div class="fld" style="justify-content:flex-end"><label class="sw"><input type="checkbox" id="fTodo"> Todo el día</label></div>
+        <div class="hrs" id="fHrs">
+          <div class="fld"><label for="fIni"><span data-i="clock"></span>Inicio</label><input class="inp" type="time" id="fIni" value="08:00"></div>
+          <div class="fld"><label for="fFin"><span data-i="clock"></span>Fin</label><input class="inp" type="time" id="fFin" value="09:00"></div>
+        </div>
+        <div class="fld full"><label for="fDes"><span data-i="note"></span>Descripción</label>
+          <textarea class="inp" id="fDes" maxlength="1000" placeholder="Detalles, cuenta, radicado o enlace de referencia (opcional)"></textarea></div>
+        <div class="mErr" id="mErr"></div>
+      </form>
+      <div class="mF">
+        <button class="btnDel" id="mDel" type="button"><span data-i="trash"></span>Eliminar</button>
+        <span class="sp"></span>
+        <button class="btnS" id="mCan" type="button">Cancelar</button>
+        <button class="btnP" id="mOk" type="button"><span class="ico" data-i="check"></span>Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"><span id="tMsg"></span><button id="tBtn" hidden>Deshacer</button></div>
+  <button class="fab" id="fab" aria-label="Nuevo evento" data-i="plus"></button>
+</section>
+</div>
+
+<script type="module" src="../src/modules/calendario/main.ts"></script>
+</body>
+</html>

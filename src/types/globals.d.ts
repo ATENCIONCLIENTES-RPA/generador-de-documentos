@@ -10,4 +10,14 @@ declare global {
     __AD_ON_NAVIGATE?: (params: unknown, ctl: TaskController) => unknown;
   }
 }
+declare module '*.js' {
+  const content: any;
+  export default content;
+  export const initCiiu: any;
+  export const initCiiuTema: any;
+}
+declare module '*?raw' {
+  const content: string;
+  export default content;
+}
 export {};

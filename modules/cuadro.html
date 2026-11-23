@@ -201,13 +201,23 @@ window.addEventListener('error',r,true);setTimeout(r,10000);})();
             <select id="fNotas" hidden aria-hidden="true"><option value="">Todos</option><option value="notas">Con anotaciones</option></select>
           </div>
           <div class="radAcc">
+            <div class="pcStack" role="group" aria-label="Procesos marcados hoy">
+              <button class="btnPc btnPcNo" id="btnPcCancel" type="button" title="Procesos marcados hoy para cancelar" aria-haspopup="dialog">
+                <span class="pcIco" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg></span>
+                <span class="pcTxt">Cancelar</span><span class="pcCnt" id="pcCnt" hidden>0</span>
+              </button>
+              <button class="btnPc btnPcOk" id="btnPcNoCancel" type="button" title="Procesos marcados hoy para no cancelar" aria-haspopup="dialog">
+                <span class="pcIco" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+                <span class="pcTxt">No Cancelar</span><span class="pcCnt" id="pcNoCnt" hidden>0</span>
+              </button>
+            </div>
             <button type="button" class="lnkEv" id="lnkEv">Evacuados (0)</button>
             <button class="btnCons btnConsVerde" id="btnCons" type="button"><span class="m2i" data-m2i="chat" aria-hidden="true"></span>Consultas</button>
           </div>
         </div></div>
         <div class="scroll"><table id="tRad"><thead><tr>
-          <th style="width:26px"></th><th>Radicado</th><th class="thDup" style="width:104px">Duplicados</th><th>Detalles</th><th style="width:290px"></th>
-        </tr></thead><tbody><tr><td colspan="5" class="vacio">Sin día seleccionado.</td></tr></tbody></table></div>
+          <th style="width:26px"></th><th>Radicado</th><th class="thProc">Procesos</th><th class="thDup" style="width:92px">Duplicados</th><th style="width:96px">Detalles</th><th style="width:232px"></th>
+        </tr></thead><tbody><tr><td colspan="6" class="vacio">Sin día seleccionado.</td></tr></tbody></table></div>
       </div>
     </div>
   </section>
@@ -243,7 +253,33 @@ window.addEventListener('error',r,true);setTimeout(r,10000);})();
   </div>
 </div>
 
-<div class="modal" id="mRes" role="dialog" aria-modal="true">
+  <div class="modal pcModal" id="mPcC" role="dialog" aria-modal="true" aria-labelledby="pcCTit">
+    <div class="mbox">
+      <div class="mhead">
+        <div><div class="mhTit"><span class="mhIco pcIcoNo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg></span><div><h3 id="pcCTit">Cancelar procesos</h3><p id="pcCSub"></p></div></div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn sec pcCopyAll" id="pcCCopy" type="button"><span class="m2i" data-m2i="copy" aria-hidden="true"></span><span class="pcCopyTxt">Copiar tabla</span></button>
+          <button class="cerrar" id="pcCX" type="button">&times;</button>
+        </div>
+      </div>
+      <div class="mbody"><div class="recScroll"><table id="tPcC" class="pcTabla"><thead></thead><tbody></tbody></table></div>
+        <p class="pcNota">La justificación es editable y se guarda al escribir. «Copiar tabla» copia solo los procesos (sin títulos); el ícono de cada fila copia solo ese proceso.</p></div>
+    </div>
+  </div>
+  <div class="modal pcModal" id="mPcN" role="dialog" aria-modal="true" aria-labelledby="pcNTit">
+    <div class="mbox">
+      <div class="mhead">
+        <div><div class="mhTit"><span class="mhIco pcIcoOk" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span><div><h3 id="pcNTit">No cancelar procesos</h3><p id="pcNSub"></p></div></div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn sec pcCopyAll" id="pcNCopy" type="button"><span class="m2i" data-m2i="copy" aria-hidden="true"></span><span class="pcCopyTxt">Copiar tabla</span></button>
+          <button class="cerrar" id="pcNX" type="button">&times;</button>
+        </div>
+      </div>
+      <div class="mbody"><div class="recScroll"><table id="tPcN" class="pcTabla"><thead></thead><tbody></tbody></table></div>
+        <p class="pcNota">«Copiar tabla» copia solo los procesos (sin títulos); el ícono de cada fila copia solo ese proceso.</p></div>
+    </div>
+  </div>
+  <div class="modal" id="mRes" role="dialog" aria-modal="true">
   <div class="mbox" style="max-width:1150px">
     <div class="mhead">
       <div><div class="mhTit"><span class="mhIco" data-m2i="bars" aria-hidden="true"></span><div><h3>Resumen general</h3><p id="resSub"></p></div></div></div>
@@ -289,9 +325,14 @@ window.addEventListener('error',r,true);setTimeout(r,10000);})();
       <div id="recMain" class="rtPanel">
         <div class="rtBand">
         <div class="rtCtx">
-          <div class="rtWho"><span class="rtWhoIc" aria-hidden="true"></span><div><small id="rtWhoK">Ruta seleccionada</small><b id="rtWhoNom">Peticiones</b></div>
-            <span class="rtWhoN" id="rtWhoN" title="Usuarios de la ruta"></span></div>
-        </div>
+            <div class="rtWho"><span class="rtWhoIc" aria-hidden="true"></span><div><small id="rtWhoK">Ruta seleccionada</small><b id="rtWhoNom">Peticiones</b></div>
+              <span class="rtWhoN" id="rtWhoN" title="Usuarios de la ruta"></span></div>
+            <div class="subRuta" id="subRuta" role="group" aria-label="Sub-rutas de Peticiones" style="display:none">
+              <button type="button" data-r="pq" aria-pressed="true">Peticiones <small>0</small></button>
+              <button type="button" data-r="es" aria-pressed="false">Ruta Especializada <small>0</small></button>
+              <button type="button" data-r="so" aria-pressed="false">SOMOS <small>0</small></button>
+            </div>
+          </div>
         <div class="barRec rtBar">
           
           <select id="recUsr" hidden aria-hidden="true" tabindex="-1"></select>
@@ -419,7 +460,7 @@ window.addEventListener('error',r,true);setTimeout(r,10000);})();
         <input type="search" id="consAntQ" placeholder="Buscar por radicado, cuenta, proceso, consulta u observación…" aria-label="Buscar en consultas anteriores">
         <button class="btn sec mini" id="consAntQLimp" type="button">Limpiar</button>
       </div>
-      <div class="recScroll"><table id="tConsAnt"><thead><tr><th>Radicado</th><th>Fecha radicado</th><th>Cuenta</th><th>Proceso(s)</th><th>Contenido (Mercurio)</th>
+      <div class="recScroll"><table id="tConsAnt"><thead><tr><th>Radicado</th><th>Fecha radicado</th><th>Cuenta</th><th>Proceso(s)</th><th>Día</th><th>Contenido (Mercurio)</th>
         <th>Consulta a realizar</th><th>Observaciones del profesional</th><th>Evacuada el</th><th></th></tr></thead><tbody></tbody></table></div>
     </div>
   </div>

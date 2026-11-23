@@ -1,8 +1,11 @@
 import type { ModuleHost } from './module-host';
 import { byId } from '../utils/dom';
+import { consultasManager } from '../modules/consultas';
+
 type ToolAction = 'mat' | 'ciiu' | 'cal' | 'rev';
 interface ToolDeps { host: ModuleHost; go: (id: 'cuadro') => void }
 export function bindModuleTools({ host, go }: ToolDeps): void {
+  consultasManager.init();
   const cuadroFrame = (): Window | null => host.frameOf('cuadro')?.contentWindow ?? null;
   const dispara = (accion: ToolAction): void => {
     go('cuadro');
@@ -15,7 +18,14 @@ export function bindModuleTools({ host, go }: ToolDeps): void {
   const activa = (id: string): void => { botones.forEach(b => b.classList.toggle('is-active', b.id === id)); };
   const bind = (id: string, accion: ToolAction): void => {
     const b = byId(id); if (!b) return;
-    b.addEventListener('click', () => { activa(id); dispara(accion); });
+    b.addEventListener('click', () => {
+      activa(id);
+      if (accion === 'mat' || accion === 'ciiu') {
+        void consultasManager.abrir(accion === 'mat' ? 'matrices' : 'ciiu');
+      } else {
+        dispara(accion);
+      }
+    });
   };
   bind('adMat', 'mat'); bind('adCiiu', 'ciiu'); bind('adCal', 'cal'); bind('adRev', 'rev');
   function pintarFecha(): void {

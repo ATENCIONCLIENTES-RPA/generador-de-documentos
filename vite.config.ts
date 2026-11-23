@@ -10,7 +10,14 @@ export default defineConfig({
     reportCompressedSize: false,
     assetsInlineLimit: 4096,
     rollupOptions: {
-      input: { main: r('./index.html'), recursos: r('./modules/recursos.html'), cuadro: r('./modules/cuadro.html'), documentos: r('./modules/documentos.html'), extractor: r('./modules/extractor.html') },
+      input: {
+        main: r('./index.html'),
+        recursos: r('./modules/recursos.html'),
+        cuadro: r('./modules/cuadro.html'),
+        documentos: r('./modules/documentos.html'),
+        extractor: r('./modules/extractor.html'),
+        calendario: r('./modules/calendario.html'),
+      },
       output: {
         manualChunks(id) {
           if (id.includes('node_modules/zustand')) return 'vendor-zustand';
