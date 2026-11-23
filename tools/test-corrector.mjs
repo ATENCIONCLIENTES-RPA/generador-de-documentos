@@ -12,6 +12,7 @@ import { pathToFileURL } from 'node:url';
 
 const dir = mkdtempSync(join(tmpdir(), 'corrector-'));
 const outfile = join(dir, 'corrector.mjs');
+const outfileOrt = join(dir, 'ortografia.mjs');
 
 await build({
   entryPoints: ['src/modules/documentos/corrector.ts'],
@@ -23,7 +24,19 @@ await build({
   logLevel: 'error',
 });
 
-const { mejorarTextoLocal } = await import(pathToFileURL(outfile).href);
+await build({
+  entryPoints: ['src/modules/documentos/ortografia.ts'],
+  bundle: true,
+  format: 'esm',
+  platform: 'neutral',
+  target: 'es2022',
+  outfile: outfileOrt,
+  logLevel: 'error',
+});
+
+const { mejorarTextoLocal, setOrtografia } = await import(pathToFileURL(outfile).href);
+const { corregirOrtografia } = await import(pathToFileURL(outfileOrt).href);
+setOrtografia(corregirOrtografia);
 
 let fallos = 0;
 let total = 0;

@@ -8,8 +8,9 @@ const body=document.body;
 
 /* --- Arranque: la corriente entra y colapsa en el conductor central --- */
 const ar=$('arranque');
-if(quieto){ar.remove();body.classList.add('listo');}
-else{setTimeout(()=>body.classList.add('listo'),120);ar.addEventListener('animationend',e=>{if(e.animationName==='colapsa')ar.remove();});setTimeout(()=>ar.isConnected&&ar.remove(),2500);}
+const marcarListo=()=>{body.classList.add('listo');const vm=document.getElementById('viewMatrices');if(vm)vm.classList.add('listo');};
+if(quieto){ar.remove();marcarListo();}
+else{setTimeout(marcarListo,120);ar.addEventListener('animationend',e=>{if(e.animationName==='colapsa')ar.remove();});setTimeout(()=>ar.isConnected&&ar.remove(),2500);}
 
 /* --- Pestañas (tableta y móvil) --- */
 function vista(v,foco){

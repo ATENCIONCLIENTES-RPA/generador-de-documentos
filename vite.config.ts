@@ -17,6 +17,8 @@ export default defineConfig({
         documentos: r('./modules/documentos.html'),
         extractor: r('./modules/extractor.html'),
         calendario: r('./modules/calendario.html'),
+        consultaCiiu: r('./modules/consultas/ciiu.html'),
+        consultaMatrices: r('./modules/consultas/matrices.html'),
       },
       output: {
         manualChunks(id) {

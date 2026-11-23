@@ -5,7 +5,7 @@ import '../../components/guided-tour/guided-tour.css';
 import './documentos.css';
 import '../shared/module-bridge';
 import { GuidedTour } from '../../components/guided-tour/guided-tour';
-import { mejorarTextoLocal } from './corrector';
+import { mejorarTextoLocal, setOrtografia } from './corrector';
 
 const SVG = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const DOC = SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>');
@@ -205,7 +205,20 @@ function tiAviso(ta,texto){
   av.textContent=texto;av.hidden=false;
   clearTimeout(av._t);av._t=setTimeout(()=>{av.hidden=true;},3200);
 }
-function tiCorregir(ta){
+let ortografiaCargada: Promise<void> | null = null;
+/* El diccionario ortográfico pesa ~2 MB: se carga aparte y solo cuando hace falta,
+   para que el módulo abra rápido. */
+function cargarOrtografia(){
+  if(!ortografiaCargada){
+    ortografiaCargada=import('./ortografia')
+      .then(m=>{setOrtografia(m.corregirOrtografia);})
+      .catch(()=>{/* sin diccionario se conserva el resto del corrector */});
+  }
+  return ortografiaCargada;
+}
+async function tiCorregir(ta){
+  tiAviso(ta,'Revisando el texto…');
+  await cargarOrtografia();
   const r=mejorarTextoLocal(ta.value);
   if(!r.cambiado){tiAviso(ta,'Sin cambios: el texto ya está claro');ta.focus();return;}
   tiAplicar(ta,r.texto);
@@ -214,9 +227,10 @@ function tiCorregir(ta){
 }
 document.querySelectorAll('.desc-block').forEach(block=>{
   const ta=block.querySelector('textarea'),btn=block.querySelector('.btn-mejorar'),undo=block.querySelector('.btn-undo');
-  if(btn&&ta)btn.addEventListener('click',()=>tiCorregir(ta));
+  if(btn&&ta)btn.addEventListener('click',()=>{void tiCorregir(ta);});
   if(undo&&ta)undo.addEventListener('click',()=>tiDeshacer(ta));
   if(ta)ta.addEventListener('input',()=>{if(!ta.dataset.tiApplying){DESC_UNDO.delete(ta);tiSyncUndo(ta);}});
+  if(ta)ta.addEventListener('focus',()=>{void cargarOrtografia();},{once:true});
 });
 
 const ICN = GuidedTour.ICN;

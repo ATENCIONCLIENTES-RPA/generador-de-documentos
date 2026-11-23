@@ -2902,7 +2902,7 @@ function abreCalendario(){
       '#calFlot{position:fixed;inset:0;z-index:9000;display:none;place-items:center;padding:12px;'+
         'background:rgba(14,24,40,.42);backdrop-filter:blur(3px)}'+
       '#calFlot.on{display:grid}'+
-      '#calFlot .calFlotBox{position:relative;width:min(1500px,97vw);height:min(920px,95vh);border-radius:16px;overflow:hidden;'+
+      '#calFlot .calFlotBox{position:relative;width:min(1240px,94vw);height:min(840px,90vh);border-radius:16px;overflow:hidden;'+
         'background:var(--m2-soft,#F4F7FB);box-shadow:0 30px 70px -20px rgba(10,30,60,.55)}'+
       'html[data-theme="dark"] #calFlot .calFlotBox{background:#0E141E}'+
       '#calFlot iframe{width:100%;height:100%;border:0;display:block}'+
@@ -3251,7 +3251,9 @@ function abreHerr(k){
       return;
     }
   } catch (e) {}
-  window.dispatchEvent(new CustomEvent('ad-open-consulta', { detail: { id: k } }));
+  /* Sin shell (Cuadro abierto por separado): se abre la consulta en una pestaña nueva. */
+  const u = new URL('../consultas/' + (k === 'mat' ? 'matrices' : 'ciiu') + '.html', document.baseURI).href;
+  window.open(u, '_blank');
 }
 $('btnConsMat').onclick=()=>abreHerr('mat');
 $('btnConsCiiu').onclick=()=>abreHerr('ciiu');

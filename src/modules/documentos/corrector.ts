@@ -12,8 +12,6 @@
    restauran al final, de modo que nunca se alteran.
    ──────────────────────────────────────────────────────────────────────────── */
 
-import { corregirOrtografia } from './ortografia';
-
 export type ResultadoMejora = { texto: string; notas: string[]; cambiado: boolean };
 
 /* Mismo patrón que usa el módulo para proteger datos sensibles. */
@@ -304,6 +302,14 @@ function capitalizaOraciones(t: string, notas: string[]): string {
   return t;
 }
 
+/* ── Ortografía bajo demanda ─────────────────────────────────────────────────
+   El diccionario (ortografia.ts) pesa varios MB. El módulo lo carga aparte y
+   lo inyecta aquí cuando está listo, para no bloquear la apertura del módulo. */
+export type OrtografiaFn = (texto: string) => string;
+let ortografia: OrtografiaFn | null = null;
+export function setOrtografia(fn: OrtografiaFn | null): void { ortografia = fn; }
+export function tieneOrtografia(): boolean { return ortografia !== null; }
+
 /* ── Proceso completo ──────────────────────────────────────────────────────── */
 
 export function mejorarTextoLocal(raw: string): ResultadoMejora {
@@ -322,7 +328,7 @@ export function mejorarTextoLocal(raw: string): ResultadoMejora {
   if (t !== antesRep) notas.push('Palabras repetidas');
 
   const antesOrt = t;
-  t = corregirOrtografia(t);
+  if (ortografia) t = ortografia(t);
   if (t !== antesOrt) notas.push('Ortografía, tildes y erratas');
 
   const antesGram = t;

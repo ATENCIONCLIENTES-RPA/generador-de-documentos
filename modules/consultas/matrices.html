@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<script>
+/* Tema: se resuelve antes del primer pintado para evitar destellos. */
+(function(){var K="ciiu.theme",d=document.documentElement;
+function read(){try{var v=localStorage.getItem(K);if(v==="light"||v==="dark"||v==="auto")return v;}catch(e){}
+try{var a=localStorage.getItem("essa-theme")||localStorage.getItem("essa_cm_theme");if(a==="light"||a==="dark")return a;}catch(e){}
+return "light";}
+function resolve(p){return p==="auto"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):p;}
+function paint(p){var r=resolve(p);d.setAttribute("data-theme",r);d.setAttribute("data-theme-pref",p);return r;}
+window.__ciiuTheme={key:K,read:read,resolve:resolve,paint:paint,mq:matchMedia("(prefers-color-scheme: dark)")};
+paint(read());})();
+</script>
+<title>Matriz de Requisitos y Árbol de Transacciones · ESSA</title>
+</head>
+<body data-vista="a" style="height:100%;margin:0">
+<div id="viewMatrices">
+  <div id="arranque" aria-hidden="true"></div>
+  <div id="velo" role="dialog" aria-modal="true" aria-live="polite"><div id="ventana"></div></div>
+  <div id="lupa" role="dialog" aria-modal="true" aria-label="Visor de imagen"><div class="lb"><a id="lupaAbrir" target="_blank" rel="noopener">↗ Abrir en pestaña</a><button id="lupaCerrar" type="button">✕ Cerrar</button></div><img alt="Imagen ampliada"></div>
+
+  <header class="topbar">
+    <nav class="pestanas" role="tablist" aria-label="Módulo">
+      <span class="tapa" aria-hidden="true"></span>
+      <button role="tab" id="tabA" aria-controls="izq" aria-selected="true" data-vista="a">Requisitos</button>
+      <button role="tab" id="tabB" aria-controls="der" aria-selected="false" data-vista="b">Árbol</button>
+    </nav>
+    <div class="atajos"><span><kbd>/</kbd>buscar</span><span><kbd>Esc</kbd>limpiar</span><span><kbd>⇆</kbd>arrastre el conductor central</span></div>
+  </header>
+
+  <main class="escena">
+    <!-- MÓDULO 01 · MATRIZ DE REQUISITOS -->
+    <section id="izq" class="mitad" aria-labelledby="tA">
+      <header>
+        <div class="cab-mod">
+          <div class="ident"><span class="num" aria-hidden="true">01</span><div class="tt"><div class="eb"><span class="codigo">ZPSAC001</span><span class="proc">Proceso Atención a Clientes</span></div><h1 class="ttl" id="tA">Matriz de <em>requisitos</em></h1></div></div>
+          <div class="medidor"><small>VER</small><span class="tv" id="ver"></span></div>
+        </div>
+        <div class="upd">
+          <div class="ut">Actualizar · <b>clic o arrastre el Excel aquí</b></div>
+          <div class="ubs"><label class="ub" title="Elegir el Excel de la nueva versión">Cargar versión<input type="file" id="fReq" accept=".xlsx"></label><button class="ub" id="aReq" type="button" title="Recargar el aplicativo">Actualizar</button></div>
+          <div class="ust" id="sReq"></div>
+        </div>
+        <div class="barra" role="search">
+          <span class="lupa" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg></span>
+          <label class="sr" for="q">Buscar en la matriz de requisitos</label>
+          <input id="q" type="search" autocomplete="off" placeholder="requisitos traslado saldo a favor · AP Aguachica · aliado 933" autofocus>
+          <label class="sr" for="otras">Otras consultas</label>
+          <select id="otras"><option value="">Otras consultas de Información general…</option></select>
+          <button id="limpiar" type="button">Limpiar</button>
+          <span class="onda" aria-hidden="true"></span>
+        </div>
+      </header>
+      <div class="riel" aria-hidden="true"></div>
+      <div id="res" aria-live="polite"></div>
+    </section>
+
+    <div class="conductor" id="conductor" role="separator" aria-orientation="vertical" aria-label="Ajustar ancho de los módulos" aria-valuemin="28" aria-valuemax="72" aria-valuenow="50" tabindex="0" title="Arrastre para ajustar · doble clic para centrar">
+      <span class="chispa" id="chispa"></span>
+      <span class="agarre" aria-hidden="true"><svg viewBox="0 0 22 58" focusable="false"><path d="M9 25l-3.4 4L9 33M13 25l3.4 4L13 33"/></svg></span>
+    </div>
+
+    <!-- MÓDULO 02 · ÁRBOL DE TRANSACCIONES -->
+    <section id="der" class="mitad" aria-labelledby="tB">
+      <header>
+        <div class="cab-mod">
+          <div class="ident"><span class="num" aria-hidden="true">02</span><div class="tt"><div class="eb"><span class="codigo">ZPSAC003</span><span class="proc">Proceso Atención a Clientes</span></div><h1 class="ttl" id="tB">Árbol de <em>transacciones</em></h1></div></div>
+          <div class="medidor"><small>VER</small><span class="tv" id="verD"></span></div>
+        </div>
+        <div class="upd">
+          <div class="ut">Actualizar · <b>clic o arrastre el Excel aquí</b></div>
+          <div class="ubs"><label class="ub" title="Elegir el Excel de la nueva versión">Cargar versión<input type="file" id="fArb" accept=".xlsx"></label><button class="ub" id="aArb" type="button" title="Recargar el aplicativo">Actualizar</button></div>
+          <div class="ust" id="sArb"></div>
+        </div>
+        <div class="barra" role="search">
+          <span class="lupa" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg></span>
+          <label class="sr" for="qD">Buscar en el árbol de transacciones</label>
+          <input id="qD" type="search" autocomplete="off" placeholder="2931 · podas · subsidio · ATC Barichara · circuito 76501">
+          <label class="sr" for="otrasD">Otras consultas</label>
+          <select id="otrasD"><option value="">Otras consultas del árbol de transacciones…</option></select>
+          <button id="limpiarD" type="button">Limpiar</button>
+          <span class="onda" aria-hidden="true"></span>
+        </div>
+      </header>
+      <div class="riel" aria-hidden="true"></div>
+      <div id="resD" aria-live="polite"></div>
+    </section>
+  </main>
+</div>
+<script type="module" src="../../src/entries/consulta-matrices.ts"></script>
+</body>
+</html>

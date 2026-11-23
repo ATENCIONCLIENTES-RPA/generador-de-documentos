@@ -1,11 +1,35 @@
 import type { ModuleHost } from './module-host';
 import { byId } from '../utils/dom';
-import { consultasManager } from '../modules/consultas';
 
 type ToolAction = 'mat' | 'ciiu' | 'cal' | 'rev';
 interface ToolDeps { host: ModuleHost; go: (id: 'cuadro') => void }
+
+/* Consultas: páginas independientes que se abren en una pestaña/ventana nueva.
+   Así conservan su propio documento y sus estilos, sin cargarse dentro del shell. */
+const CONSULTAS = {
+  mat: 'modules/consultas/matrices.html',
+  ciiu: 'modules/consultas/ciiu.html',
+} as const;
+
+function abrirConsulta(tipo: 'mat' | 'ciiu'): void {
+  const url = new URL(CONSULTAS[tipo], document.baseURI).href;
+  const win = window.open(url, '_blank');
+  if (win) {
+    try { win.opener = null; } catch { /* pestaña ya abierta en otro origen */ }
+    return;
+  }
+  // Ventana emergente bloqueada: se abre en la pestaña actual.
+  window.location.assign(url);
+}
+
 export function bindModuleTools({ host, go }: ToolDeps): void {
-  consultasManager.init();
+  // El Cuadro de Mando vive en un iframe y delega aquí la apertura de consultas.
+  window.addEventListener('ad-open-consulta', (e: Event) => {
+    const id = (e as CustomEvent).detail?.id;
+    if (id === 'mat' || id === 'matrices') abrirConsulta('mat');
+    else if (id === 'ciiu') abrirConsulta('ciiu');
+  });
+
   const cuadroFrame = (): Window | null => host.frameOf('cuadro')?.contentWindow ?? null;
   const dispara = (accion: ToolAction): void => {
     go('cuadro');
@@ -20,11 +44,8 @@ export function bindModuleTools({ host, go }: ToolDeps): void {
     const b = byId(id); if (!b) return;
     b.addEventListener('click', () => {
       activa(id);
-      if (accion === 'mat' || accion === 'ciiu') {
-        void consultasManager.abrir(accion === 'mat' ? 'matrices' : 'ciiu');
-      } else {
-        dispara(accion);
-      }
+      if (accion === 'mat' || accion === 'ciiu') abrirConsulta(accion);
+      else dispara(accion);
     });
   };
   bind('adMat', 'mat'); bind('adCiiu', 'ciiu'); bind('adCal', 'cal'); bind('adRev', 'rev');
