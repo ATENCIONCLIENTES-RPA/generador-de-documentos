@@ -6,10 +6,24 @@
 <title>Asistente Documental — Cuadro de Mando</title>
 <style>
   body{visibility:hidden}
+  /* Dentro del shell la cabecera heredada del módulo no debe verse. */
+  html.ad-embedded .brand2,
+  html.ad-embedded #themeToggle2,
+  html.ad-embedded #btnConsMat,
+  html.ad-embedded #btnConsCiiu,
+  html.ad-embedded #btnCal,
+  html.ad-embedded #btnRev,
+  html.ad-embedded footer{display:none!important}
 </style>
 <script>
-(function(){var r=function(){try{var b=document.body;if(b&&getComputedStyle(b).visibility==='hidden')b.style.visibility='visible';}catch(e){}};
-window.addEventListener('error',r,true);setTimeout(r,10000);})();
+(function(){
+  /* Se marca como embebido antes del primer pintado: así los botones antiguos
+     (Matrices, CIIU, Calendario, Revisiones) no alcanzan a mostrarse. */
+  try { if (window.parent !== window) document.documentElement.classList.add('ad-embedded'); }
+  catch(e) { document.documentElement.classList.add('ad-embedded'); }
+  var r=function(){try{var b=document.body;if(b&&getComputedStyle(b).visibility==='hidden')b.style.visibility='visible';}catch(e){}};
+  window.addEventListener('error',r,true);setTimeout(r,10000);
+})();
 </script>
 </head>
 <body id="m2ui">

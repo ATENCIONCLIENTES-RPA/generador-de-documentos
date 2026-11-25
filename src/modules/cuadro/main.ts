@@ -266,7 +266,7 @@ const guardaProcCancel=()=>{ try{ appDataSet(LS_PCANCEL,JSON.stringify(PROC_CANC
   catch(e){ reportaError('No se pudo guardar ('+LS_PCANCEL+'): almacenamiento lleno',e); } };
 const procEstado=num=>{ const e=PROC_CANCEL[String(num)]; return e&&(e.e==='c'||e.e==='n')?e.e:''; };
 
-let CRUDO={sac:[],mer:[]}, DATOS=[], INDICE={}, nRelleno=0, nCancel=0, nRuta=0;
+let CRUDO={sac:[],mer:[]}, DATOS=[], DATOS_INF=[], INDICE={}, nRelleno=0, nCancel=0, nRuta=0;
 
 const RUTAS_NO = CFG.rutasExcluidas.map(sinTilde);
 const rutaExcluida = r => { const s=sinTilde(r); return !!s && RUTAS_NO.some(x=>s===x||s.indexOf(x)===0); };
@@ -540,6 +540,22 @@ function identificarResponsable(nombre){
 }
 function resolverFirmante(nombre){ const r=identificarResponsable(nombre); return r.estado==='unico'?r.responsable:''; }
 const claveResponsable = s => { const r=resolverFirmante(s); return canonNombre(r||s); };
+/* v44 · Atribución ESTRICTA del gestor de Mercurio a un usuario del equipo: además del
+   resolutor del módulo, las palabras del nombre más corto deben estar todas en el más
+   largo y coincidir al menos dos (evita que un parecido parcial sume radicados ajenos). */
+const CACHE_GM=new Map();
+function gestorMercurio(raw){
+  const r=txt(raw); if(!r) return '';
+  if(CACHE_GM.has(r)) return CACHE_GM.get(r);
+  const eq=equipoDe(r); let res='';
+  if(eq){
+    const a=canonHuella(r).split(' ').filter(Boolean), b=canonHuella(eq).split(' ').filter(Boolean);
+    const [corto,largo]=a.length<=b.length?[a,b]:[b,a], L=new Set(largo);
+    if(corto.length>=2 && corto.every(t=>L.has(t))) res=eq;
+  }
+  if(CACHE_GM.size>3000) CACHE_GM.clear();
+  CACHE_GM.set(r,res); return res;
+}
 let nFueraEquipo=0, ALLPROC=[], ALLRAD=[];
 let DUP_CACHE=new Map();
 
@@ -548,13 +564,26 @@ function unificar(){
   CRUDO.mer.forEach(r=>{
     const k=soloNum(r['No. Radicado']); if(k.length<5) return;
     if(rutaExcluida(r['Nombre de la Ruta'])){ nRuta++; return; }
-    if(!merPorRad[k]) merPorRad[k]={
+    const fila={
       gestor:txt(r['Nombre del Gestor']), ruta:txt(r['Nombre de la Ruta']),
       entidad:txt(r['Nombre de la Entidad Remitente']),
       referencia:txt(r['Refencia del Documento']??r['Referencia del Documento']),
       estadoMer:txt(r['Estado']),
       fRad:parseFecha(r['Fecha  Radicacion']??r['Fecha Radicacion']??r['Fecha de Entrada'])
     };
+    if(!merPorRad[k]) merPorRad[k]={filas:[fila]};
+    else merPorRad[k].filas.push(fila);
+  });
+  /* El informe principal usa el trámite activo de Mercurio (Estado «P»).
+     Si el radicado trae varias filas se toma la primera en P y se conservan
+     todos sus gestores para poder contarlo una vez por gestor. */
+  Object.keys(merPorRad).forEach(k=>{
+    const m=merPorRad[k], enP=m.filas.filter(f=>sinTilde(f.estadoMer)==='p');
+    const base=enP[0]||m.filas[0];
+    m.gestor=base.gestor; m.ruta=base.ruta; m.entidad=base.entidad;
+    m.referencia=base.referencia; m.estadoMer=base.estadoMer; m.fRad=base.fRad;
+    m.gestoresP=[...new Set(enP.map(f=>f.gestor).filter(Boolean))];
+    m.tieneP=enP.length>0;
   });
 
   const grupos={}; nRelleno=0; nCancel=0; nRuta=0;
@@ -632,6 +661,7 @@ function unificar(){
       estadoMer: m?m.estadoMer:'', ruta: m?m.ruta:'',
       contenido: m?m.referencia:'',
       enMercurio: !!m,
+      tieneMer: !!m, gestoresP: m?m.gestoresP:[],
       fuente: m?'SAC + Mercurio':'Solo SAC'
     });
   });
@@ -648,6 +678,7 @@ function unificar(){
       estadoMer:m.estadoMer, ruta:m.ruta,
       contenido:m.referencia,
       enMercurio:false,
+      tieneMer:true, gestoresP:m.gestoresP,
       fuente:'Solo Mercurio'
     });
   });
@@ -692,6 +723,32 @@ function unificar(){
   ALLPROC = out.flatMap(d=>d.procesos.map(p=>({p,d,cre:equipoDe(p.creador),ges:equipoDe(d.gestor)})));
   ALLRAD=out; DUP_IDX=null; DUP_CACHE=new Map();
   DATOS=out.filter(d=>d.respEq);
+  /* v44 · Informe principal 100 % desde MERCURIO TRÁMITE.
+     Se parte de cada radicado de Mercurio en estado «P» (una sola vez por radicado
+     y por gestor) y de ahí se calcula todo el informe: Total en trámite, PQRS por día
+     de vencimiento, Radicados del día, Vencidas y Procesos a cerrar hoy.
+     SAC solo COMPLEMENTA los datos (procesos, cuenta, fechas) de ese mismo radicado.
+     El gestor se atribuye de forma estricta: el nombre de Mercurio debe corresponder
+     a la misma persona (sin parecidos parciales que sumen radicados ajenos). */
+  const porLlave=new Map();
+  out.forEach(d=>{ if(!d.tieneMer||!d.llave) return;
+    const p=porLlave.get(d.llave); if(!p||(!p.nProc&&d.nProc)) porLlave.set(d.llave,d); });
+  const inf=[], vistosInf=new Set();
+  Object.keys(merPorRad).forEach(k=>{
+    const m=merPorRad[k], d=porLlave.get(k);
+    if(!m||!m.tieneP||!d) return;
+    const gestores=new Map();
+    (m.gestoresP||[]).forEach(gRaw=>{ const g=gestorMercurio(gRaw); if(g&&!gestores.has(g)) gestores.set(g,gRaw); });
+    gestores.forEach((gRaw,g)=>{
+      const kk=k+'|'+canonNombre(g); if(vistosInf.has(kk)) return; vistosInf.add(kk);
+      const c=Object.assign({},d,{ respEq:g, responsable:g, respCanon:[canonNombre(g)], gestor:gRaw, gestorMer:gRaw });
+      c.busca=[c.radicado,c.cuenta,c.tramites.join(' '),c.solicitante,c.responsable,c.gestor,c.municipio,
+        c.procesos.map(p=>p.numero).join(' ')].join(' ').toLowerCase();
+      c.buscaNorm=sinTilde(c.busca);
+      inf.push(c);
+    });
+  });
+  DATOS_INF=inf;
 
 }
 
@@ -701,6 +758,23 @@ function unificar(){
 const avisoEl=()=>document.getElementById('aviso');
 function muestraAviso(m,e){ const a=avisoEl(); if(!a) return; a.className='aviso'+(e?' err':''); a.innerHTML=m; a.style.display=''; }
 function ocultaAviso(){ const a=avisoEl(); if(a) a.style.display='none'; }
+/* Aviso flotante para el cambio de vencimiento: queda visible junto a la tabla
+   aunque el radicado se mueva de día. */
+let _toastPlazo=0;
+function avisoPlazo(msg,err){
+  const prev=document.getElementById('toastPlazo'); if(prev) prev.remove();
+  const t=document.createElement('div');
+  t.id='toastPlazo'; t.className='toastPlazo'+(err?' err':'');
+  t.setAttribute('role',err?'alert':'status'); t.setAttribute('aria-live',err?'assertive':'polite');
+  t.innerHTML='<span class="tpIco" aria-hidden="true">'+m2i(err?'warn':'check')+'</span>'+
+    '<span class="tpTxt">'+msg+'</span>'+
+    '<button type="button" class="tpCerrar" aria-label="Cerrar aviso">×</button>';
+  document.body.appendChild(t);
+  const cerrar=()=>{ clearTimeout(_toastPlazo); t.remove(); };
+  t.querySelector('.tpCerrar').onclick=cerrar;
+  clearTimeout(_toastPlazo);
+  _toastPlazo=setTimeout(cerrar,err?12000:9000);
+}
 ['dragover','drop'].forEach(ev=>document.addEventListener(ev,e=>{
   if(!e.dataTransfer || ![...(e.dataTransfer.types||[])].includes('Files')) return;
   e.preventDefault();
@@ -710,11 +784,11 @@ function ocultaAviso(){ const a=avisoEl(); if(a) a.style.display='none'; }
 
 function base(){
   const todo=$('cTodo').checked, soloM=$('cMedio').checked;
-  return DATOS.filter(d=>(todo||d.enVentana)&&(!soloM||d.medioOk)&&!evacuado(d));
+  return DATOS_INF.filter(d=>(todo||d.enVentana)&&(!soloM||d.medioOk)&&!evacuado(d));
 }
 function baseCanales(){
   const todo=$('cTodo').checked;
-  return DATOS.filter(d=>(todo||d.enVentana)&&d.medioOk);
+  return DATOS_INF.filter(d=>(todo||d.enVentana)&&d.medioOk);
 }
 // Contexto del filtro: evita normalizar la consulta y el responsable una vez por registro.
 let _qRaw=null,_qVal='',_qNum='',_respRaw=null,_respVal='';
@@ -753,10 +827,12 @@ function filtrar(){ if(_renderCtx) return _renderCtx.f; const fv=filtroVals(); r
 function vencidas(){
   if(_renderCtx) return _renderCtx.V;
   const soloM=$('cMedio').checked, fv=filtroVals();
-  return DATOS.filter(d=>d.vencida && (!soloM||d.medioOk) && !evacuado(d) && pasaFiltros(d,fv)
+  return DATOS_INF.filter(d=>d.vencida && (!soloM||d.medioOk) && !evacuado(d) && pasaFiltros(d,fv)
                         && !excluidoBloqueDias(d))
               .sort((a,b)=>b.dia-a.dia);
 }
+/* Registro del informe principal (responsable de Mercurio) para una llave. */
+const datoInf = k => DATOS_INF.find(x=>claveR(x)===k) || DATOS.find(x=>claveR(x)===k);
 function excluidoBloqueDias(x){
   return x.excluidoBloque !== undefined ? x.excluidoBloque : x.procesos.some(p=>String(p.codTram)==='3904');
 }
@@ -1036,7 +1112,7 @@ function render(){
      guardado) para que al cambiar de usuario desaparezca o reaparezca sin
      recargar. Los demás filtros no la ocultan. */
   const fvVenc=filtroVals();
-  const hayVenc=!accesoBloqueado() && DATOS.some(d=>d.vencida&&!evacuado(d)&&!excluidoBloqueDias(d)
+  const hayVenc=!accesoBloqueado() && DATOS_INF.some(d=>d.vencida&&!evacuado(d)&&!excluidoBloqueDias(d)
     &&(!fvVenc.r||d.respCanon.includes(fvVenc.r)));
   const gridCarga=document.querySelector('.gridCarga');
   if(gridCarga) gridCarga.classList.toggle('sinVenc',!hayVenc);
@@ -1095,9 +1171,9 @@ function render(){
   let snap=PS.u[kUsr];
   const recIni=diasSem.length?ESCALERA_EXT.length&&(()=>{ let d=new Date(diasSem[0]),n=1; while(n<CFG.diasHabiles){ d=addD(d,-1); if(esHabil(d)) n++; } return d; })():null;
   const recFin=diasSem.length?(()=>{ let d=new Date(diasSem[diasSem.length-1]),n=1; while(n<CFG.diasHabiles){ d=addD(d,-1); if(esHabil(d)) n++; } return d; })():null;
-  if(DATOS.length && diasSem.length){
+  if(DATOS_INF.length && diasSem.length){
     const soloM=$('cMedio').checked, fv=filtroVals();
-    const n=DATOS.filter(d=>(!soloM||d.medioOk) && pasaFiltros(d,fv) && (()=>{ const v=fechaVence(d.fEfe); return v && v>=lunes && v<=viernes; })()).length;
+    const n=DATOS_INF.filter(d=>(!soloM||d.medioOk) && pasaFiltros(d,fv) && (()=>{ const v=fechaVence(d.fEfe); return v && v>=lunes && v<=viernes; })()).length;
     if(!snap || n>snap.n){ snap={n,d:diasSem.length}; PS.u[kUsr]=snap; lsSet('essa_prom_semana3',PS); }
   }
   snap=snap||{n:0,d:diasSem.length};
@@ -1239,7 +1315,7 @@ function abreProcMenu(ancla,d,numero){
     if($('mPcC').classList.contains('on')) pintaTablaCancel('c');
     if($('mPcN').classList.contains('on')) pintaTablaCancel('n');
     if($('detModal').classList.contains('on') && RAD_SEL===d.radicado){
-      const nd=DATOS.find(x=>claveR(x)===claveR(d)); if(nd) verDetalle(nd);
+      const nd=datoInf(claveR(d)); if(nd) verDetalle(nd);
     }
     pintaRadicados();
   });
@@ -1372,16 +1448,31 @@ function pintaRadicados(){
       const d=regs[+sel.dataset.plazo]; if(!d) return;
       const n=parseInt(sel.value,10);
       if(!plazoValido(n)){ sel.value=String(d.plazo??CFG.diasHabiles); return; }
-      const k=claveR(d);
+      const k=claveR(d), antes=PLAZOS[k]||CFG.diasHabiles;
+      if(n===antes){ sel.value=String(antes); return; }
+      /* El día se recalcula con la fecha real de recibo. Si el nuevo día supera
+         el día 15, el radicado saldría del cuadro: se impide el cambio. */
+      const baseDia=(d.diaBase===null||d.diaBase===undefined)?null:Number(d.diaBase);
+      const nuevoDia=(baseDia===null||!Number.isFinite(baseDia))?null
+        :Math.max(1,baseDia+(CFG.diasHabiles-n));
+      if(nuevoDia!==null && nuevoDia>CFG.diasHabiles){
+        sel.value=String(antes);
+        avisoPlazo('No es posible la acción para el radicado No. <b>'+esc(d.radicado)+
+          '</b> debido a que el cambio de vencimiento supera el día '+CFG.diasHabiles+' de vencimiento.',true);
+        return;
+      }
       if(n===CFG.diasHabiles) delete PLAZOS[k]; else PLAZOS[k]=n;
       guardaPlazos(); unificar(); refrescaFotosCons(); render();
+      avisoPlazo('El radicado No. <b>'+esc(d.radicado)+'</b> cambió su fecha de vencimiento;'+
+        (nuevoDia!==null?(' ahora lo encontrarás en el día <b>'+nuevoDia+'</b> de vencimiento'):'')+
+        (n===CFG.diasHabiles?'.':', resaltado en verde.'),false);
       // Repinta también las ventanas que estén abiertas para que el cambio de plazo
       // se refleje de inmediato en consultas, reportes y detalle.
       if($('mCons').classList.contains('on')) pintaCons();
       if($('mConsAnt').classList.contains('on')) pintaConsAnt();
       if($('mRec').classList.contains('on')) pintaRec();
       if($('detModal').classList.contains('on') && RAD_SEL===d.radicado){
-        const nd=DATOS.find(x=>(x.llave||x.radicado)===k); if(nd) verDetalle(nd);
+        const nd=datoInf(k); if(nd) verDetalle(nd);
       }
     };
     sel.onchange=commit;
@@ -1689,12 +1780,12 @@ function verDetalle(d, opener){
     $('bAjuste').onclick=()=>{
       const v=$('fAjuste').value; if(!v) return;
       AJUSTES[k]=v; guardaAjustes(); unificar(); poblarFiltros(); render();
-      const nd=DATOS.find(x=>(x.llave||x.radicado)===k); if(nd){ if(nd.dia) DIA_SEL=nd.dia; render(); verDetalle(nd); }
+      const nd=datoInf(k); if(nd){ if(nd.dia) DIA_SEL=nd.dia; render(); verDetalle(nd); }
     };
     const bQuitar=document.getElementById('bQuitar');
     if(bQuitar) bQuitar.onclick=()=>{
       delete AJUSTES[k]; guardaAjustes(); unificar(); poblarFiltros(); render();
-      const nd=DATOS.find(x=>(x.llave||x.radicado)===k); if(nd){ if(nd.dia) DIA_SEL=nd.dia; render(); verDetalle(nd); }
+      const nd=datoInf(k); if(nd){ if(nd.dia) DIA_SEL=nd.dia; render(); verDetalle(nd); }
     };
   }
   const close=document.getElementById('detCerrar');
@@ -1782,11 +1873,11 @@ const XLSXW=(function(){
 function exportar(regs,nombre){
   if(!regs.length) return alert('No hay datos para exportar.');
   const h=['Radicado','Procesos','Cuenta','Trámite','Fecha radicación','Fecha ajustada','Día','Vence (15 días hábiles)','Fecha vencimiento SAC',
-    'Estado','Responsable','Responsable revisión','Observación Mercurio (Contenido)','Observaciones de la revisión','Última acción','Origen'];
+    'Estado','Responsable','Gestor en Mercurio (P)','Responsable revisión','Observación Mercurio (Contenido)','Observaciones de la revisión','Última acción','Origen'];
   const l=regs.map(x=>[x.radicado,
     x.nProc?x.procesos.map(p=>p.numero).join(' | '):'Sin proceso creado en SAC',
     x.cuenta,x.tramites.join(' | '),dFmt(x.fSol),x.ajuste?dFmt(x.ajuste):'',x.dia??'',dFmt(fechaVence(x.fEfe)),dFmt(x.fVto),
-    x.estadoV,x.responsable,
+    x.estadoV,x.responsable,x.gestorMer||(x.gestoresP||[]).join(' | ')||x.gestor||'',
     [...new Set(x.procesos.map(p=>p.respRevision).filter(Boolean))].join(' | '),
     x.contenido||'',
     [...new Set(x.procesos.map(p=>p.obsRevision).filter(Boolean))].join(' | '),
@@ -1823,10 +1914,10 @@ $('limpiar').onclick=()=>{ ['fTram','q'].forEach(i=>$(i).value=''); { const e=se
   render(); };
 let RES_DIA=[], RES_USR=[];
 function resumenGeneral(){
-  if(!DATOS.length){ alert('Primero carga los archivos.'); return; }
+  if(!DATOS_INF.length){ alert('Primero carga los archivos.'); return; }
   const soloM=$('cMedio').checked, fv=filtroVals();
-  const enRango=DATOS.filter(d=>d.enVentana && (!soloM||d.medioOk) && !evacuado(d));
-  const venc=DATOS.filter(d=>d.vencida && (!soloM||d.medioOk) && !evacuado(d));
+  const enRango=DATOS_INF.filter(d=>d.enVentana && (!soloM||d.medioOk) && !evacuado(d));
+  const venc=DATOS_INF.filter(d=>d.vencida && (!soloM||d.medioOk) && !evacuado(d));
   RES_DIA=[];
   [...ESCALERA_EXT].sort((a,b)=>a.dia-b.dia).forEach(s=>{
     const esV=s.dia>CFG.diasHabiles;
@@ -2039,6 +2130,7 @@ function reconstruirEquipo(){
   Object.keys(ALIAS).forEach(k=>delete ALIAS[k]);
   CACHE_ID.clear();
   CACHE_CR.clear();
+  CACHE_GM.clear();
 }
 reconstruirEquipo();
 let ROL=RUTAS[RUTA], EXP=lsGet(LS_EXP,{}), CHK=lsGet(LS_HOY,{});
@@ -2625,9 +2717,11 @@ $('mRec').onclick=e=>{ if(e.target===$('mRec')) $('mRec').classList.remove('on')
     .observe(m,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
   addEventListener('resize',agenda);
 })();
+/* v44 · Llaves de los radicados del informe principal (Mercurio en «P») de un usuario. */
+function llavesMer(u){ const s=new Set(); DATOS_INF.forEach(d=>{ if(!evacuado(d)&&(!u||d.respEq===u)) s.add(claveR(d)); }); return s; }
 function procHoy(u){
-  const hoyK=clave(HOY), vistos=new Set();
-  return ALLPROC.filter(x=>(u?(x.cre===u||x.ges===u):(x.cre||x.ges)) && x.p.fVto && clave(x.p.fVto)===hoyK &&
+  const hoyK=clave(HOY), vistos=new Set(), ks=llavesMer(u);
+  return ALLPROC.filter(x=>ks.has(claveR(x.d)) && x.p.fVto && clave(x.p.fVto)===hoyK &&
     !vistos.has(x.p.numero) && vistos.add(x.p.numero));
 }
 function usuarioHoyDef(estricto){
@@ -2641,12 +2735,13 @@ function pintaHoy(){
   const u=$('hoyUsr').value, hoyK=clave(HOY), tb=$('tHoy').querySelector('tbody'), ver=$('hoyVer').value;
   if(!ALLPROC.length){ tb.innerHTML='<tr><td colspan="9" class="vacio">Carga SAC Trámite y Mercurio Trámite en Recursos.</td></tr>'; return; }
   const vistos=new Set();
-  let L=ALLPROC.filter(x=>(x.cre===u||x.ges===u) && x.p.fVto && clave(x.p.fVto)===hoyK && !vistos.has(x.p.numero) && vistos.add(x.p.numero));
+  const ksMer=llavesMer(u);
+  let L=ALLPROC.filter(x=>ksMer.has(claveR(x.d)) && x.p.fVto && clave(x.p.fVto)===hoyK && !vistos.has(x.p.numero) && vistos.add(x.p.numero));
   const hecho=x=>!!CHK[hoyK+'|'+x.p.numero];
   const n=L.length, g=L.filter(hecho).length;
   $('hoyProg').textContent=g+' de '+n+' gestionados'+(n?' · '+Math.round(g/n*100)+'%':'');
   $('hoyBar').style.width=(n?g/n*100:0)+'%';
-  $('hoySub').textContent='Vencen el '+dFmt(HOY)+' · creados en SAC por '+u+' o a su cargo en Mercurio';
+  $('hoySub').textContent='Vencen el '+dFmt(HOY)+' · radicados a cargo de '+u+' en Mercurio Trámite (estado P)';
   if(ver) L=L.filter(x=>ver==='h'?hecho(x):!hecho(x));
   L.sort((a,b)=>hecho(a)-hecho(b));
   tb.innerHTML=L.length?L.map(x=>{ const ok=hecho(x), otra=x.ges && x.ges!==u;

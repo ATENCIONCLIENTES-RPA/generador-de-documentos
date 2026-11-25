@@ -5,6 +5,19 @@ function resolveAD(): AsistenteDocumentalApi | null {
   try { return (window.parent !== window && (window.parent as any).AsistenteDocumental) || null; } catch { return null; }
 }
 
+/* El módulo va dentro del shell: se marca de inmediato, sin esperar al API,
+   para que su cabecera heredada nunca alcance a pintarse. */
+try { if (window.parent !== window) document.documentElement.classList.add('ad-embedded'); } catch { }
+
+/* Muestra el documento cuando su hoja de estilos ya está aplicada. */
+function mostrarDocumento(): void {
+  try {
+    if (document.body && getComputedStyle(document.body).visibility === 'hidden') document.body.style.visibility = 'visible';
+  } catch { }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mostrarDocumento, { once: true });
+else mostrarDocumento();
+
 let AD: AsistenteDocumentalApi | null = resolveAD();
 
 function applyAD(api: AsistenteDocumentalApi): void {

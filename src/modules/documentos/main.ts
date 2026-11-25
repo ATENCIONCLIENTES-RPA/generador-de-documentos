@@ -6,6 +6,7 @@ import './documentos.css';
 import '../shared/module-bridge';
 import { GuidedTour } from '../../components/guided-tour/guided-tour';
 import { mejorarTextoLocal, setOrtografia } from './corrector';
+import { ordenaNombreSolicitante, esNit } from './nombre-solicitante';
 
 const SVG = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const DOC = SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>');
@@ -1145,7 +1146,9 @@ function formatoTitulo(v){
       Array.from(document.querySelectorAll('#panelSolicitante .field input[data-k]'))
         .map(i=>[i.dataset.k,i.value.trim()])
     );
-    const p=profile(),realName=fields.nombre||sacValue(activeRecord,['NOMBRE_SOLICITANTE','NOMBRE_SUSCRIPTOR']),kind=applicantKind(activeRecord,realName),name=normalizeName(realName);
+    const p=profile(),realName=fields.nombre||sacValue(activeRecord,['NOMBRE_SOLICITANTE','NOMBRE_SUSCRIPTOR']),kind=applicantKind(activeRecord,realName),
+      /* v45 · el nombre del cajón ya viene ordenado y con tildes: se respeta tal cual */
+      name=fields.nombre?String(fields.nombre).trim().replace(/\s+/g,' '):normalizeName(realName);
     const requestDate=sacValue(activeRecord,['FECHA_SOLICITUD']),today=new Date();
     const departamento=fields.departamento||formatoTitulo(sacValue(activeRecord,['DEPTO_SOLICITANTE','DEPARTAMENTO_SOLICITANTE','DEPARTAMENTO_SUSCRIPTOR','DEPARTAMENTO']));
     const aliases={DISTINTIVO,NOMBRE:name,NOMBRE_COMPLETO:name,NOMBRE_SOLICITANTE:name,NOMBRE_SUSCRIPTOR:name,PRIMER_NOMBRE:firstGivenName(activeRecord,realName,kind),
@@ -1456,7 +1459,11 @@ function formatoTitulo(v){
     }:{nombre:'',radicado_salida:'',direccion:'',departamento:'',municipio:'',correo:'',telefono:'',radicado_entrada:'',proceso:''};
     document.querySelectorAll('#panelSolicitante .field input[data-k]').forEach(i=>{
       const k=i.dataset.k,t=valueText(vals[k]);
-      i.value=CAMPOS_TITULO.has(k)?formatoTitulo(t):(k==='correo'?correoMin(t):t);
+      /* v45 · Nombre del solicitante: con cédula se ordena «nombres + apellidos» (con tildes);
+         con NIT (9 dígitos que inician en 8 o 9) se conserva el orden original. */
+      const ced=r?valueText(sacValue(r,['CEDULA_SOLICITANTE'])):'';
+      i.value=(k==='nombre'&&t&&ced&&!esNit(ced))?ordenaNombreSolicitante(t,ced)
+        :CAMPOS_TITULO.has(k)?formatoTitulo(t):(k==='correo'?correoMin(t):t);
       i.dispatchEvent(new Event('input',{bubbles:true}));
     });
     descs.forEach(d=>{const el=document.getElementById(d.id);if(!el)return;const v=r?sacValue(r,[d.col]):'';el.value=v==null?'':String(v);el.dispatchEvent(new Event('input',{bubbles:true}));});

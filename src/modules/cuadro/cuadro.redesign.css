@@ -2338,3 +2338,18 @@ html[data-theme="dark"] #m2ui .btnPc::before{background:radial-gradient(90px 40p
 #m2ui #mRec.subVacia #recInfo{display:none!important}
 #m2ui #mRec.subVacia .subVaciaMsg{padding:40px 16px;line-height:1.7;color:var(--m2-mut)}
 #m2ui #mRec.subVacia .subVaciaMsg b{font-size:15px;color:var(--m2-tx,inherit)}
+
+/* Aviso flotante del cambio de vencimiento. */
+#m2ui .toastPlazo{position:fixed;right:22px;bottom:22px;z-index:9999;display:flex;align-items:flex-start;gap:10px;
+  max-width:min(440px,calc(100vw - 32px));padding:12px 14px;border-radius:14px;border:1px solid var(--u-green-l);
+  background:var(--u-green-t);color:var(--u-green);box-shadow:var(--m2-shadow);font-size:12.8px;line-height:1.45;
+  animation:toastPlazoIn .22s ease}
+#m2ui .toastPlazo.err{border-color:var(--m2-red-l);background:var(--m2-red-t);color:var(--m2-red)}
+#m2ui .toastPlazo .tpIco{display:inline-flex;flex:none;margin-top:1px}
+#m2ui .toastPlazo .tpIco svg{width:16px;height:16px}
+#m2ui .toastPlazo .tpTxt{flex:1;min-width:0}
+#m2ui .toastPlazo .tpCerrar{flex:none;border:0;background:transparent;color:inherit;font:inherit;font-size:17px;
+  line-height:1;cursor:pointer;padding:0 2px;opacity:.7}
+#m2ui .toastPlazo .tpCerrar:hover{opacity:1}
+@keyframes toastPlazoIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){#m2ui .toastPlazo{animation:none}}

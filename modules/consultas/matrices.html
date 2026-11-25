@@ -15,6 +15,17 @@ function paint(p){var r=resolve(p);d.setAttribute("data-theme",r);d.setAttribute
 window.__ciiuTheme={key:K,read:read,resolve:resolve,paint:paint,mq:matchMedia("(prefers-color-scheme: dark)")};
 paint(read());})();
 </script>
+<style>
+  /* Se oculta hasta que el CSS del módulo esté aplicado: evita que los SVG
+     sin estilo se pinten a tamaño máximo durante la carga. */
+  html{background:#F8FAFC}
+  html[data-theme="dark"]{background:#11151D}
+  body{visibility:hidden}
+</style>
+<script>
+(function(){var r=function(){try{var b=document.body;if(b&&getComputedStyle(b).visibility==='hidden')b.style.visibility='visible';}catch(e){}};
+window.addEventListener('error',r,true);setTimeout(r,8000);})();
+</script>
 <title>Matriz de Requisitos y Árbol de Transacciones · ESSA</title>
 </head>
 <body data-vista="a" style="height:100%;margin:0">

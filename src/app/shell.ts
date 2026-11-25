@@ -68,14 +68,18 @@ export async function startShell(): Promise<void> {
   [...mark.childNodes].forEach(n => { if (n.nodeName !== 'defs') symbol.appendChild(n.cloneNode(true)); });
   holder.appendChild(symbol); document.body.appendChild(holder);
   void store.hydrate();
-  try { await dataRepository.init(); } catch { }
-  try { store.refreshProfile(); } catch { }
-  try { theme.set((dataRepository.getItem('essa-theme') || dataRepository.getItem('essa_cm_theme') || theme.get()) as string); } catch { }
+  /* El arranque no espera al almacenamiento: si IndexedDB tarda o queda
+     bloqueado, el módulo inicial se activa igual y la app queda usable.
+     Al abrir el enlace sin ruta se empieza siempre por el módulo 1. */
   let inicial: string | null = routeFromHash();
-  if (!inicial) { try { inicial = sessionStorage.getItem('ad_route') || dataRepository.getItem('essa_last_route'); } catch { } }
   if (!inicial || !MODS[inicial as ModuleId]) inicial = ROUTES[0];
   if (location.hash !== '#/' + inicial) history.replaceState(null, '', '#/' + inicial);
   activate(inicial as ModuleId);
+  void (async () => {
+    try { await dataRepository.init(); } catch { }
+    try { store.refreshProfile(); } catch { }
+    try { theme.set((dataRepository.getItem('essa-theme') || dataRepository.getItem('essa_cm_theme') || theme.get()) as string); } catch { }
+  })();
   const precargar = (): void => {
     const restantes = ROUTES.filter(id => id !== inicial);
     let i = 0;
