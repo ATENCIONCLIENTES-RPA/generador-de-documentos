@@ -7,6 +7,7 @@ import '../shared/module-bridge';
 import { GuidedTour } from '../../components/guided-tour/guided-tour';
 import { mejorarTextoLocal, setOrtografia } from './corrector';
 import { ordenaNombreSolicitante, esNit } from './nombre-solicitante';
+import './validador-correo';
 
 const SVG = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const DOC = SVG('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>');
@@ -1172,7 +1173,10 @@ function formatoTitulo(v){
     if(crg)CREG_MAP.forEach(([campo,marcador])=>put(marcador,crg[campo]));
     const blocks=textoRadicacionActivo?[BLOQUE_RADICACION]:[];
     blocks.forEach(b=>putExact(b.keys[0],b.value));
-    return {lookup,profile:p,applicantKind:kind,blocks};
+    /* v46 · radicados duplicados del asunto (solo los que tienen fecha) */
+    const dups=DUPS.filter(x=>x.f).map(x=>({r:x.r,f:longDateEs(x.f)}));
+    putExact('RADICADOS_DUPLICADOS',dups.map(x=>x.r+' del '+x.f).join('; '));
+    return {lookup,profile:p,applicantKind:kind,blocks,dups};
   }
 
   function resolveValue(lookup,key,stats){
@@ -1356,6 +1360,11 @@ function formatoTitulo(v){
     if(!ZIP)throw new Error('JSZip no está disponible.');
     const zip=await ZIP.loadAsync(await blob.arrayBuffer(),{checkCRC32:false});
     const parts=Object.keys(zip.files).filter(n=>/^word\/(document|header\d+|footer\d+|footnotes|endnotes|comments\d*)\.xml$/.test(n));
+    let dupN=0;
+    if(data.dups&&data.dups.length&&zip.file('word/document.xml')){
+      const dd=new DOMParser().parseFromString(await zip.file('word/document.xml').async('string'),'application/xml');
+      if(!dd.getElementsByTagName('parsererror').length){dupN=insertaDuplicados(dd,data.dups);if(dupN)zip.file('word/document.xml',new XMLSerializer().serializeToString(dd));}
+    }
     const lookup={...data.lookup},blockStats=[];
     for(const block of blocks){
       const stats={keys:block.keys.slice(),pairs:0,found:{},remaining:{}};
@@ -1377,7 +1386,7 @@ function formatoTitulo(v){
       if(doc.getElementsByTagName('parsererror').length)continue;
       const n=applyFieldColor(doc);if(n){colored+=n;zip.file(part,new XMLSerializer().serializeToString(doc));}
     }
-    if(!blocks.length&&!colored)return {blob,data,blockStats:null};
+    if(!blocks.length&&!colored&&!dupN)return {blob,data,blockStats:null};
     const out=await zip.generateAsync({type:'blob',mimeType:DOCX_MIME,compression:'DEFLATE'});
     return {blob:out,data:{...data,lookup},blockStats:blocks.length?blockStats:null};
   }
@@ -1468,10 +1477,163 @@ function formatoTitulo(v){
     });
     descs.forEach(d=>{const el=document.getElementById(d.id);if(!el)return;const v=r?sacValue(r,[d.col]):'';el.value=v==null?'':String(v);el.dispatchEvent(new Event('input',{bubbles:true}));});
   }
+  /* ================= v46 · RADICADOS DUPLICADOS EN EL ASUNTO =================
+     Los posibles duplicados (coincidencia fuerte) los detecta el Cuadro de Mando y
+     los deja publicados en el repositorio local (clave «essa_dup_rad»). Aquí se
+     cargan al elegir un trámite y el usuario puede quitar o agregar radicados desde
+     el botón junto al campo «Radicado». Cada uno se agrega al documento como una
+     línea igual a la del asunto, con la fecha de radicación de Mercurio Trámite. */
+  let DUPS=[];
+  const DUP_MEM=new Map();
+  const dDig=v=>String(v==null?'':v).replace(/\D/g,'');
+  function fechaMer(v){
+    if(v==null||v==='')return null;
+    if(v instanceof Date&&!Number.isNaN(v.getTime()))return new Date(v.getFullYear(),v.getMonth(),v.getDate());
+    if(typeof v==='number'){const d=new Date(Math.round((v-25569)*86400000));return Number.isNaN(d.getTime())?null:new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate());}
+    const s=String(v).trim();let m=/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/.exec(s);if(m)return new Date(+m[3],+m[2]-1,+m[1]);
+    m=/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/.exec(s);if(m)return new Date(+m[1],+m[2]-1,+m[3]);return null;
+  }
+  let MER_REF=null,MER_IDX=new Map();
+  function merIndex(){
+    const rows=(window.AD&&AD.store&&AD.store.getRows)?(AD.store.getRows('mercurio')||[]):[];
+    if(rows!==MER_REF){MER_REF=rows;MER_IDX=new Map();
+      rows.forEach(r=>{const k=dDig(r['No. Radicado']);if(!k||MER_IDX.has(k))return;
+        MER_IDX.set(k,fechaMer(r['Fecha  Radicacion']??r['Fecha Radicacion']??r['Fecha de Entrada']));});}
+    return MER_IDX;
+  }
+  function dupsPublicados(rad){
+    try{const repo=window.AD&&(AD.data||AD.backup);const raw=repo?repo.getItem('essa_dup_rad'):localStorage.getItem('essa_dup_rad');
+      const o=JSON.parse(raw||'null');return (o&&o.m&&Array.isArray(o.m[rad]))?o.m[rad]:[];}catch(e){return [];}
+  }
+  const dupRadActual=()=>dDig(activeRecord?sacValue(activeRecord,['RADICADO_ENTRADA']):'');
+  const isoDate=d=>d?d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'):'';
+  function dupLoad(){
+    const rad=dupRadActual();
+    if(!rad){DUPS=[];dupPaint();return;}
+    if(DUP_MEM.has(rad)){DUPS=DUP_MEM.get(rad);dupPaint();return;}
+    const ix=merIndex();
+    DUPS=[...new Set(dupsPublicados(rad).map(dDig))].filter(x=>x&&x!==rad).map(x=>({r:x,f:ix.get(x)||null,auto:true}));
+    DUP_MEM.set(rad,DUPS);dupPaint();
+  }
+  function dupCambio(){const rad=dupRadActual();if(rad)DUP_MEM.set(rad,DUPS);dupPaint();invalidateGenerated(true);}
+  const dupStyle=document.createElement('style');
+  dupStyle.textContent=
+    '#panelSolicitante .field.dupHost{position:relative}'+
+    '.dupBtnSol{position:absolute;top:4px;right:6px;display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 7px;border-radius:99px;'+
+      'border:1px solid #C9DAF2;background:#EAF1FB;color:#1664B0;font:700 10px/1 inherit;cursor:pointer;z-index:2;transition:background .15s,transform .15s}'+
+    '.dupBtnSol:hover{background:#D9E7F8;transform:translateY(-1px)}'+
+    '.dupBtnSol.tiene{border-color:#F0B97A;background:#FFF2E2;color:#9A4A06}'+
+    '.dupBtnSol b{min-width:14px;height:14px;padding:0 3px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;background:#1664B0;color:#fff;font-size:9px}'+
+      '.dupBtnSol.tiene b{background:#D97A1E}'+
+    '.dupBtnSol b span{color:#fff}'+
+    '.dupPop{position:fixed;z-index:9500;width:380px;max-width:calc(100vw - 24px);background:#fff;border:1px solid #DCE5F0;border-radius:14px;'+
+      'box-shadow:0 22px 50px -18px rgba(16,40,80,.45);font-size:12.5px;color:#1B2433;overflow:hidden}'+
+    'html[data-theme="dark"] .dupPop{background:#172131;border-color:#2C3A4F;color:#E6EDF6}'+
+    '.dupPop .dpH{display:flex;align-items:flex-start;gap:8px;padding:12px 14px 10px;border-bottom:1px solid #E6ECF4}'+
+    'html[data-theme="dark"] .dupPop .dpH{border-color:#2C3A4F}'+
+    '.dupPop .dpH div{flex:1}.dupPop .dpH b{display:block;font-size:13.5px}.dupPop .dpH small{color:#6B7A90;font-size:11px}'+
+    '.dupPop .dpX{border:0;background:none;font-size:18px;line-height:1;color:#6B7A90;cursor:pointer;padding:2px 4px;border-radius:6px}'+
+    '.dupPop .dpX:hover{background:#FDECEE;color:#C21F2F}'+
+    '.dupPop ul{list-style:none;margin:0;padding:8px 10px;max-height:240px;overflow:auto;display:flex;flex-direction:column;gap:6px}'+
+    '.dupPop li{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid #E3EAF2;border-radius:10px;background:#F7FAFE}'+
+    'html[data-theme="dark"] .dupPop li{background:#121A27;border-color:#2C3A4F}'+
+    '.dupPop li.sinF{border-color:#F0B97A;background:#FFF8EE}'+
+    '.dupPop .dpR{font-weight:800;font-variant-numeric:tabular-nums}'+
+    '.dupPop .dpF{flex:1;color:#5B6B7F;font-size:11.5px}.dupPop .dpF input{font:inherit;font-size:11.5px;padding:2px 5px;border:1px solid #F0B97A;border-radius:6px}'+
+    '.dupPop .dpTag{font-size:9.5px;font-weight:800;letter-spacing:.4px;padding:2px 6px;border-radius:99px;background:#EAF1FB;color:#1664B0}'+
+    '.dupPop .dpTag.man{background:#EEF7F1;color:#1E7B46}'+
+    '.dupPop .dpQ{border:0;background:none;cursor:pointer;color:#8A97AA;font-size:15px;line-height:1;padding:2px 5px;border-radius:6px}'+
+    '.dupPop .dpQ:hover{background:#FDECEE;color:#C21F2F}'+
+    '.dupPop .dpVacio{padding:14px 10px;text-align:center;color:#6B7A90;font-style:italic;border:0;background:none}'+
+    '.dupPop .dpAdd{display:flex;gap:6px;padding:10px 12px 12px;border-top:1px solid #E6ECF4}'+
+    'html[data-theme="dark"] .dupPop .dpAdd{border-color:#2C3A4F}'+
+    '.dupPop .dpAdd input{flex:1;font:inherit;padding:7px 10px;border:1px solid #CFDAE8;border-radius:9px}'+
+    '.dupPop .dpAdd button{border:0;border-radius:9px;padding:0 14px;background:#1664B0;color:#fff;font-weight:700;cursor:pointer}'+
+    '.dupPop .dpMsg{padding:0 12px 10px;font-size:11px;color:#C21F2F;min-height:0}';
+  document.head.appendChild(dupStyle);
+  const radIn=document.querySelector('#panelSolicitante .field input[data-k="radicado_entrada"]');
+  const radField=radIn&&(radIn.closest('.field')||radIn.parentElement);
+  let dupBtn=null,dupPop=null;
+  if(radField){
+    radField.classList.add('dupHost');
+    dupBtn=document.createElement('button');dupBtn.type='button';dupBtn.className='dupBtnSol';dupBtn.hidden=true;
+    dupBtn.title='Radicados duplicados que se agregan al asunto del documento';
+    radField.appendChild(dupBtn);
+    dupBtn.addEventListener('click',e=>{e.stopPropagation();if(dupPop)dupCerrar();else dupAbrir();});
+  }
+  function dupAbrir(){
+    dupPop=document.createElement('div');dupPop.className='dupPop';dupPop.setAttribute('role','dialog');dupPop.setAttribute('aria-label','Radicados duplicados del asunto');
+    document.body.appendChild(dupPop);dupPaint();
+    const r=dupBtn.getBoundingClientRect(),w=dupPop.offsetWidth;
+    dupPop.style.left=Math.max(12,Math.min(r.right-w,innerWidth-w-12))+'px';dupPop.style.top=(r.bottom+8)+'px';
+    setTimeout(()=>{const i=dupPop&&dupPop.querySelector('.dpAdd input');if(i)i.focus();},30);
+  }
+  function dupCerrar(){if(dupPop){dupPop.remove();dupPop=null;}}
+  document.addEventListener('mousedown',e=>{if(dupPop&&!dupPop.contains(e.target)&&e.target!==dupBtn&&!(dupBtn&&dupBtn.contains(e.target)))dupCerrar();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&dupPop)dupCerrar();});
+  function dupPaint(){
+    if(dupBtn){
+      const n=DUPS.length;dupBtn.hidden=!activeRecord;dupBtn.classList.toggle('tiene',n>0);
+      dupBtn.innerHTML='Duplicados'+(n?' <b><span>'+n+'</span></b>':' +');
+    }
+    if(!dupPop)return;
+    const esc2=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    dupPop.innerHTML='<div class="dpH"><div><b>Radicados en el asunto</b><small>Cada uno se agrega como «Respuesta al radicado No. … del …» con su fecha de radicación en Mercurio.</small></div>'+
+      '<button type="button" class="dpX" aria-label="Cerrar">×</button></div>'+
+      '<ul>'+(DUPS.length?DUPS.map((d,i)=>'<li class="'+(d.f?'':'sinF')+'"><span class="dpR">'+esc2(d.r)+'</span>'+
+        '<span class="dpF">'+(d.f?esc2(longDateEs(d.f)):'Sin fecha en Mercurio: <input type="date" data-df="'+i+'" aria-label="Fecha de radicación del radicado '+esc2(d.r)+'">')+'</span>'+
+        '<span class="dpTag'+(d.auto?'':' man')+'">'+(d.auto?'DETECTADO':'AGREGADO')+'</span>'+
+        '<button type="button" class="dpQ" data-dq="'+i+'" title="Quitar del documento" aria-label="Quitar el radicado '+esc2(d.r)+'">×</button></li>').join('')
+        :'<li class="dpVacio">Sin radicados duplicados para este trámite.</li>')+'</ul>'+
+      '<div class="dpAdd"><input type="text" inputmode="numeric" placeholder="Pega un número de radicado" aria-label="Número de radicado a agregar"><button type="button">Agregar</button></div>'+
+      '<div class="dpMsg" role="status"></div>';
+    dupPop.querySelector('.dpX').onclick=dupCerrar;
+    dupPop.querySelectorAll('[data-dq]').forEach(b=>b.onclick=()=>{DUPS=DUPS.filter((_,i)=>i!==+b.dataset.dq);dupCambio();});
+    dupPop.querySelectorAll('[data-df]').forEach(inp=>inp.onchange=()=>{const d=fechaMer(inp.value);if(!d)return;DUPS=DUPS.map((x,i)=>i===+inp.dataset.df?{...x,f:d}:x);dupCambio();});
+    const inp=dupPop.querySelector('.dpAdd input'),msg=dupPop.querySelector('.dpMsg');
+    const agregar=()=>{
+      const v=dDig(inp.value),rad=dupRadActual();
+      if(v.length<8){msg.textContent='Escribe un número de radicado válido.';inp.focus();return;}
+      if(v===rad){msg.textContent='Ese es el radicado principal del trámite.';inp.select();return;}
+      if(DUPS.some(x=>x.r===v)){msg.textContent='Ese radicado ya está en la lista.';inp.select();return;}
+      DUPS=DUPS.concat({r:v,f:merIndex().get(v)||null,auto:false});dupCambio();
+      const ni=dupPop&&dupPop.querySelector('.dpAdd input');if(ni)ni.focus();
+    };
+    dupPop.querySelector('.dpAdd button').onclick=agregar;
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();agregar();}});
+  }
+  /* Inserta una copia de la línea del asunto por cada radicado duplicado. */
+  function insertaDuplicados(doc,dups){
+    const RADK='RADICADO_ENTRADA';
+    const cand=q(doc,'p').filter(p=>!q(p,'p').length).map(p=>({p,text:paragraphSegments(p).text}))
+      .filter(x=>tokenPositions(x.text,[RADK]).length);
+    if(!cand.length)return 0;
+    const base=cand.find(x=>/respuesta/i.test(x.text))||cand[0],p=base.p,text=base.text;
+    const toks=[];let m;TOKEN_RE.lastIndex=0;
+    while((m=TOKEN_RE.exec(text)))toks.push({key:normKey(m.slice(1).find(Boolean)),start:m.index,end:m.index+m[0].length});
+    const sig=p.nextElementSibling,sigInd=sig&&sig.localName==='p'?q(q(sig,'pPr')[0],'ind')[0]:null;
+    let anchor=p;
+    dups.forEach(d=>{
+      const c=p.cloneNode(true);
+      toks.slice().sort((a,b)=>b.start-a.start).forEach(t=>{
+        const v=t.key===RADK?d.r:/^FECHA/.test(t.key)?d.f:null;if(v!==null)editRange(c,t.start,t.end,v);});
+      /* Se quita la etiqueta («Asunto:» y su tabulación) para que la línea quede alineada debajo. */
+      const tx=paragraphSegments(c).text,iR=tx.search(/respuesta/i),lim=iR>0?iR:tx.indexOf(d.r);
+      if(lim>0&&tx.slice(0,lim).trim()){
+        editRange(c,0,lim,'');
+        const ppr=q(c,'pPr')[0];
+        if(ppr&&sigInd){const old=q(ppr,'ind')[0];const nw=sigInd.cloneNode(true);if(old)ppr.replaceChild(nw,old);else ppr.insertBefore(nw,ppr.firstChild);}
+      }
+      const ppr=q(c,'pPr')[0];if(ppr)q(ppr,'sectPr').forEach(n=>n.parentNode.removeChild(n));
+      anchor.parentNode.insertBefore(c,anchor.nextSibling);anchor=c;
+    });
+    return dups.length;
+  }
   window.addEventListener('ad-record-change',e=>{
     const nextRecord=e.detail||null,nextKey=recordIdentity(nextRecord),recordChanged=nextKey!==lastPopulatedRecordKey;
     activeRecord=nextRecord;
-    if(recordChanged){populateRecord(activeRecord);lastPopulatedRecordKey=nextKey;setTextoRadicacion(false);}
+    if(recordChanged){populateRecord(activeRecord);lastPopulatedRecordKey=nextKey;setTextoRadicacion(false);dupCerrar();}
+    dupLoad();
     invalidateGenerated(false);mode='generated';renderDocument('generated',true);
   });
   pl.addEventListener('click',e=>{const it=e.target.closest('.plantilla-item');if(!it)return;setTextoRadicacion(false);invalidateGenerated(false);mode='generated';renderDocument('generated',true);});

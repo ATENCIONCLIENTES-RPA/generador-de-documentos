@@ -6,7 +6,7 @@ import './cuadro.base.css';
 import './cuadro.redesign.css';
 import '../shared/module-bridge';
 import { GuidedTour } from '../../components/guided-tour/guided-tour';
-import { SAL_ANALISTAS, HUELLAS_RUTAS, HUELLAS_SUBRUTAS } from './analistas.huellas';
+import { SAL_ANALISTAS, HUELLAS_RUTAS, HUELLAS_SUBRUTAS, HUELLAS_ADMIN_DUP } from './analistas.huellas';
 
 (function(){
   const SUN='<circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>';
@@ -2228,37 +2228,202 @@ function aviso3904(x){
     L.map(y=>'<b>'+esc(y.p.numero)+'</b> ('+dFmt(y.p.fCre||y.p.fSolP)+')').join(', ')+
     '. Verifica si corresponde al expediente de este recurso.</span></span>';
 }
+/* ==========================================================================
+   v48 · DUPLICADOS CONFIGURABLES
+   Las reglas base, los umbrales y las listas de inclusión/exclusión se leen de
+   REGLAS_DUP (clave «essa_reglas_dup» del repositorio local). Se editan desde
+   Rutas → Duplicados → «Reglas de coincidencia» (solo administradores).
+   ========================================================================== */
+const LS_REGLAS='essa_reglas_dup';
+const REGLAS_DEF={
+  v:1, dias:8, simil:85,
+  base:{idCorreo:true, contenido:true, parrafo:true, cuenta:true, remAsunto:true, reenvio:true, doc:true, correoSimil:true, simil:true},
+  listas:{ correosIncl:[], correosExcl:[], cuentasIncl:[], cuentasExcl:['1434245','1434248','1234','12345'],
+           nombresIncl:[], nombresExcl:[], palabrasIncl:[], palabrasExcl:['cordial saludo','atentamente','buenos dias','buenas tardes'],
+           docsIncl:[], docsExcl:[], dominiosIncl:[], dominiosExcl:[], asuntosIncl:[], asuntosExcl:[],
+           municipiosIncl:[], municipiosExcl:[], rutasIncl:[], rutasExcl:[], radicadosIncl:[], radicadosExcl:[] },
+  reglas:[]
+};
+const CONDS_DUP={
+  mismoCorreo:{t:'Mismo correo electrónico'}, mismoRemitente:{t:'Mismo remitente (correo que envía)'},
+  mismoAsunto:{t:'Mismo asunto del correo'}, mismaCuenta:{t:'Misma cuenta'}, mismoDoc:{t:'Mismo NIT o cédula'},
+  mismoSolicitante:{t:'Mismo nombre de solicitante'}, mismoMunicipio:{t:'Mismo municipio'}, mismaRuta:{t:'Misma ruta de Mercurio'},
+  reenvio:{t:'Uno es reenvío (Rv/Fw) del otro'}, contiene:{t:'Ambos contienen la palabra o frase…',v:'texto'},
+  simil:{t:'Solicitud parecida al menos…',v:'%'}
+};
+function saneaReglas(o){
+  const r=JSON.parse(JSON.stringify(REGLAS_DEF)); if(!_esObj(o)) return r;
+  const n=(v,a,b,d)=>{ v=parseInt(v,10); return isFinite(v)&&v>=a&&v<=b?v:d; };
+  r.dias=n(o.dias,0,60,r.dias); r.simil=n(o.simil,50,100,r.simil);
+  if(_esObj(o.base)) Object.keys(r.base).forEach(k=>{ if(k in o.base) r.base[k]=!!o.base[k]; });
+  if(_esObj(o.listas)) Object.keys(r.listas).forEach(k=>{ if(Array.isArray(o.listas[k]))
+    r.listas[k]=[...new Set(_strs(o.listas[k]).map(s=>s.trim()).filter(Boolean))].slice(0,500); });
+  if(Array.isArray(o.reglas)) r.reglas=o.reglas.filter(_esObj).slice(0,60).map((x,i)=>({
+    id:_str(x.id)||('r'+Date.now().toString(36)+i), nombre:_str(x.nombre).slice(0,80)||'Regla '+(i+1), activa:x.activa!==false,
+    dias:n(x.dias,0,60,8), ctas:['igual','validar','ignorar'].includes(x.ctas)?x.ctas:'validar', res:x.res==='W'?'W':'F',
+    conds:(Array.isArray(x.conds)?x.conds:[]).filter(c=>_esObj(c)&&CONDS_DUP[c.t]).slice(0,8)
+      .map(c=>({t:c.t, v:c.t==='simil'?n(c.v,50,100,85):c.t==='contiene'?_str(c.v).slice(0,120):''}))
+      .filter(c=>c.t!=='contiene'||c.v.trim())
+  })).filter(x=>x.conds.length);
+  return r;
+}
+let REGLAS_DUP=saneaReglas(lsGet(LS_REGLAS,null));
+let RD={};               /* derivados de REGLAS_DUP (sets normalizados) */
+/* NIT de 10 dígitos que empieza por 8/9: se quita el dígito de verificación. */
+const docNorm=v=>{ let n=String(v==null?'':v).replace(/\D/g,''); if(n.length===10&&/^[89]/.test(n)) n=n.slice(0,9); return n.length>=5?n:''; };
+const domNorm=v=>String(v==null?'':v).toLowerCase().trim().replace(/^.*@/,'').replace(/^www\./,'');
+const domDe=m=>String(m||'').split('@')[1]||'';
+function derivaReglas(){
+  const L=REGLAS_DUP.listas, low=a=>new Set(a.map(s=>s.toLowerCase().trim()).filter(Boolean));
+  RD={ dias:REGLAS_DUP.dias, simil:REGLAS_DUP.simil/100, base:REGLAS_DUP.base,
+    corIn:low(L.correosIncl), corEx:low(L.correosExcl),
+    ctaIn:new Set(L.cuentasIncl.map(c=>soloNum(c).replace(/^0+/,'')).filter(Boolean)),
+    ctaEx:new Set(L.cuentasExcl.map(c=>soloNum(c).replace(/^0+/,'')).filter(Boolean)),
+    nomIn:L.nombresIncl.map(canonNombre).filter(Boolean), nomEx:L.nombresExcl.map(canonNombre).filter(Boolean),
+    palIn:L.palabrasIncl.map(normTxt).filter(Boolean), palEx:L.palabrasExcl.map(normTxt).filter(Boolean),
+    docIn:new Set(L.docsIncl.map(docNorm).filter(Boolean)), docEx:new Set(L.docsExcl.map(docNorm).filter(Boolean)),
+    domIn:new Set(L.dominiosIncl.map(domNorm).filter(Boolean)), domEx:new Set(L.dominiosExcl.map(domNorm).filter(Boolean)),
+    asuIn:L.asuntosIncl.map(normTxt).filter(Boolean), asuEx:L.asuntosExcl.map(normTxt).filter(Boolean),
+    munIn:new Set(L.municipiosIncl.map(sinTilde).filter(Boolean)), munEx:new Set(L.municipiosExcl.map(sinTilde).filter(Boolean)),
+    rutIn:L.rutasIncl.map(sinTilde).filter(Boolean), rutEx:L.rutasExcl.map(sinTilde).filter(Boolean),
+    radGr:L.radicadosIncl.map(x=>new Set((String(x).match(/\d{8,}/g)||[]))).filter(g=>g.size>=2),
+    radEx:new Set(L.radicadosExcl.flatMap(x=>String(x).match(/\d{8,}/g)||[])),
+    reglas:REGLAS_DUP.reglas.filter(r=>r.activa),
+    palReglas:[...new Set(REGLAS_DUP.reglas.filter(r=>r.activa).flatMap(r=>r.conds.filter(c=>c.t==='contiene').map(c=>normTxt(c.v))).filter(Boolean))] };
+}
+function guardaReglas(){ lsSet(LS_REGLAS,REGLAS_DUP); derivaReglas(); DUP_IDX=null; DUP_CACHE=new Map(); }
 const VENT_DUP=8;
-const CTAS_GENERICAS=new Set(['1234','12345','1434245','1434248']);
 const normTxt=s=>sinTilde(s).replace(/^(\s*(rv|re|fw|fwd|rta|reenvio)\s*[:.]?\s+)+/,'').replace(/[^a-z0-9]+/g,' ').trim();
+derivaReglas();
+const ctaNorm=v=>soloNum(v).replace(/^0+/,'');
+const conPal=(txt,p)=>(' '+txt+' ').includes(' '+p+' ');
 function parrafos(t){
   t=String(t||'').replace(/^Correo Remitente\s+\S+\s+-\s+(Asunto\s+)?/i,'').replace(/-\s*ID\s+\d+\s*-/ig,'\n').replace(/Observacion PQRs:/ig,'\n');
   return t.replace(/([.;!?])\s+(?=[A-ZÁÉÍÓÚÑ0-9])/g,'$1\n').split(/\n+/).map(normTxt).filter(p=>p.split(' ').length>=8);
+}
+function partesCorreo(t){
+  t=String(t||'');
+  const m=/^\s*Correo Remitente\s+(\S+)\s+-\s+(?:Asunto\s+)?([\s\S]*?)\s*-\s*ID\s+\d+\s*-?([\s\S]*)$/i.exec(t);
+  if(!m) return {rem:'',asunto:'',reenvio:false,cuerpo:t};
+  const reenvio=/^\s*(rv|re|fw|fwd|rta|reenvio)\s*[:.]?\s+/.test(sinTilde(m[2]));
+  return {rem:m[1].toLowerCase().replace(/[.,;]+$/,''), asunto:normTxt(m[2]), reenvio, cuerpo:m[3]||''};
+}
+function textoSimil(t){
+  const p=partesCorreo(t);
+  let s=normTxt(p.asunto+' '+String(p.cuerpo).replace(/Observacion PQRs:/ig,' '))
+    .replace(/\b\d{1,2} \d{1,2} \d{2,4}\b/g,' ').replace(/\bid \d+\b/g,' ').replace(/\b\d{1,2} \d{2}( \d{2})?\b/g,' ');
+  RD.palEx.forEach(w=>{ s=(' '+s+' ').split(' '+w+' ').join(' '); });
+  return s.replace(/\s+/g,' ').trim();
+}
+const tokSimil=s=>s.split(' ').filter(w=>w.length>=3||/^\d{5,}$/.test(w));
+function similitud(a,b){
+  if(!a.length||!b.length) return 0;
+  const big=L=>{ const m=new Map(); for(let i=0;i<L.length;i++){ const k=i<L.length-1?L[i]+' '+L[i+1]:L[i]; m.set(k,(m.get(k)||0)+1); } return m; };
+  const uni=L=>{ const m=new Map(); L.forEach(w=>m.set(w,(m.get(w)||0)+1)); return m; };
+  const dice=(A,B)=>{ let n=0,ta=0,tb=0; A.forEach(v=>ta+=v); B.forEach(v=>tb+=v); A.forEach((v,k)=>{ const w=B.get(k); if(w) n+=Math.min(v,w); }); return ta+tb?2*n/(ta+tb):0; };
+  return Math.max(dice(big(a),big(b)), dice(uni(a),uni(b))*0.97);
+}
+function docsTexto(t){
+  const s=sinTilde(String(t||'')), out=new Set();
+  const re=/\b(nit|c\s*\.?\s*c|cedula(?: de ciudadania)?|cc|identificad[oa] con (?:cedula|c\.?c\.?|nit)(?: de ciudadania)?(?: (?:no|numero|n))?)\s*[:.#nº°o]*\s*([\d][\d.\s-]{4,16}\d)/g;
+  let m; while((m=re.exec(s))){ let n=m[2].replace(/\D/g,''); if(/nit/.test(m[1])&&n.length===10&&/^[89]/.test(n)) n=n.slice(0,9);
+    if(n.length>=6&&n.length<=11&&!/^(\d)\1+$/.test(n)) out.add(n); }
+  return out;
 }
 function clavesDup(d){
   const t=String(d.contenido||''), basura=n=>/^(\d)\1+$/.test(n)||/^0+$/.test(n);
   const ids=new Set(), pars=new Set(), ctas=new Set(), mails=new Set();
   (t.match(/\bID\s+(\d{3,})/ig)||[]).forEach(m=>ids.add(m.replace(/\D/g,'')));
   parrafos(t).forEach(p=>pars.add(p));
-  (d.cuentas||[]).forEach(x=>{ const n=soloNum(x); if(n.length>=3&&!basura(n)) ctas.add(n); });
-  (t.toLowerCase().match(/[\w.+-]+@[\w-]+\.[\w.]+/g)||[]).forEach(e=>{ if(!/essa\.com\.co$/.test(e)) mails.add(e); });
-  const sol=canonNombre(d.solicitante||''), solOk=sol.split(' ').length>=2 && !/^(essa|api|atencion)/.test(sol);
-  return {ids,pars,ctas,mails,sol:solOk?sol:'',normCont:normTxt(d.contenido)};
+  (d.cuentas||[]).forEach(x=>{ const n=ctaNorm(x); if(n.length>=3&&!basura(n)&&!RD.ctaEx.has(n)) ctas.add(n); });
+  const mailOk=e=>!/essa\.com\.co$/.test(e)&&!RD.corEx.has(e)&&!RD.domEx.has(domDe(e));
+  (t.toLowerCase().match(/[\w.+-]+@[\w-]+\.[\w.]+/g)||[]).forEach(e=>{ e=e.replace(/[.,;]+$/,''); if(mailOk(e)) mails.add(e); });
+  const docs=docsTexto(t); (d.ceds||[]).forEach(c=>{ const n=docNorm(c); if(n.length>=6&&!basura(n)) docs.add(n); });
+  [...docs].forEach(n=>{ if(RD.docEx.has(n)||RD.docEx.has(docNorm(n))) docs.delete(n); });
+  const pc=partesCorreo(t), rem=(pc.rem&&mailOk(pc.rem))?pc.rem:'';
+  if(rem) mails.add(rem);
+  const sim=textoSimil(t), nt=' '+normTxt(t)+' ';
+  let sol=canonNombre(d.solicitante||'');
+  if(!(sol.split(' ').length>=2 && !/^(essa|api|atencion)/.test(sol)) || RD.nomEx.some(x=>sol.includes(x))) sol='';
+  const pals=new Set(RD.palIn.concat(RD.palReglas).filter(p=>nt.includes(' '+p+' ')));
+  /* Asunto: si contiene una frase excluida, no se usa para relacionar. */
+  const asuEx=RD.asuEx.some(x=>conPal(pc.asunto,x));
+  const asuL=new Set(RD.asuIn.filter(x=>pc.asunto&&conPal(pc.asunto,x)));
+  let mun=sinTilde(d.municipio||'').replace(/^[—-]$/,''); if(RD.munEx.has(mun)) mun='';
+  const ruta=sinTilde(d.ruta||''), rad=soloNum(d.radicado);
+  /* Fuera de la búsqueda: radicado excluido, ruta excluida o ruta fuera de las incluidas. */
+  const fuera=RD.radEx.has(rad) || (ruta&&RD.rutEx.some(x=>ruta.includes(x))) || (RD.rutIn.length>0 && !RD.rutIn.some(x=>ruta.includes(x)));
+  const grupos=new Set(); RD.radGr.forEach((g,i)=>{ if(g.has(rad)) grupos.add(i); });
+  return {ids,pars,ctas,mails,docs,rem,asunto:(!asuEx&&pc.asunto.split(' ').length>=4)?pc.asunto:'',asuL,reenvio:pc.reenvio,
+    sim, simTok:tokSimil(sim), sol, pals, mun, ruta, fuera, grupos,
+    doms:new Set([...mails].map(domDe).filter(x=>x&&RD.domIn.has(x))), normCont:normTxt(d.contenido)};
+}
+/* Evalúa una condición de una regla personalizada entre dos radicados. */
+function cumpleCond(c,kd,ko,sim){
+  switch(c.t){
+    case 'mismoCorreo': return [...kd.mails].some(m=>ko.mails.has(m));
+    case 'mismoRemitente': return !!kd.rem && kd.rem===ko.rem;
+    case 'mismoAsunto': return !!kd.asunto && kd.asunto===ko.asunto;
+    case 'mismaCuenta': return [...kd.ctas].some(x=>ko.ctas.has(x));
+    case 'mismoDoc': return [...kd.docs].some(x=>ko.docs.has(x));
+    case 'mismoSolicitante': return !!kd.sol && kd.sol===ko.sol;
+    case 'mismoMunicipio': return !!kd.mun && kd.mun===ko.mun;
+    case 'mismaRuta': return !!kd.ruta && kd.ruta===ko.ruta;
+    case 'reenvio': return !!kd.rem && kd.rem===ko.rem && !!kd.asunto && kd.asunto===ko.asunto && (kd.reenvio||ko.reenvio);
+    case 'contiene': { const p=normTxt(c.v); return !!p && kd.pals.has(p) && ko.pals.has(p); }
+    case 'simil': return sim()>=(c.v||85)/100;
+  }
+  return false;
 }
 function relacionarDup(d,o,kd,ko){
-  const F=new Set(), W=new Set();
-  const dias=d.fSol&&o.fSol?Math.abs(difDias(d.fSol,o.fSol)):0, cerca=dias<=VENT_DUP;
-  kd.ids.forEach(i=>{ if(ko.ids.has(i)) F.add('Mismo ID '+i); });
+  const F=new Set(), W=new Set(), B=RD.base;
+  const dias=d.fSol&&o.fSol?Math.abs(difDias(d.fSol,o.fSol)):0, cerca=dias<=RD.dias, mismoDia=dias===0;
   const ctas=[...kd.ctas].filter(c=>ko.ctas.has(c));
-  const mismoTxt=()=>{ const a=kd.normCont||normTxt(d.contenido), b=ko.normCont||normTxt(o.contenido); return a.length>=10 && a===b; };
-  let np=0; kd.pars.forEach(p=>{ if(ko.pars.has(p)) np++; });
-  if(np && (mismoTxt() || ctas.some(c=>!CTAS_GENERICAS.has(c))))
-    F.add(mismoTxt()?'Contenido idéntico':(np>1?np+' párrafos idénticos y misma cuenta':'Párrafo idéntico y misma cuenta'));
-  ctas.forEach(c=>{
-    if(CTAS_GENERICAS.has(c)){ if(mismoTxt()) F.add('Cuenta '+c+' con contenido idéntico'); return; }
+  const ctasDistintas=kd.ctas.size>0 && ko.ctas.size>0 && !ctas.length;
+  const mismoTxt=()=>{ const a=kd.normCont, b=ko.normCont; return a.length>=10 && a===b; };
+  let _s=null; const sim=()=>_s!==null?_s:(_s=similitud(kd.simTok,ko.simTok));
+  const pct=()=>Math.round(sim()*100)+' %';
+  const pon=(txt)=>(ctasDistintas?W:F).add(txt+(ctasDistintas?' · cuentas distintas':''));
+  if(B.idCorreo) kd.ids.forEach(i=>{ if(ko.ids.has(i)) F.add('Mismo ID '+i); });
+  if(B.contenido && mismoTxt()) F.add('Contenido idéntico');
+  if(B.parrafo){ let np=0; kd.pars.forEach(p=>{ if(ko.pars.has(p)) np++; });
+    if(np && ctas.length && !mismoTxt()) F.add(np>1?np+' párrafos idénticos y misma cuenta':'Párrafo idéntico y misma cuenta'); }
+  if(B.cuenta) ctas.forEach(c=>{
     if(cerca) F.add('Misma cuenta '+c+' · '+dias+' día(s)'); else W.add('Misma cuenta '+c+' · '+dias+' días');
     if(cerca && [...kd.mails].some(m=>ko.mails.has(m))) F.add('Mismo correo y cuenta');
     if(cerca && kd.sol && kd.sol===ko.sol) F.add('Mismo solicitante y cuenta'); });
+  const mismoRem=!!(kd.rem && kd.rem===ko.rem), mismoAs=!!(kd.asunto && kd.asunto===ko.asunto);
+  if(B.remAsunto && mismoRem && mismoAs && cerca) pon('Mismo remitente y asunto · '+dias+' día(s)');
+  if(B.reenvio && mismoRem && mismoAs && mismoDia && (kd.reenvio||ko.reenvio))
+    pon(ko.reenvio&&!kd.reenvio?'Reenvío de este radicado':kd.reenvio&&!ko.reenvio?'Este es un reenvío':'Reenvío del mismo correo');
+  if(B.doc) [...kd.docs].filter(x=>ko.docs.has(x)).forEach(n=>{
+    if(cerca && !ctasDistintas) F.add('Mismo NIT/cédula '+n+' · '+dias+' día(s)'); else W.add('Mismo NIT/cédula '+n+' · '+dias+' días'); });
+  const mail=[...kd.mails].some(m=>ko.mails.has(m));
+  const porCorreo=B.correoSimil && mail && cerca && sim()>=RD.simil;
+  if(porCorreo) pon('Mismo correo · solicitud '+pct()+' similar');
+  if(B.simil && !F.size && !porCorreo && cerca && kd.simTok.length>=6 && ko.simTok.length>=6 && sim()>=RD.simil && !mismoTxt())
+    pon('Solicitud '+pct()+' similar');
+  /* Listas de inclusión (siempre relacionan dentro de los días configurados) */
+  ctas.filter(c=>RD.ctaIn.has(c)).forEach(c=>F.add('Cuenta en lista: '+c));
+  if(cerca){
+    [...kd.mails].filter(m=>ko.mails.has(m)&&RD.corIn.has(m)).forEach(m=>F.add('Correo en lista: '+m));
+    if(kd.sol && kd.sol===ko.sol && RD.nomIn.some(x=>kd.sol.includes(x))) F.add('Solicitante en lista');
+    RD.palIn.filter(p=>kd.pals.has(p)&&ko.pals.has(p)).forEach(p=>F.add('Palabra en lista: «'+p+'»'));
+    [...kd.docs].filter(n=>ko.docs.has(n)&&RD.docIn.has(n)).forEach(n=>F.add('NIT/cédula en lista: '+n));
+    [...kd.asuL].filter(x=>ko.asuL.has(x)).forEach(x=>F.add('Asunto en lista: «'+x+'»'));
+    [...kd.doms].filter(x=>ko.doms.has(x)).forEach(x=>{ if(sim()>=RD.simil) F.add('Dominio en lista: '+x+' · '+pct()+' similar'); });
+    if(kd.mun && kd.mun===ko.mun && RD.munIn.has(kd.mun) && sim()>=RD.simil) W.add('Municipio en lista: '+kd.mun+' · '+pct()+' similar');
+  }
+  /* Radicados agrupados a mano: siempre se relacionan, sin importar los días. */
+  if([...kd.grupos].some(g=>ko.grupos.has(g))) F.add('Relacionados manualmente');
+  /* Reglas personalizadas: se deben cumplir todas sus condiciones */
+  RD.reglas.forEach(r=>{
+    if(dias>r.dias) return;
+    if(ctasDistintas && r.ctas==='ignorar') return;
+    if(!r.conds.every(c=>cumpleCond(c,kd,ko,sim))) return;
+    const dest=(ctasDistintas && r.ctas==='validar')?W:(r.res==='W'?W:F);
+    dest.add(r.nombre);
+  });
   return {F,W};
 }
 let DUP_IDX=null;
@@ -2267,15 +2432,25 @@ function indiceDup(){
   const R=ALLRAD.filter(d=>!d.relleno && (HAY_ANALISTAS?!!respAnalista(d):!!d.respEq));
   const ix=new Map(), keys=new Map(), put=(z,d)=>{ if(!ix.has(z)) ix.set(z,[]); ix.get(z).push(d); };
   R.forEach(d=>{ const k=clavesDup(d); keys.set(d,k);
-    k.ids.forEach(v=>put('i:'+v,d)); k.pars.forEach(v=>put('p:'+v,d)); k.ctas.forEach(v=>put('c:'+v,d)); });
+    zonasDup(k).forEach(z=>put(z,d)); });
   return DUP_IDX={R,ix,keys};
 }
+function zonasDup(k){
+  const zs=[...k.ids].map(v=>'i:'+v).concat([...k.pars].map(v=>'p:'+v),[...k.ctas].map(v=>'c:'+v),
+    [...k.docs].map(v=>'d:'+v),[...k.mails].map(v=>'m:'+v),[...k.pals].map(v=>'w:'+v));
+  if(k.rem&&k.asunto) zs.push('a:'+k.rem+'|'+k.asunto);
+  if(k.sol) zs.push('n:'+k.sol);
+  k.grupos.forEach(g=>zs.push('g:'+g)); k.asuL.forEach(x=>zs.push('u:'+x)); k.doms.forEach(x=>zs.push('o:'+x));
+  if(k.mun&&RD.munIn.has(k.mun)) zs.push('z:'+k.mun);
+  if(k.simTok.length>=6) zs.push('s:'+k.simTok.slice(0,4).join(' '));
+  return zs;
+}
 function relacionesDe(d){
-  const {ix,keys}=indiceDup(), k=keys.get(d); if(!k) return [];
+  const {ix,keys}=indiceDup(), k=keys.get(d); if(!k||k.fuera) return [];
   const cand=new Set();
-  [...k.ids].map(v=>'i:'+v).concat([...k.pars].map(v=>'p:'+v),[...k.ctas].map(v=>'c:'+v)).forEach(z=>{
-    const L=ix.get(z)||[]; if(z.startsWith('p:')&&L.length>15) return;
-    L.forEach(o=>{ if(o!==d && soloNum(o.radicado)!==soloNum(d.radicado)) cand.add(o); }); });
+  zonasDup(k).forEach(z=>{
+    const L=ix.get(z)||[]; if((/^[pmswn]:/.test(z)&&L.length>40)||(/^[oz]:/.test(z)&&L.length>400)) return;
+    L.forEach(o=>{ if(o!==d && soloNum(o.radicado)!==soloNum(d.radicado) && !(keys.get(o)||{}).fuera) cand.add(o); }); });
   const out=[];
   cand.forEach(o=>{ const r=relacionarDup(d,o,k,keys.get(o)); if(r.F.size||r.W.size) out.push({o,F:r.F,W:r.W}); });
   return out;
@@ -2288,6 +2463,214 @@ function detectaDuplicados(d){
   const rel=relacionesDe(d);
   DUP_CACHE.set(d,rel);
   return rel;
+}
+/* v46 · Publica los posibles duplicados (coincidencia fuerte) para Generación documental. */
+let _tPubDup=0;
+function publicaDuplicados(){
+  if(!ALLRAD.length) return;
+  const m={};
+  DATOS.forEach(d=>{ if(d.relleno||!(d.enVentana||d.vencida)) return;
+    const k=soloNum(d.radicado); if(!k) return;
+    const L=[...new Set(detectaDuplicados(d).filter(r=>r.F.size).map(r=>soloNum(r.o.radicado)).filter(x=>x&&x!==k))];
+    if(L.length) m[k]=L; });
+  try{ appDataSet('essa_dup_rad',JSON.stringify({f:clave(HOY),m})); }catch(e){ reportaError('Duplicados para documentos',e); }
+}
+function programaPublicaDup(){ clearTimeout(_tPubDup); _tPubDup=setTimeout(()=>{ try{ publicaDuplicados(); }catch(e){ reportaError('Duplicados para documentos',e); } },600); }
+/* ================= v48 · EDITOR DE REGLAS DE COINCIDENCIA (duplicados) =================
+   Solo para administradores: el usuario especial del filtro de responsable y las
+   huellas de HUELLAS_ADMIN_DUP (sin nombres en el código). */
+function esAdminDup(){
+  if(NOMBRE_FIRMANTE===FIRMANTE_HABILITA_RESPONSABLE) return true;
+  const adm=new Set(HUELLAS_ADMIN_DUP||[]); if(!adm.size||!NOMBRE_FIRMANTE) return false;
+  for(const h of huellasDeNombre(NOMBRE_FIRMANTE)) if(adm.has(h)) return true;
+  return false;
+}
+const BASE_NOM={idCorreo:'Mismo ID de correo',contenido:'Contenido idéntico',parrafo:'Párrafo idéntico + misma cuenta',
+  cuenta:'Misma cuenta (en los días configurados)',remAsunto:'Mismo remitente + mismo asunto',reenvio:'Reenvío (Rv/Fw) del mismo correo el mismo día',
+  doc:'Mismo NIT o cédula en el texto',correoSimil:'Mismo correo + solicitud parecida',simil:'Solicitud parecida (sin otro dato en común)'};
+const LISTAS_NOM=[
+  ['correos','Correos','Ej.: notificaciones@entidad.gov.co','correosIncl','correosExcl',
+    'Si dos radicados vienen de este correo, se relacionan siempre.','Este correo nunca se usa para relacionar (buzones genéricos).'],
+  ['dominios','Dominios','Ej.: alcaldia.gov.co','dominiosIncl','dominiosExcl',
+    'Mismo dominio y solicitud parecida (≥ parecido mínimo): se relacionan.','Ningún correo de este dominio se usa para relacionar (ej.: buzones masivos).'],
+  ['cuentas','Cuentas','Ej.: 1434245','cuentasIncl','cuentasExcl',
+    'Si dos radicados comparten esta cuenta, se relacionan sin importar los días.','Cuenta genérica: nunca relaciona radicados por sí sola.'],
+  ['docs','NIT / cédula','Ej.: 900575973 o 1098765432','docsIncl','docsExcl',
+    'Si dos radicados tienen este NIT o cédula, se relacionan siempre.','Este NIT o cédula nunca se usa para relacionar (ej.: NIT de ESSA o de una entidad que radica todo).'],
+  ['nombres','Nombres','Ej.: Conjunto Residencial Santa Isabel','nombresIncl','nombresExcl',
+    'Si el solicitante contiene este nombre y es el mismo en ambos, se relacionan.','Nombres que no identifican a nadie (ESSA, Atención al cliente…).'],
+  ['asuntos','Asuntos','Ej.: derecho de petición poda','asuntosIncl','asuntosExcl',
+    'Si el asunto de ambos correos contiene la frase, se relacionan.','Asuntos genéricos que no deben usarse para relacionar (ej.: «solicitud»).'],
+  ['palabras','Palabras o frases','Ej.: subsidio estrato 1','palabrasIncl','palabrasExcl',
+    'Si ambos radicados contienen la frase, se relacionan.','Se ignoran al calcular el parecido de la solicitud.'],
+  ['municipios','Municipios','Ej.: Barrancabermeja','municipiosIncl','municipiosExcl',
+    'Mismo municipio y solicitud parecida: quedan «por validar».','El municipio no se usa en las reglas que comparan municipio.'],
+  ['rutas','Rutas de Mercurio','Ej.: Atención de peticiones','rutasIncl','rutasExcl',
+    'Si agregas rutas aquí, SOLO se buscan duplicados en esas rutas.','Los radicados de esta ruta nunca se marcan como duplicados.'],
+  ['radicados','Radicados','Ej.: 20260320059599, 20260320059659','radicadosIncl','radicadosExcl',
+    'Escribe 2 o más radicados separados por coma: siempre se relacionan entre sí.','Este radicado nunca se marca como duplicado ni aparece como relacionado.']];
+let RG_TAB='reglas', RG_LISTA='correos', RG_EDIT=null, RG_TMP=null;
+const rgEsc=s=>esc(s==null?'':s);
+function rgModal(){
+  let m=document.getElementById('mReglas'); if(m) return m;
+  m=document.createElement('div'); m.className='modal'; m.id='mReglas'; m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true');
+  m.innerHTML='<div class="mbox" style="max-width:980px"><div class="mhead"><div><div class="mhTit"><span class="mhIco" aria-hidden="true">'+M2I(M2P.gear)+'</span>'+
+    '<div><h3 id="rgTit">Reglas de coincidencia</h3><p id="rgSub">Duplicados · se aplican de inmediato en este equipo</p></div></div></div>'+
+    '<div style="display:flex;gap:8px;align-items:center"><button class="rgAyuda" id="rgAyuda" type="button" title="¿Cómo funciona?" aria-label="Ayuda">?</button>'+
+    '<button class="cerrar" id="rgX" type="button" aria-label="Cerrar">&times;</button></div></div>'+
+    '<div class="mbody" style="padding-top:12px"><div class="rgTabs" id="rgTabs"></div><div id="rgCuerpo"></div>'+
+    '<div class="rgPie"><button class="btn sec mini" id="rgExp" type="button">'+M2I(M2P.download)+'Exportar reglas</button>'+
+    '<label class="btn sec mini rgImp">'+M2I(M2P.folder)+'Importar reglas<input type="file" id="rgImp" accept=".json,application/json" hidden></label>'+
+    '<button class="btn sec mini" id="rgReset" type="button">Restablecer todo</button><span id="rgMsg" role="status"></span></div></div></div>';
+  document.body.appendChild(m);
+  const st=document.createElement('style');
+  st.textContent=
+    '#mReglas .mhIco svg{width:20px;height:20px}#mReglas .rgIc svg{width:15px;height:15px}'+
+    '#mReglas .rgTabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}'+
+    '#mReglas .rgTabs button{border:1px solid var(--m2-line,#DCE5F0);background:var(--m2-card,#fff);border-radius:999px;padding:6px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;color:inherit}'+
+    '#mReglas .rgTabs button.on{background:#1664B0;border-color:#1664B0;color:#fff}'+
+    '#mReglas .rgAyuda{width:32px;height:32px;border-radius:50%;border:1.5px solid #1664B0;background:#EAF1FB;color:#1664B0;font-weight:800;font-size:16px;cursor:pointer}'+
+    '#mReglas .rgAyuda:hover{background:#1664B0;color:#fff}'+
+    '#mReglas .rgCard{border:1px solid var(--m2-line,#DCE5F0);border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;background:var(--m2-card,#fff)}'+
+    '#mReglas .rgCard.off{opacity:.55}'+
+    '#mReglas .rgCard .rgTxt{flex:1;min-width:0}.rgTxt b{display:block;font-size:13px}.rgTxt small{color:var(--m2-mut,#5B6B7F);font-size:11.5px}'+
+    '#mReglas .rgTag{display:inline-block;font-size:10px;font-weight:800;padding:2px 7px;border-radius:99px;margin-right:4px;background:#EAF1FB;color:#1664B0}'+
+    '#mReglas .rgTag.w{background:#FFF2E2;color:#9A4A06}'+
+    '#mReglas .rgSw{position:relative;width:38px;height:21px;flex:none;cursor:pointer}.rgSw input{opacity:0;width:0;height:0}'+
+    '#mReglas .rgSw i{position:absolute;inset:0;border-radius:99px;background:#C9D3E0;transition:.2s}.rgSw i::after{content:"";position:absolute;width:15px;height:15px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.2s}'+
+    '#mReglas .rgSw input:checked+i{background:#1F9350}.rgSw input:checked+i::after{left:20px}'+
+    '#mReglas .rgIc{border:1px solid var(--m2-line,#DCE5F0);background:none;border-radius:8px;width:30px;height:30px;cursor:pointer;color:inherit}'+
+    '#mReglas .rgIc:hover{background:#EAF1FB}#mReglas .rgIc.del:hover{background:#FDECEE;color:#C21F2F}'+
+    '#mReglas .rgForm{border:1.5px solid #9DBDE6;border-radius:12px;padding:12px;margin-bottom:10px;background:var(--m2-soft,#F7FAFE)}'+
+    '#mReglas .rgRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}'+
+    '#mReglas .rgRow label{font-size:11px;font-weight:800;letter-spacing:.4px;color:var(--m2-mut,#5B6B7F)}'+
+    '#mReglas input[type=text],#mReglas input[type=number],#mReglas select{font:inherit;font-size:12.5px;padding:6px 9px;border:1px solid #CFDAE8;border-radius:9px;background:var(--m2-card,#fff);color:inherit}'+
+    '#mReglas .rgCond{display:flex;gap:6px;align-items:center;margin-bottom:6px}'+
+    '#mReglas .rgListas{display:grid;grid-template-columns:1fr 1fr;gap:10px}'+
+    '#mReglas .rgCol{border:1px solid var(--m2-line,#DCE5F0);border-radius:12px;padding:10px}'+
+    '#mReglas .rgCol h5{margin:0 0 2px;font-size:13px}#mReglas .rgCol p{margin:0 0 8px;font-size:11.5px;color:var(--m2-mut,#5B6B7F)}'+
+    '#mReglas .rgChips{display:flex;flex-wrap:wrap;gap:5px;min-height:28px;margin-bottom:8px}'+
+    '#mReglas .rgAdd{display:flex;gap:6px}#mReglas .rgAdd input{flex:1}'+
+    '#mReglas .rgPie{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid var(--m2-line,#DCE5F0)}'+
+    '#mReglas .rgPie svg,#mReglas .rgImp svg{width:14px;height:14px;vertical-align:-2px;margin-right:4px}'+
+    '#mReglas #rgMsg{font-size:12px;color:#1E7B46;font-weight:700}'+
+    '#mReglas .rgHelp{font-size:12.8px;line-height:1.55}#mReglas .rgHelp h5{margin:12px 0 4px;font-size:13.5px;color:#1664B0}'+
+    '#mReglas .rgHelp ol,#mReglas .rgHelp ul{margin:4px 0;padding-left:20px}#mReglas .rgHelp code{background:#EAF1FB;padding:1px 5px;border-radius:5px}'+
+    '#mReglas .rgHelp .rgEj{border-left:3px solid #1F9350;background:rgba(31,147,80,.07);padding:8px 10px;border-radius:0 9px 9px 0;margin:6px 0}'+
+    '@media (max-width:760px){#mReglas .rgListas{grid-template-columns:1fr}}';
+  document.head.appendChild(st);
+  m.onclick=e=>{ if(e.target===m) m.classList.remove('on'); };
+  m.querySelector('#rgX').onclick=()=>m.classList.remove('on');
+  m.querySelector('#rgAyuda').onclick=()=>{ RG_TAB=RG_TAB==='ayuda'?'reglas':'ayuda'; rgPinta(); };
+  m.querySelector('#rgExp').onclick=()=>{
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(REGLAS_DUP,null,2)],{type:'application/json'}));
+    a.download='reglas_duplicados_'+clave(HOY)+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),3000); rgAviso('Reglas exportadas'); };
+  m.querySelector('#rgImp').onchange=async ev=>{ const f=ev.target.files&&ev.target.files[0]; ev.target.value=''; if(!f) return;
+    try{ const o=JSON.parse(await f.text()); if(!_esObj(o)||!(o.listas||o.reglas||o.base)) throw new Error('formato');
+      REGLAS_DUP=saneaReglas(o); rgAplica('Reglas importadas'); }catch(e){ rgAviso('El archivo no es un archivo de reglas válido',true); } };
+  m.querySelector('#rgReset').onclick=()=>confirmar('Restablecer reglas','Se borran las reglas personalizadas y las listas vuelven a sus valores iniciales. ¿Continuar?',
+    ()=>{ REGLAS_DUP=saneaReglas(null); RG_EDIT=null; rgAplica('Reglas restablecidas'); },()=>{});
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&m.classList.contains('on')&&!$('mConf').classList.contains('on')) m.classList.remove('on'); });
+  return m;
+}
+function rgAviso(t,err){ const s=document.getElementById('rgMsg'); if(!s) return; s.style.color=err?'#C21F2F':'#1E7B46'; s.textContent=t; clearTimeout(rgAviso._t); rgAviso._t=setTimeout(()=>{ s.textContent=''; },3500); }
+function rgAplica(msg){ guardaReglas(); programaPublicaDup(); rgPinta(); if($('mRec').classList.contains('on')) pintaRec(); try{ render(); }catch(e){} if(msg) rgAviso(msg); }
+function abreReglasDup(){ if(!esAdminDup()) return; const m=rgModal(); RG_TAB='reglas'; RG_EDIT=null; rgPinta(); m.classList.add('on'); }
+function rgPinta(){
+  const tabs=[['reglas','Reglas'],['listas','Incluir / excluir'],['ajustes','Ajustes generales'],['ayuda','? Ayuda']];
+  $('rgTabs').innerHTML=tabs.map(([k,t])=>'<button type="button" data-rt="'+k+'" class="'+(RG_TAB===k?'on':'')+'">'+t+'</button>').join('');
+  $('rgTabs').querySelectorAll('[data-rt]').forEach(b=>b.onclick=()=>{ RG_TAB=b.dataset.rt; RG_EDIT=null; rgPinta(); });
+  const c=$('rgCuerpo');
+  if(RG_TAB==='ayuda'){ c.innerHTML=rgAyudaHtml(); return; }
+  if(RG_TAB==='ajustes'){
+    c.innerHTML='<div class="rgRow"><label for="rgDias">DÍAS MÁXIMOS ENTRE RADICADOS</label><input type="number" id="rgDias" min="0" max="60" value="'+REGLAS_DUP.dias+'" style="width:80px">'+
+      '<label for="rgSim">PARECIDO MÍNIMO DE LA SOLICITUD (%)</label><input type="number" id="rgSim" min="50" max="100" value="'+REGLAS_DUP.simil+'" style="width:80px">'+
+      '<button class="btn mini" id="rgGuardaAj" type="button">Guardar</button></div>'+
+      '<p style="font-size:12px;color:var(--m2-mut,#5B6B7F);margin:4px 0 10px">Reglas base (vienen con el aplicativo). Apaga las que generen demasiados falsos duplicados:</p>'+
+      Object.keys(BASE_NOM).map(k=>'<div class="rgCard'+(REGLAS_DUP.base[k]?'':' off')+'"><label class="rgSw"><input type="checkbox" data-bk="'+k+'"'+(REGLAS_DUP.base[k]?' checked':'')+'><i></i></label>'+
+        '<div class="rgTxt"><b>'+BASE_NOM[k]+'</b></div></div>').join('');
+    $('rgGuardaAj').onclick=()=>{ REGLAS_DUP.dias=+$('rgDias').value; REGLAS_DUP.simil=+$('rgSim').value; REGLAS_DUP=saneaReglas(REGLAS_DUP); rgAplica('Ajustes guardados'); };
+    c.querySelectorAll('[data-bk]').forEach(i=>i.onchange=()=>{ REGLAS_DUP.base[i.dataset.bk]=i.checked; rgAplica(i.checked?'Regla activada':'Regla apagada'); });
+    return;
+  }
+  if(RG_TAB==='listas'){
+    const L=LISTAS_NOM.find(x=>x[0]===RG_LISTA)||LISTAS_NOM[0];
+    const col=(clave,titulo,desc)=>'<div class="rgCol"><h5>'+titulo+'</h5><p>'+desc+'</p><div class="rgChips">'+
+      (REGLAS_DUP.listas[clave].length?REGLAS_DUP.listas[clave].map((v,i)=>'<span class="rolChip">'+rgEsc(v)+' <b data-lq="'+clave+'|'+i+'" title="Quitar">×</b></span>').join(''):'<span class="sp">Lista vacía</span>')+'</div>'+
+      '<div class="rgAdd"><input type="text" data-la="'+clave+'" placeholder="'+rgEsc(L[2])+'"><button class="btn mini" data-lb="'+clave+'" type="button">Agregar</button></div></div>';
+    c.innerHTML='<div class="rgTabs" style="margin-bottom:10px">'+LISTAS_NOM.map(x=>'<button type="button" data-lt="'+x[0]+'" class="'+(x[0]===L[0]?'on':'')+'">'+x[1]+'</button>').join('')+'</div>'+
+      '<div class="rgListas">'+col(L[3],'Incluir · siempre relaciona',L[5])+col(L[4],'Excluir · nunca relaciona',L[6])+'</div>';
+    c.querySelectorAll('[data-lt]').forEach(b=>b.onclick=()=>{ RG_LISTA=b.dataset.lt; rgPinta(); });
+    const add=k=>{ const i=c.querySelector('[data-la="'+k+'"]'); const v=i.value.trim(); if(!v) return;
+      if(REGLAS_DUP.listas[k].some(x=>x.toLowerCase()===v.toLowerCase())){ rgAviso('Ya está en la lista',true); return; }
+      REGLAS_DUP.listas[k].push(v); rgAplica('Agregado a la lista'); };
+    c.querySelectorAll('[data-lb]').forEach(b=>b.onclick=()=>add(b.dataset.lb));
+    c.querySelectorAll('[data-la]').forEach(i=>i.onkeydown=e=>{ if(e.key==='Enter') add(i.dataset.la); });
+    c.querySelectorAll('[data-lq]').forEach(b=>b.onclick=()=>{ const [k,i]=b.dataset.lq.split('|'); REGLAS_DUP.listas[k].splice(+i,1); rgAplica('Quitado de la lista'); });
+    return;
+  }
+  /* Reglas personalizadas */
+  const R=REGLAS_DUP.reglas;
+  const desc=r=>r.conds.map(x=>CONDS_DUP[x.t].t.replace('…','')+(x.t==='simil'?' '+x.v+' %':x.t==='contiene'?' «'+x.v+'»':'')).join(' + ');
+  c.innerHTML=(RG_EDIT?rgFormHtml():'<div class="rgRow"><button class="btn mini" id="rgNueva" type="button">+ Nueva regla</button>'+
+      '<span style="font-size:12px;color:var(--m2-mut,#5B6B7F)">Cada regla relaciona dos radicados cuando se cumplen <b>todas</b> sus condiciones.</span></div>')+
+    (R.length?R.map((r,i)=>'<div class="rgCard'+(r.activa?'':' off')+'"><label class="rgSw" title="Activar / apagar"><input type="checkbox" data-ra="'+i+'"'+(r.activa?' checked':'')+'><i></i></label>'+
+      '<div class="rgTxt"><b>'+rgEsc(r.nombre)+'</b><small><span class="rgTag'+(r.res==='W'?' w':'')+'">'+(r.res==='W'?'POR VALIDAR':'POSIBLE DUPLICADO')+'</span>'+
+      rgEsc(desc(r))+' · máx. '+r.dias+' día(s) · cuentas distintas: '+({igual:'marcar igual',validar:'por validar',ignorar:'ignorar'}[r.ctas])+'</small></div>'+
+      '<button class="rgIc" data-re="'+i+'" type="button" title="Editar">'+M2I(M2P.edit)+'</button><button class="rgIc del" data-rd="'+i+'" type="button" title="Eliminar">'+M2I(M2P.trash)+'</button></div>').join('')
+      :(RG_EDIT?'':'<div class="vacio">Aún no hay reglas personalizadas. Las reglas base siguen funcionando (ver «Ajustes generales»).</div>'));
+  const bn=document.getElementById('rgNueva'); if(bn) bn.onclick=()=>{ RG_EDIT={i:-1}; RG_TMP={nombre:'',activa:true,dias:REGLAS_DUP.dias,ctas:'validar',res:'F',conds:[{t:'mismoCorreo',v:''}]}; rgPinta(); };
+  c.querySelectorAll('[data-ra]').forEach(x=>x.onchange=()=>{ R[+x.dataset.ra].activa=x.checked; rgAplica(x.checked?'Regla activada':'Regla apagada'); });
+  c.querySelectorAll('[data-re]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.re; RG_EDIT={i}; RG_TMP=JSON.parse(JSON.stringify(R[i])); rgPinta(); });
+  c.querySelectorAll('[data-rd]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.rd;
+    confirmar('Eliminar regla','¿Eliminar la regla <b>'+rgEsc(R[i].nombre)+'</b>?',()=>{ R.splice(i,1); rgAplica('Regla eliminada'); },()=>{}); });
+  if(RG_EDIT) rgFormEventos();
+}
+function rgFormHtml(){
+  const t=RG_TMP, opt=(v,cur)=>'<option value="'+v+'"'+(v===cur?' selected':'')+'>';
+  return '<div class="rgForm"><div class="rgRow"><label>NOMBRE</label><input type="text" id="rgNom" value="'+rgEsc(t.nombre)+'" placeholder="Ej.: Mismo correo y misma ruta" style="flex:1;min-width:220px"></div>'+
+    '<div style="font-size:11px;font-weight:800;letter-spacing:.4px;color:var(--m2-mut,#5B6B7F);margin-bottom:6px">CONDICIONES (se deben cumplir todas)</div>'+
+    t.conds.map((x,i)=>'<div class="rgCond"><select data-ct="'+i+'">'+Object.keys(CONDS_DUP).map(k=>opt(k,x.t)+CONDS_DUP[k].t+'</option>').join('')+'</select>'+
+      (x.t==='simil'?'<input type="number" data-cv="'+i+'" min="50" max="100" value="'+(x.v||85)+'" style="width:70px"> %':'')+
+      (x.t==='contiene'?'<input type="text" data-cv="'+i+'" value="'+rgEsc(x.v)+'" placeholder="palabra o frase" style="min-width:180px">':'')+
+      (t.conds.length>1?'<button class="rgIc del" data-cq="'+i+'" type="button" title="Quitar condición">×</button>':'')+'</div>').join('')+
+    '<div class="rgRow"><button class="btn sec mini" id="rgAddC" type="button">+ Agregar condición</button></div>'+
+    '<div class="rgRow"><label>DÍAS MÁX.</label><input type="number" id="rgDiasR" min="0" max="60" value="'+t.dias+'" style="width:70px">'+
+      '<label>SI LAS CUENTAS SON DISTINTAS</label><select id="rgCtas">'+opt('validar',t.ctas)+'Dejar «por validar»</option>'+opt('igual',t.ctas)+'Marcar igual</option>'+opt('ignorar',t.ctas)+'Ignorar</option></select>'+
+      '<label>RESULTADO</label><select id="rgRes">'+opt('F',t.res)+'Posible duplicado</option>'+opt('W',t.res)+'Por validar</option></select></div>'+
+    '<div class="rgRow"><button class="btn mini" id="rgGuardaR" type="button">Guardar regla</button><button class="btn sec mini" id="rgCancR" type="button">Cancelar</button></div></div>';
+}
+function rgFormEventos(){
+  const t=RG_TMP, c=$('rgCuerpo'), lee=()=>{ t.nombre=$('rgNom').value; t.dias=+$('rgDiasR').value; t.ctas=$('rgCtas').value; t.res=$('rgRes').value;
+    c.querySelectorAll('[data-cv]').forEach(i=>{ t.conds[+i.dataset.cv].v=i.value; }); };
+  c.querySelectorAll('[data-ct]').forEach(s=>s.onchange=()=>{ lee(); t.conds[+s.dataset.ct]={t:s.value,v:s.value==='simil'?85:''}; rgPinta(); });
+  c.querySelectorAll('[data-cq]').forEach(b=>b.onclick=()=>{ lee(); t.conds.splice(+b.dataset.cq,1); rgPinta(); });
+  $('rgAddC').onclick=()=>{ lee(); if(t.conds.length>=8) return; t.conds.push({t:'simil',v:85}); rgPinta(); };
+  $('rgCancR').onclick=()=>{ RG_EDIT=null; RG_TMP=null; rgPinta(); };
+  $('rgGuardaR').onclick=()=>{ lee();
+    if(!t.nombre.trim()){ rgAviso('Ponle un nombre a la regla',true); $('rgNom').focus(); return; }
+    if(t.conds.some(x=>x.t==='contiene'&&!String(x.v).trim())){ rgAviso('Escribe la palabra o frase de la condición',true); return; }
+    const solo=t.conds.every(x=>['mismoMunicipio','mismaRuta','simil'].includes(x.t));
+    if(solo){ rgAviso('Combina municipio, ruta o parecido con otra condición (correo, cuenta, NIT, palabra…)',true); return; }
+    if(RG_EDIT.i<0) REGLAS_DUP.reglas.push(t); else REGLAS_DUP.reglas[RG_EDIT.i]=t;
+    REGLAS_DUP=saneaReglas(REGLAS_DUP); RG_EDIT=null; RG_TMP=null; rgAplica('Regla guardada'); };
+}
+function rgAyudaHtml(){
+  return '<div class="rgHelp">'+
+  '<p>Aquí defines <b>cuándo dos radicados se consideran duplicados</b>. Los cambios se aplican apenas los guardas: la columna «Duplicados» y la vista Rutas → Duplicados se recalculan solas.</p>'+
+  '<h5>1. Crear una regla</h5><ol><li>Pestaña <b>Reglas</b> → <b>+ Nueva regla</b>.</li><li>Escribe un <b>nombre</b>: es el texto que aparecerá en «Coincide en».</li>'+
+  '<li>Elige una <b>condición</b> en la lista. Con <b>+ Agregar condición</b> sumas más; con la <b>×</b> quitas una. Se deben cumplir <b>todas</b>.</li>'+
+  '<li>Define los <b>días máximos</b> entre los dos radicados, qué hacer si tienen <b>cuentas distintas</b> y el <b>resultado</b>.</li><li>Pulsa <b>Guardar regla</b>.</li></ol>'+
+  '<div class="rgEj"><b>Ejemplo:</b> «Mismo correo y misma ruta» = <code>Mismo correo electrónico</code> + <code>Misma ruta de Mercurio</code> + <code>Solicitud parecida 80 %</code>, máx. 5 días, resultado <b>Posible duplicado</b>.</div>'+
+  '<h5>2. Editar, apagar o borrar</h5><ul><li>El <b>interruptor</b> enciende o apaga la regla sin borrarla.</li><li>El <b>lápiz</b> la edita; la <b>papelera</b> la elimina.</li></ul>'+
+  '<h5>3. Listas para incluir o excluir</h5><p>Hay listas de <b>correos, dominios, cuentas, NIT/cédula, nombres, asuntos, palabras, municipios, rutas de Mercurio y radicados</b>. Debajo de cada lista se explica qué hace.</p><ul><li><b>Incluir</b>: si ambos radicados tienen ese dato, se relacionan (en dominios y municipios, además debe parecerse la solicitud).</li>'+
+  '<li><b>Radicados · incluir</b>: escribe varios separados por coma para unirlos a mano. <b>Radicados · excluir</b>: ese radicado nunca se marca.</li><li><b>Rutas · incluir</b>: limita la búsqueda solo a esas rutas; déjala vacía para buscar en todas.</li>'+
+  '<li><b>Excluir</b>: ese dato nunca sirve para relacionar. Úsalo para buzones genéricos, cuentas comodín (1434245, 1434248) o frases como «cordial saludo».</li>'+
+  '<li>Escribe el valor y pulsa <b>Agregar</b> (o Enter). La <b>×</b> lo quita.</li></ul>'+
+  '<h5>4. Ajustes generales</h5><ul><li><b>Días máximos</b> y <b>parecido mínimo</b> que usan las reglas base.</li><li>Puedes <b>apagar una regla base</b> si genera falsos duplicados.</li></ul>'+
+  '<h5>5. Compartir con el equipo</h5><ul><li>Las reglas se guardan <b>en este equipo</b>.</li><li><b>Exportar reglas</b> descarga un archivo .json; en otro equipo usa <b>Importar reglas</b> para cargarlo.</li><li><b>Restablecer todo</b> vuelve a la configuración inicial.</li></ul>'+
+  '<h5>Consejos</h5><ul><li><b>Municipio</b>, <b>ruta</b> y <b>parecido</b> son muy comunes: combínalos siempre con otra condición (correo, cuenta, NIT o palabra).</li>'+
+  '<li>Si dudas, usa el resultado <b>Por validar</b>: el radicado se marca, pero no se lleva al Word como duplicado.</li></ul></div>';
 }
 function buscaMercurio(q,u){
   const qn=sinTilde(q), por=new Map(); ALLRAD.forEach(d=>por.set(soloNum(d.radicado),d));
@@ -2591,6 +2974,7 @@ function pintaRec(){
     return;
   }
   visibilidadTipologias();
+  { const br=document.getElementById('btnReglasDup'); if(br) br.hidden=!(SUBREC==='dup'&&esAdminDup()); }
   $('expBar').style.display = SUBREC==='exp'?'':'none';
   if(!ALLPROC.length){ th.innerHTML=''; tb.innerHTML='<tr><td class="vacio">Carga SAC Trámite y Mercurio Trámite en Recursos.</td></tr>'; $('recInfo').textContent=''; return; }
   if(!u){ th.innerHTML=''; $('recInfo').textContent='';
@@ -2695,6 +3079,7 @@ document.querySelectorAll('#mRec .subtab button').forEach(b=>b.onclick=()=>{
 let _tDupQ=null;
 $('dupQ').addEventListener('input',()=>{ clearTimeout(_tDupQ); _tDupQ=setTimeout(()=>pintaRec(),250); });
 $('dupQLimp').onclick=()=>{ $('dupQ').value=''; pintaRec(); };
+{ const br=document.getElementById('btnReglasDup'); if(br) br.onclick=()=>abreReglasDup(); }
 $('expEvLnk').onclick=()=>{ EXP_VER_EV=!EXP_VER_EV; pintaRec(); };
 $('tipBtn').onclick=()=>{ const b=$('tipBox'); b.classList.toggle('on'); if(b.classList.contains('on')) pintaTip(); };
 $('lnkRec').onclick=e=>{ e.preventDefault(); aplicaRutasVisibles(); pintaRol(); pintaRec(); $('mRec').classList.add('on'); };
@@ -3584,6 +3969,7 @@ function aplicarFuentes(snap){
   const cambioAcceso=aplicarAccesoResponsable(snap.profile,false);
   if(cambio){
     unificar(); poblarFiltros(); render();
+    programaPublicaDup();   /* v46 */
     try{ actualizaHistorico(); }catch(e){ reportaError('Histórico',e); }
     try{ refrescaFotosCons(); }catch(e){ reportaError('Consultas anteriores',e); }
     ocultaAviso();
